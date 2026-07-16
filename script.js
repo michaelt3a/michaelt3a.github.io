@@ -271,7 +271,7 @@ const TOPPINGS = [
 // Slide speed (px/sec) per difficulty, how much it ramps up per block, and an
 // optional smaller starting block (defaults to the full bowl opening).
 const DIFFICULTY = {
-  easy: { speed: 190, ramp: 4 },
+  easy: { speed: 190, ramp: 4, startWidth: 290 },
   medium: { speed: 320, ramp: 8, startWidth: 260 },
   impossible: { speed: 420, ramp: 12, startWidth: 180 },
 };
@@ -392,6 +392,16 @@ function worldTopForIndex(index) {
   return FLOOR_Y - (index + 1) * BLOCK_H;
 }
 
+// Horizontal limits the active block slides between. While filling the bowl
+// (zoomed in) the barrier is the bowl's edges; once zoomed out above the bowl
+// it may slide across the wider lane.
+function slideBounds() {
+  if (state.placed.length < CAPACITY) {
+    return { min: BOWL_OPEN_X, max: BOWL_OPEN_X + BOWL_OPEN_WIDTH };
+  }
+  return { min: LANE_MIN, max: LANE_MAX };
+}
+
 // --- Effects ------------------------------------------------------------
 
 function spawnLandParticles(xLeft, xRight, y, color) {
@@ -498,7 +508,7 @@ function spawnActive() {
   }
   const ingredient = ingredientAt(state.placed.length);
   state.active = {
-    x: LANE_MIN,
+    x: slideBounds().min,
     width,
     ingredient,
     color: ingredient.base,
@@ -602,12 +612,17 @@ function update(dt) {
 
   active.x += active.dir * speed * dt;
 
-  // Bounce within the lane over the bowl.
-  if (active.x <= LANE_MIN) {
-    active.x = LANE_MIN;
+  // Bounce within the current bounds — the bowl edges while zoomed in,
+  // the wider lane once zoomed out.
+  const { min, max } = slideBounds();
+  const room = max - min - active.width;
+  if (room <= 0) {
+    active.x = min + room / 2; // wider than the barrier: sit centered
+  } else if (active.x <= min) {
+    active.x = min;
     active.dir = 1;
-  } else if (active.x + active.width >= LANE_MAX) {
-    active.x = LANE_MAX - active.width;
+  } else if (active.x + active.width >= max) {
+    active.x = max - active.width;
     active.dir = -1;
   }
 }
