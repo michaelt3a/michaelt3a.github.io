@@ -154,12 +154,28 @@ body {
   min-width: 220px;
 }
 
+.difficulty-btn[data-difficulty="easy"] {
+  background: #4caf72;
+}
+
+.difficulty-btn[data-difficulty="easy"]:hover {
+  background: #3d9760;
+}
+
+.difficulty-btn[data-difficulty="medium"] {
+  background: #fd9f27;
+}
+
+.difficulty-btn[data-difficulty="medium"]:hover {
+  background: #e2871a;
+}
+
 .difficulty-btn[data-difficulty="impossible"] {
-  background: var(--accent-deep);
+  background: #e2574c;
 }
 
 .difficulty-btn[data-difficulty="impossible"]:hover {
-  background: #8f5109;
+  background: #c74438;
 }
 
 /* Buttons */
