@@ -6,7 +6,20 @@
 // Miss the surface below completely and it's game over.
 
 const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+let ctx = canvas.getContext("2d"); // reassigned temporarily to render to offscreen canvases
+
+// Run a drawing function against a different 2D context (e.g. an offscreen
+// canvas), then restore the main one. Lets the ingredient painters, which use
+// the module-level `ctx`, render into prebaked row textures.
+function withContext(otherCtx, fn) {
+  const prev = ctx;
+  ctx = otherCtx;
+  try {
+    fn();
+  } finally {
+    ctx = prev;
+  }
+}
 const overlay = document.getElementById("overlay");
 const startBtn = document.getElementById("start-btn");
 const scoreEl = document.getElementById("score");
@@ -45,22 +58,222 @@ const BOWL_OPEN_WIDTH = BOWL.rimRx * 2;
 const LANE_MIN = BOWL.cx - LANE_HALF;
 const LANE_MAX = BOWL.cx + LANE_HALF;
 
-// Ingredient-ish colors, cycled as the bowl fills up.
-const COLORS = [
-  "#fd9f27", // salmon
-  "#4caf72", // avocado
-  "#f5d64e", // mango
-  "#e2574c", // ahi tuna
-  "#6cc0d6", // sauce
-  "#c98a5e", // tempura
+// --- Ingredients --------------------------------------------------------
+// Each ingredient has a base color (used for the slab, particles and shards)
+// and a `detail` painter that draws its texture inside the already-clipped
+// slab. Textures are position-seeded so they stay stable frame to frame.
+
+// Deterministic pseudo-random from a 2D position — stable across frames.
+function hashRnd(a, b) {
+  const s = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+// A grid of little rounded cubes — reused by the diced ingredients.
+function cubes(x, y, w, h, fill, edge, size) {
+  const gap = 2;
+  for (let gy = y + 2; gy < y + h - 3; gy += size + gap) {
+    for (let gx = x + 2; gx < x + w - 3; gx += size + gap) {
+      const jx = (hashRnd(gx, gy) - 0.5) * 1.5;
+      const cw = Math.min(size, x + w - 2 - gx);
+      const ch = Math.min(size, y + h - 2 - gy);
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.roundRect(gx + jx, gy, cw, ch, 2);
+      ctx.fill();
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+}
+
+// A wavy horizontal strand — used for salmon striations and seaweed.
+function strand(x, y, w, yy, amp, freq, phase, style, lw) {
+  ctx.strokeStyle = style;
+  ctx.lineWidth = lw;
+  ctx.beginPath();
+  for (let gx = x; gx <= x + w; gx += 6) {
+    const y2 = yy + Math.sin((gx + phase) * freq) * amp;
+    if (gx === x) ctx.moveTo(gx, y2);
+    else ctx.lineTo(gx, y2);
+  }
+  ctx.stroke();
+}
+
+const INGREDIENTS = {
+  rice: {
+    base: "#f4efe2",
+    detail(x, y, w, h) {
+      for (let gy = y + 3; gy < y + h - 1; gy += 5) {
+        for (let gx = x + 3; gx < x + w - 1; gx += 7) {
+          const rx = gx + (hashRnd(gx, gy) - 0.5) * 6;
+          const ry = gy + (hashRnd(gx + 9, gy) - 0.5) * 4;
+          const shade = hashRnd(gx * 1.3, gy * 0.7);
+          ctx.fillStyle = shade < 0.34 ? "#ffffff" : shade < 0.67 ? "#efe7d3" : "#e4dabf";
+          ctx.save();
+          ctx.translate(rx, ry);
+          ctx.rotate(hashRnd(gx, gy * 2) * Math.PI);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 2.4, 1.1, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    },
+  },
+  salmon: {
+    base: "#f98d54",
+    detail(x, y, w, h) {
+      for (let k = 0; k < 4; k++) {
+        strand(x, y, w, y + h * (0.2 + 0.2 * k), 2.2, 0.12, k * 20, "rgba(255,240,230,0.7)", 2.4);
+      }
+    },
+  },
+  tuna: {
+    base: "#cf463c",
+    detail(x, y, w, h) {
+      cubes(x, y, w, h, "#e35c51", "rgba(120,30,25,0.35)", 9);
+    },
+  },
+  avocado: {
+    base: "#6fa53f",
+    detail(x, y, w, h) {
+      cubes(x, y, w, h, "#a9d76e", "rgba(60,95,30,0.3)", 9);
+    },
+  },
+  mango: {
+    base: "#f0a52c",
+    detail(x, y, w, h) {
+      cubes(x, y, w, h, "#ffc65e", "rgba(150,90,10,0.3)", 9);
+    },
+  },
+  cucumber: {
+    base: "#bfe08a",
+    detail(x, y, w, h) {
+      ctx.fillStyle = "#8cbf5a"; // rind top & bottom
+      ctx.fillRect(x, y, w, 3);
+      ctx.fillRect(x, y + h - 3, w, 3);
+      ctx.fillStyle = "#dcefb6"; // pale flesh center
+      ctx.fillRect(x, y + h * 0.36, w, h * 0.28);
+      ctx.fillStyle = "rgba(90,120,60,0.55)"; // seeds
+      for (let gx = x + 9; gx < x + w - 4; gx += 15) {
+        const gy = y + h * 0.5 + (hashRnd(gx, 3) - 0.5) * 4;
+        ctx.beginPath();
+        ctx.ellipse(gx, gy, 1.5, 2.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  },
+  onion: {
+    base: "#a86487",
+    detail(x, y, w, h) {
+      ctx.strokeStyle = "rgba(246,233,241,0.5)";
+      ctx.lineWidth = 1.4;
+      for (let c = 0; c * 26 + 16 < w - 6; c++) {
+        const ox = x + 16 + c * 26 + (hashRnd(c, x) - 0.5) * 8;
+        const oy = y + h * 0.5;
+        for (let r = 3; r <= 9; r += 3) {
+          ctx.beginPath();
+          ctx.ellipse(ox, oy, r, r * 0.75, 0, 0.3, Math.PI * 1.85);
+          ctx.stroke();
+        }
+      }
+    },
+  },
+  seaweed: {
+    base: "#2f7d3f",
+    detail(x, y, w, h) {
+      for (let k = 0; k < 3; k++) {
+        const style = k % 2 ? "rgba(18,66,28,0.55)" : "rgba(120,205,120,0.45)";
+        strand(x, y, w, y + h * (0.28 + 0.22 * k), 3, 0.22, k * 13, style, 3);
+      }
+      for (let gx = x + 8; gx < x + w - 2; gx += 17) {
+        const gy = y + h * (0.3 + 0.45 * hashRnd(gx, 7));
+        ctx.fillStyle = "#f2e6cd"; // sesame
+        ctx.beginPath();
+        ctx.ellipse(gx, gy, 1.7, 1, hashRnd(gx, gy) * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  },
+  edamame: {
+    base: "#7cb63f",
+    detail(x, y, w, h) {
+      for (let gx = x + 9; gx < x + w - 5; gx += 18) {
+        const gy = y + h * 0.5 + (hashRnd(gx, 2) - 0.5) * 6;
+        ctx.fillStyle = "#9ccf5c";
+        ctx.beginPath();
+        ctx.ellipse(gx, gy, 6, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(50,90,25,0.35)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = "#c3e58c"; // beans
+        ctx.beginPath();
+        ctx.ellipse(gx - 2, gy, 1.5, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(gx + 2, gy, 1.5, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  },
+  pineapple: {
+    base: "#f2c233",
+    detail(x, y, w, h) {
+      ctx.strokeStyle = "rgba(180,135,15,0.5)";
+      ctx.lineWidth = 1.2;
+      for (let d = -h; d < w; d += 11) {
+        ctx.beginPath();
+        ctx.moveTo(x + d, y);
+        ctx.lineTo(x + d + h, y + h);
+        ctx.stroke();
+      }
+      for (let d = 0; d < w + h; d += 11) {
+        ctx.beginPath();
+        ctx.moveTo(x + d, y + h);
+        ctx.lineTo(x + d - h, y);
+        ctx.stroke();
+      }
+    },
+  },
+  cilantro: {
+    base: "#3f9d4f",
+    detail(x, y, w, h) {
+      for (let gx = x + 4; gx < x + w - 2; gx += 8) {
+        for (let gy = y + 3; gy < y + h - 2; gy += 8) {
+          const j = hashRnd(gx, gy);
+          ctx.fillStyle = j < 0.45 ? "#5cba69" : j < 0.8 ? "#2f7d3f" : "#79cf7f";
+          ctx.beginPath();
+          ctx.arc(gx + (j - 0.5) * 4, gy + (hashRnd(gy, gx) - 0.5) * 4, 2.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+  },
+};
+
+// The first ingredient is always the rice base; the rest cycle as toppings.
+const TOPPINGS = [
+  "salmon",
+  "tuna",
+  "avocado",
+  "cucumber",
+  "onion",
+  "seaweed",
+  "mango",
+  "edamame",
+  "pineapple",
+  "cilantro",
 ];
 
 // Slide speed (px/sec) per difficulty, how much it ramps up per block, and an
 // optional smaller starting block (defaults to the full bowl opening).
 const DIFFICULTY = {
   easy: { speed: 190, ramp: 4 },
-  medium: { speed: 320, ramp: 8 },
-  impossible: { speed: 260, ramp: 8, startWidth: 180 },
+  medium: { speed: 320, ramp: 8, startWidth: 260 },
+  impossible: { speed: 420, ramp: 12, startWidth: 180 },
 };
 
 const HIGH_SCORE_KEY = "pokeworks-high-score";
@@ -76,7 +289,6 @@ const state = {
   shards: [], // trimmed overhang tumbling away (world space)
   cam: { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 },
   lastTime: 0,
-  rafId: 0,
 };
 
 // --- Audio (Web Audio API, synthesized — no asset files) ----------------
@@ -159,8 +371,10 @@ function updateHighScore() {
   return true;
 }
 
-function colorFor(index) {
-  return COLORS[index % COLORS.length];
+// Rice on the bottom, then toppings cycling upward.
+function ingredientAt(index) {
+  if (index === 0) return INGREDIENTS.rice;
+  return INGREDIENTS[TOPPINGS[(index - 1) % TOPPINGS.length]];
 }
 
 // The surface the next ingredient must land on: the bowl floor for the first
@@ -282,10 +496,12 @@ function spawnActive() {
     const cfg = DIFFICULTY[state.difficulty] || DIFFICULTY.medium;
     if (cfg.startWidth) width = Math.min(width, cfg.startWidth);
   }
+  const ingredient = ingredientAt(state.placed.length);
   state.active = {
     x: LANE_MIN,
     width,
-    color: colorFor(state.placed.length),
+    ingredient,
+    color: ingredient.base,
     dir: 1,
   };
 }
@@ -306,16 +522,10 @@ function startGame(difficulty) {
   if (document.activeElement && document.activeElement.blur) {
     document.activeElement.blur(); // so Space doesn't re-click a hidden button
   }
-  state.lastTime = 0;
-  state.rafId = requestAnimationFrame(loop);
 }
 
 function endGame() {
   state.running = false;
-  if (state.rafId) {
-    cancelAnimationFrame(state.rafId);
-    state.rafId = 0;
-  }
 
   const isNewBest = updateHighScore();
 
@@ -359,7 +569,13 @@ function dropActive() {
 
   const perfect = overlap >= below.width - PERFECT_TOLERANCE;
 
-  state.placed.push({ x: overlapLeft, width: overlap, color: active.color, landAnim: 1 });
+  state.placed.push({
+    x: overlapLeft,
+    width: overlap,
+    ingredient: active.ingredient,
+    color: active.color,
+    landAnim: 1,
+  });
   setScore(state.placed.length);
 
   // Splash particles along the landing seam (bottom edge of the placed block).
@@ -403,27 +619,46 @@ function easeOutBack(t) {
   return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
 }
 
-// Draw an ingredient slab, optionally squashed (anchored at its bottom / center).
-function drawBlock(x, topY, width, color, scaleX = 1, scaleY = 1) {
+// Draw a textured ingredient slab into the rect (dx, dy, w, h).
+function drawSlabRect(dx, dy, w, h, ingredient) {
+  const r = Math.min(7, h / 2);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(dx, dy, w, h, r);
+  ctx.clip();
+
+  ctx.fillStyle = ingredient.base;
+  ctx.fillRect(dx, dy, w, h);
+  ingredient.detail(dx, dy, w, h);
+
+  // Depth: a shadow along the bottom and a sheen along the top.
+  ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
+  ctx.fillRect(dx, dy + h - 4, w, 4);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.10)";
+  ctx.fillRect(dx, dy, w, 2.5);
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.roundRect(dx, dy, w, h, r);
+  ctx.strokeStyle = "rgba(40, 25, 10, 0.22)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+// Draw a game slab, optionally squashed (anchored at its bottom / center).
+function drawBlock(x, topY, width, ingredient, scaleX = 1, scaleY = 1) {
   const w = width * scaleX;
   const h = BLOCK_H * scaleY;
   const dx = x + (width - w) / 2;
   const dy = topY + BLOCK_H - h; // keep the bottom edge fixed
-  const r = Math.min(6, h / 2);
-
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.roundRect(dx, dy, w, h, r);
-  ctx.fill();
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
-  ctx.beginPath();
-  ctx.roundRect(dx, dy + h - Math.min(6, h), w, Math.min(6, h), r);
-  ctx.fill();
+  drawSlabRect(dx, dy, w, h, ingredient);
 }
 
 function drawIngredients() {
-  for (let i = 0; i < state.placed.length; i++) {
+  // Only the top slabs are ever visible; skip the deep ones for performance.
+  const start = Math.max(0, state.placed.length - 18);
+  for (let i = start; i < state.placed.length; i++) {
     const b = state.placed[i];
     let sx = 1;
     let sy = 1;
@@ -432,7 +667,7 @@ function drawIngredients() {
       sy = 0.6 + 0.4 * easeOutBack(p);
       sx = 1 + (1 - sy) * 0.6;
     }
-    drawBlock(b.x, worldTopForIndex(i), b.width, b.color, sx, sy);
+    drawBlock(b.x, worldTopForIndex(i), b.width, b.ingredient, sx, sy);
   }
 
   if (state.active) {
@@ -440,7 +675,7 @@ function drawIngredients() {
       state.active.x,
       worldTopForIndex(state.placed.length),
       state.active.width,
-      state.active.color
+      state.active.ingredient
     );
   }
 }
@@ -595,23 +830,95 @@ function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
-function loop(timestamp) {
-  if (!state.running) return;
+// --- Menu background ----------------------------------------------------
+// While the overlay is up, the box behind the text shows rows of ingredient
+// slabs sliding across (alternating directions), stacked to fill it, looping
+// forever. Each row's tile pattern is baked once into an offscreen canvas and
+// then blitted, so the textures aren't recomputed every frame.
 
+const MENU_ROW_H = 30;
+const menu = { rows: [] };
+
+function buildMenuRows() {
+  menu.rows = [];
+  const keys = ["rice", ...TOPPINGS];
+  let ki = 0;
+  let r = 0;
+  for (let y = 4; y < H; y += MENU_ROW_H + 4) {
+    const tiles = [];
+    let patternW = 0;
+    const count = 6 + (r % 3);
+    for (let i = 0; i < count; i++) {
+      const ing = INGREDIENTS[keys[ki % keys.length]];
+      ki++;
+      const w = 74 + ((ki * 37) % 92); // deterministic widths ~74–166
+      tiles.push({ ing, w });
+      patternW += w + 4;
+    }
+
+    // Bake the row's tiles into an offscreen strip once.
+    const strip = document.createElement("canvas");
+    strip.width = Math.ceil(patternW);
+    strip.height = MENU_ROW_H;
+    const sctx = strip.getContext("2d");
+    withContext(sctx, () => {
+      let tx = 0;
+      for (const tile of tiles) {
+        drawSlabRect(tx, 0, tile.w, MENU_ROW_H, tile.ing);
+        tx += tile.w + 4;
+      }
+    });
+
+    menu.rows.push({
+      y,
+      dir: r % 2 === 0 ? 1 : -1,
+      speed: 26 + (r % 4) * 9,
+      offset: (r * 53) % patternW,
+      patternW,
+      strip,
+    });
+    r++;
+  }
+}
+
+function updateMenu(dt) {
+  for (const row of menu.rows) {
+    row.offset = (row.offset + row.speed * dt) % row.patternW;
+  }
+}
+
+function renderMenu() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  for (const row of menu.rows) {
+    const o = ((row.offset % row.patternW) + row.patternW) % row.patternW;
+    const base = row.dir > 0 ? o - row.patternW : -o;
+    for (let x = base; x < W; x += row.patternW) {
+      ctx.drawImage(row.strip, x, row.y);
+    }
+  }
+}
+
+function frame(timestamp) {
   if (!state.lastTime) state.lastTime = timestamp;
   const dt = Math.min((timestamp - state.lastTime) / 1000, 0.05); // clamp big gaps
   state.lastTime = timestamp;
 
-  update(dt);
-  render();
+  if (state.running) {
+    update(dt);
+    render();
+  } else {
+    updateMenu(dt);
+    renderMenu();
+  }
 
-  state.rafId = requestAnimationFrame(loop);
+  requestAnimationFrame(frame);
 }
 
 // --- Input --------------------------------------------------------------
 
 startBtn.addEventListener("click", () => {
-  screenStartTitle.textContent = "Minigame";
+  screenStartTitle.textContent = "Bowl Builder";
   screenStartSubtitle.textContent = "Stack the ingredients to score.";
   startBtn.textContent = "Start";
   showDifficulty();
@@ -630,3 +937,5 @@ window.addEventListener("keydown", (e) => {
 });
 
 loadHighScore();
+buildMenuRows();
+requestAnimationFrame(frame);
