@@ -164,6 +164,32 @@ body {
   margin: 0 0 1.5rem;
 }
 
+/* Game over quip */
+.gameover-quip {
+  color: var(--accent);
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+}
+
+/* Game over actions */
+.gameover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4ede3;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 /* Confetti sits in front of everything but never intercepts clicks. */
 .confetti {
   position: absolute;

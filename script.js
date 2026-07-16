@@ -27,18 +27,28 @@ const highScoreEl = document.getElementById("high-score");
 const screenStart = document.getElementById("screen-start");
 const screenDifficulty = document.getElementById("screen-difficulty");
 const screenReward = document.getElementById("screen-reward");
+const screenGameover = document.getElementById("screen-gameover");
 const rewardBtn = document.getElementById("reward-btn");
-const screenStartTitle = screenStart.querySelector(".overlay-title");
-const screenStartSubtitle = screenStart.querySelector(".overlay-subtitle");
+const playAgainBtn = document.getElementById("play-again-btn");
+const quitBtn = document.getElementById("quit-btn");
+const gameoverSubtitle = document.getElementById("gameover-subtitle");
+const gameoverQuip = document.getElementById("gameover-quip");
 const difficultyBtns = document.querySelectorAll(".difficulty-btn");
+
+const overlayScreens = [screenStart, screenDifficulty, screenReward, screenGameover];
+
+// Show a single overlay panel and hide the rest.
+function showScreen(el) {
+  for (const s of overlayScreens) s.classList.toggle("hidden", s !== el);
+}
+
+const rewardSubtitle = screenReward.querySelector(".overlay-subtitle");
+const rewardCode = screenReward.querySelector(".reward-code");
 
 const confettiCanvas = document.getElementById("confetti");
 const cctx = confettiCanvas.getContext("2d");
 const CW = confettiCanvas.width;
 const CH = confettiCanvas.height;
-
-// Reach this score to earn the (example) reward.
-const REWARD_SCORE = 30;
 
 // Internal (fixed) canvas resolution — world coordinates use this space.
 const W = canvas.width; // 800
@@ -280,10 +290,11 @@ const TOPPINGS = [
 
 // Slide speed (px/sec) per difficulty, how much it ramps up per block, and an
 // optional smaller starting block (defaults to the full bowl opening).
+// `reward` is the score milestone that earns the `discount` (%) for that difficulty.
 const DIFFICULTY = {
-  easy: { speed: 190, ramp: 4, startWidth: 290 },
-  medium: { speed: 320, ramp: 8, startWidth: 260 },
-  impossible: { speed: 420, ramp: 12, startWidth: 180 },
+  easy: { speed: 190, ramp: 4, startWidth: 290, reward: 50, discount: 5 },
+  medium: { speed: 320, ramp: 8, startWidth: 260, reward: 35, discount: 5 },
+  impossible: { speed: 420, ramp: 12, startWidth: 180, reward: 25, discount: 10 },
 };
 
 const HIGH_SCORE_KEY = "pokeworks-high-score";
@@ -499,15 +510,11 @@ function applyCamera() {
 // --- Screen / flow helpers ---------------------------------------------
 
 function showDifficulty() {
-  screenStart.classList.add("hidden");
-  screenReward.classList.add("hidden");
-  screenDifficulty.classList.remove("hidden");
+  showScreen(screenDifficulty);
 }
 
 function showStartScreen() {
-  screenDifficulty.classList.add("hidden");
-  screenReward.classList.add("hidden");
-  screenStart.classList.remove("hidden");
+  showScreen(screenStart);
 }
 
 // --- Game lifecycle -----------------------------------------------------
@@ -551,19 +558,38 @@ function startGame(difficulty) {
   }
 }
 
+// Quippy remarks shown on game over. Edit these to taste.
+const GAME_OVER_QUIPS = {
+  best: ["New personal best! 🎉", "A new high — nicely done!", "Top of your game!"],
+  none: ["Oof — the bowl deserved better.", "Zero ingredients. Bold strategy.", "Straight to the trash, huh?"],
+  low: ["A humble start.", "Every bowl begins somewhere.", "Room to grow!"],
+  mid: ["Now that's a snack.", "Solid bowl-building!", "Getting the hang of it."],
+  high: ["Chef-level stacking!", "That's a serious bowl.", "The bowl is impressed."],
+  elite: ["Absolute bowl legend.", "Poke perfection!", "Someone give this person a job."],
+};
+
+function pickQuip(score, isNewBest) {
+  let pool;
+  if (isNewBest) pool = GAME_OVER_QUIPS.best;
+  else if (score === 0) pool = GAME_OVER_QUIPS.none;
+  else if (score < 10) pool = GAME_OVER_QUIPS.low;
+  else if (score < 25) pool = GAME_OVER_QUIPS.mid;
+  else if (score < 40) pool = GAME_OVER_QUIPS.high;
+  else pool = GAME_OVER_QUIPS.elite;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function endGame() {
   state.running = false;
 
   const isNewBest = updateHighScore();
 
-  screenStartTitle.textContent = "Game Over";
-  screenStartSubtitle.textContent = isNewBest
-    ? `New best — ${state.score} in the bowl!`
-    : `You added ${state.score} ingredient${state.score === 1 ? "" : "s"}. Play again?`;
-  startBtn.textContent = "Play Again";
+  gameoverQuip.textContent = pickQuip(state.score, isNewBest);
+  gameoverSubtitle.textContent =
+    `You added ${state.score} ingredient${state.score === 1 ? "" : "s"}.`;
 
   overlay.classList.remove("hidden");
-  showStartScreen();
+  showScreen(screenGameover);
 }
 
 // Drop the active ingredient, trimming it to its overlap with the surface below.
@@ -614,10 +640,11 @@ function dropActive() {
 
   spawnActive();
 
-  // Earn the example reward the first time you reach the target score.
-  if (!state.rewarded && state.score >= REWARD_SCORE) {
+  // Earn the reward the first time you reach the difficulty's milestone.
+  const cfg = DIFFICULTY[state.difficulty] || DIFFICULTY.medium;
+  if (!state.rewarded && state.score >= cfg.reward) {
     state.rewarded = true;
-    triggerReward();
+    triggerReward(cfg);
   }
 }
 
@@ -942,11 +969,13 @@ function renderMenu() {
 const CONFETTI_COLORS = ["#fd9f27", "#4caf72", "#e2574c", "#f5d64e", "#6cc0d6", "#ffffff", "#c98a5e"];
 const confetti = [];
 
-function spawnConfetti(n) {
+// fromTop=true spawns just above the box (ongoing emission); fromTop=false
+// seeds across the whole box so the opening burst looks full immediately.
+function spawnConfetti(n, fromTop = true) {
   for (let i = 0; i < n; i++) {
     confetti.push({
       x: Math.random() * CW,
-      y: -20 - Math.random() * 80,
+      y: fromTop ? -20 - Math.random() * 80 : Math.random() * (CH + 40) - 40,
       vx: (Math.random() - 0.5) * 120,
       vy: 60 + Math.random() * 170,
       size: 5 + Math.random() * 6,
@@ -959,7 +988,7 @@ function spawnConfetti(n) {
 }
 
 function updateConfetti(dt) {
-  if (state.paused && confetti.length < 220) spawnConfetti(3); // keep it going while shown
+  if (state.paused && confetti.length < 240) spawnConfetti(4); // keep it going while shown
   for (let i = confetti.length - 1; i >= 0; i--) {
     const c = confetti[i];
     c.sway += dt * 4;
@@ -994,9 +1023,12 @@ function playReward() {
   notes.forEach((f, i) => tone({ freq: f, type: "triangle", dur: 0.18, gain: 0.18, delay: i * 0.09 }));
 }
 
-function triggerReward() {
+function triggerReward(cfg) {
+  render(); // capture the just-completed bowl as the frozen backdrop
   state.paused = true;
-  spawnConfetti(160);
+  rewardSubtitle.textContent = `You reached ${cfg.reward} — here's ${cfg.discount}% off your next bowl.`;
+  rewardCode.textContent = `POKEREWARDS${cfg.reward}`;
+  spawnConfetti(200, false); // seed across the whole box so it's full immediately
   playReward();
   screenStart.classList.add("hidden");
   screenDifficulty.classList.add("hidden");
@@ -1010,8 +1042,12 @@ function frame(timestamp) {
   state.lastTime = timestamp;
 
   if (state.running) {
-    if (!state.paused) update(dt); // freeze the game while the reward screen is up
-    render();
+    // While paused for the reward, leave the frozen frame on the canvas and
+    // give the confetti all the frame budget.
+    if (!state.paused) {
+      update(dt);
+      render();
+    }
   } else {
     updateMenu(dt);
     renderMenu();
@@ -1027,23 +1063,22 @@ function frame(timestamp) {
 
 // --- Input --------------------------------------------------------------
 
-startBtn.addEventListener("click", () => {
-  screenStartTitle.textContent = "Bowl Builder";
-  screenStartSubtitle.textContent = "Stack the ingredients to score.";
-  startBtn.textContent = "Start";
-  showDifficulty();
-});
+startBtn.addEventListener("click", showDifficulty);
 
 difficultyBtns.forEach((btn) => {
   btn.addEventListener("click", () => startGame(btn.dataset.difficulty));
 });
 
+// Play Again restarts immediately at the same difficulty.
+playAgainBtn.addEventListener("click", () => startGame(state.difficulty));
+
+// Quit returns to the "Bowl Builder" home screen.
+quitBtn.addEventListener("click", showStartScreen);
+
 // Resume play after the reward screen.
 rewardBtn.addEventListener("click", () => {
   state.paused = false;
   overlay.classList.add("hidden");
-  screenReward.classList.add("hidden");
-  screenStart.classList.remove("hidden"); // ready for a later game-over
   clearConfetti();
   state.lastTime = 0; // avoid a big dt jump on resume
   if (document.activeElement && document.activeElement.blur) {
