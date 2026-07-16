@@ -22,6 +22,9 @@ const H = canvas.height; // 600
 
 const BLOCK_H = 34; // height of each ingredient slab
 const TOP_MARGIN = 70; // once the active block would rise above this, the camera scrolls
+const LAND_DUR = 0.18; // seconds of the landing squash animation
+const GRAVITY = 1400; // px/sec^2 for particles & falling shards
+const PERFECT_TOLERANCE = 4; // overlap within this many px of full width counts as "perfect"
 
 // The bowl, in world coordinates. Its opening (rim ellipse) is the base the
 // first ingredient must land in.
@@ -59,11 +62,66 @@ const state = {
   score: 0,
   highScore: 0,
   difficulty: null,
-  placed: [], // ingredients in the bowl: { x, width, color }, index 0 = bottom
+  placed: [], // ingredients in the bowl: { x, width, color, landAnim }, index 0 = bottom
   active: null, // the moving ingredient: { x, width, color, dir }
+  particles: [], // splash bits (screen space): { x, y, vx, vy, size, color, life, maxLife }
+  shards: [], // trimmed overhang falling away (screen space)
   lastTime: 0,
   rafId: 0,
 };
+
+// --- Audio (Web Audio API, synthesized — no asset files) ----------------
+
+let audioCtx = null;
+
+function ensureAudio() {
+  try {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (e) {
+    audioCtx = null; // audio just won't play
+  }
+}
+
+// A short enveloped tone, optionally gliding from freq to freqEnd.
+function tone({ freq, freqEnd = null, type = "sine", dur = 0.12, gain = 0.25, delay = 0 }) {
+  if (!audioCtx) return;
+  const t0 = audioCtx.currentTime + delay;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if (freqEnd != null) osc.frequency.exponentialRampToValueAtTime(freqEnd, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g).connect(audioCtx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.03);
+}
+
+function playLand() {
+  // Pitch rises a touch as the bowl grows, for a sense of progress.
+  const base = 230 + state.score * 6;
+  tone({ freq: base, freqEnd: base * 0.5, type: "sine", dur: 0.14, gain: 0.28 });
+  tone({ freq: base * 2, freqEnd: base * 1.6, type: "triangle", dur: 0.05, gain: 0.08 });
+}
+
+function playPerfect() {
+  tone({ freq: 880, type: "sine", dur: 0.12, gain: 0.22 });
+  tone({ freq: 1320, type: "sine", dur: 0.16, gain: 0.18, delay: 0.09 });
+}
+
+function playGameOver() {
+  tone({ freq: 380, freqEnd: 120, type: "triangle", dur: 0.5, gain: 0.26 });
+  tone({ freq: 300, freqEnd: 90, type: "sine", dur: 0.6, gain: 0.2, delay: 0.05 });
+}
+
+// --- Score / helpers ----------------------------------------------------
 
 function setScore(value) {
   state.score = value;
@@ -112,6 +170,63 @@ function worldTopForIndex(index) {
   return BOWL.rimY - index * BLOCK_H - BLOCK_H;
 }
 
+// --- Effects ------------------------------------------------------------
+
+function spawnLandParticles(xLeft, xRight, y, color) {
+  for (let i = 0; i < 9; i++) {
+    state.particles.push({
+      x: xLeft + Math.random() * (xRight - xLeft),
+      y: y,
+      vx: (Math.random() - 0.5) * 260,
+      vy: -60 - Math.random() * 180,
+      size: 2 + Math.random() * 3,
+      color,
+      life: 0.45 + Math.random() * 0.3,
+      maxLife: 0.75,
+    });
+  }
+}
+
+// A trimmed-off overhang piece that tumbles off the tower. dir: -1 left, +1 right.
+function spawnShard(x, topY, width, color, dir) {
+  state.shards.push({
+    x,
+    y: topY,
+    width,
+    color,
+    vx: dir * (70 + Math.random() * 90),
+    vy: -30 - Math.random() * 40,
+    rot: 0,
+    vrot: dir * (2 + Math.random() * 3),
+    life: 0.9,
+    maxLife: 0.9,
+  });
+}
+
+function updateEffects(dt) {
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const p = state.particles[i];
+    p.vy += GRAVITY * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.life -= dt;
+    if (p.life <= 0) state.particles.splice(i, 1);
+  }
+  for (let i = state.shards.length - 1; i >= 0; i--) {
+    const s = state.shards[i];
+    s.vy += GRAVITY * dt;
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    s.rot += s.vrot * dt;
+    s.life -= dt;
+    if (s.life <= 0 || s.y > H + 80) state.shards.splice(i, 1);
+  }
+  // Advance landing squash animations.
+  for (const b of state.placed) {
+    if (b.landAnim > 0) b.landAnim = Math.max(0, b.landAnim - dt / LAND_DUR);
+  }
+}
+
 // --- Screen / flow helpers ---------------------------------------------
 
 function showDifficulty() {
@@ -137,12 +252,15 @@ function spawnActive() {
 }
 
 function startGame(difficulty) {
+  ensureAudio();
   state.running = true;
   state.difficulty = difficulty;
   setScore(0);
 
   // Start with an empty bowl and the first ingredient sliding over it.
   state.placed = [];
+  state.particles = [];
+  state.shards = [];
   spawnActive();
 
   overlay.classList.add("hidden");
@@ -184,18 +302,43 @@ function dropActive() {
   const overlap = overlapRight - overlapLeft;
 
   if (overlap <= 0) {
+    playGameOver();
     endGame(); // missed the bowl / the stack entirely
     return;
   }
 
-  state.placed.push({ x: overlapLeft, width: overlap, color: active.color });
+  // Screen position of the active block right now (before it becomes placed).
+  const activeTopScreen = worldTopForIndex(state.placed.length) + cameraOffset();
+
+  // Trimmed overhang tumbles away on whichever side(s) overhung.
+  if (active.x < overlapLeft) {
+    spawnShard(active.x, activeTopScreen, overlapLeft - active.x, active.color, -1);
+  }
+  const activeRight = active.x + active.width;
+  if (activeRight > overlapRight) {
+    spawnShard(overlapRight, activeTopScreen, activeRight - overlapRight, active.color, 1);
+  }
+
+  const perfect = overlap >= below.width - PERFECT_TOLERANCE;
+
+  state.placed.push({ x: overlapLeft, width: overlap, color: active.color, landAnim: 1 });
   setScore(state.placed.length);
+
+  // Splash particles along the landing seam.
+  const seamY = worldTopForIndex(state.placed.length - 1) + cameraOffset() + BLOCK_H;
+  spawnLandParticles(overlapLeft, overlapLeft + overlap, seamY, active.color);
+
+  if (perfect) playPerfect();
+  else playLand();
+
   spawnActive();
 }
 
 // --- Loop & rendering ---------------------------------------------------
 
 function update(dt) {
+  updateEffects(dt);
+
   const active = state.active;
   if (!active) return;
 
@@ -220,16 +363,30 @@ function cameraOffset() {
   return Math.max(0, TOP_MARGIN - activeTop);
 }
 
-function drawBlock(x, topY, width, color) {
+// easeOutBack — overshoots slightly past 1 for a springy settle.
+function easeOutBack(t) {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+
+// Draw an ingredient slab, optionally squashed (anchored at its bottom / center).
+function drawBlock(x, topY, width, color, scaleX = 1, scaleY = 1) {
+  const w = width * scaleX;
+  const h = BLOCK_H * scaleY;
+  const dx = x + (width - w) / 2;
+  const dy = topY + BLOCK_H - h; // keep the bottom edge fixed
+  const r = Math.min(6, h / 2);
+
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.roundRect(x, topY, width, BLOCK_H, 6);
+  ctx.roundRect(dx, dy, w, h, r);
   ctx.fill();
 
   // A darker bottom lip for a little depth.
   ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
   ctx.beginPath();
-  ctx.roundRect(x, topY + BLOCK_H - 6, width, 6, 6);
+  ctx.roundRect(dx, dy + h - Math.min(6, h), w, Math.min(6, h), r);
   ctx.fill();
 }
 
@@ -275,16 +432,49 @@ function drawBowlRimFront(camY) {
   ctx.stroke();
 }
 
+function drawShards() {
+  for (const s of state.shards) {
+    const alpha = Math.min(1, s.life / 0.4);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(s.x + s.width / 2, s.y + BLOCK_H / 2);
+    ctx.rotate(s.rot);
+    ctx.fillStyle = s.color;
+    ctx.beginPath();
+    ctx.roundRect(-s.width / 2, -BLOCK_H / 2, s.width, BLOCK_H, 6);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawParticles() {
+  for (const p of state.particles) {
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function render() {
   ctx.clearRect(0, 0, W, H);
   const camY = cameraOffset();
 
   drawBowlBody(camY);
 
-  // Ingredients, bottom to top.
+  // Ingredients, bottom to top (with landing squash on freshly placed ones).
   for (let i = 0; i < state.placed.length; i++) {
     const b = state.placed[i];
-    drawBlock(b.x, worldTopForIndex(i) + camY, b.width, b.color);
+    let sx = 1;
+    let sy = 1;
+    if (b.landAnim > 0) {
+      const p = 1 - b.landAnim; // 0 -> 1
+      sy = 0.6 + 0.4 * easeOutBack(p);
+      sx = 1 + (1 - sy) * 0.6; // widen as it flattens, to fake conserved volume
+    }
+    drawBlock(b.x, worldTopForIndex(i) + camY, b.width, b.color, sx, sy);
   }
 
   // Active (sliding) ingredient sits in the next slot up.
@@ -297,6 +487,8 @@ function render() {
     );
   }
 
+  drawShards();
+  drawParticles();
   drawBowlRimFront(camY);
 }
 
