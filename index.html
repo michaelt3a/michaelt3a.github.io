@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pokeworks</title>
+  <meta name="description" content="Pokeworks — a minigame." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="game-shell">
+    <header class="hud">
+      <div class="hud-left">
+        <img src="pokeworks-logo-circle-1.png" alt="Pokeworks" class="logo" />
+      </div>
+      <div class="hud-right">
+        <div class="score">
+          <span class="score-label">Best</span>
+          <span id="high-score" class="score-value">0</span>
+        </div>
+        <div class="score">
+          <span class="score-label">Score</span>
+          <span id="score" class="score-value">0</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="stage">
+      <!-- Gameplay will be rendered here -->
+      <canvas id="game" class="game-canvas" width="800" height="600"></canvas>
+
+      <!-- Start overlay -->
+      <div id="overlay" class="overlay">
+        <!-- Start screen -->
+        <div id="screen-start" class="overlay-panel">
+          <h1 class="overlay-title">Minigame</h1>
+          <p class="overlay-subtitle">Stack the ingredients to score.</p>
+          <button id="start-btn" class="btn" type="button">Start</button>
+        </div>
+
+        <!-- Difficulty screen -->
+        <div id="screen-difficulty" class="overlay-panel hidden">
+          <h1 class="overlay-title">Choose Difficulty</h1>
+          <div class="difficulty-options">
+            <button class="btn difficulty-btn" type="button" data-difficulty="easy">Easy</button>
+            <button class="btn difficulty-btn" type="button" data-difficulty="medium">Medium</button>
+            <button class="btn difficulty-btn" type="button" data-difficulty="impossible">Impossible</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
