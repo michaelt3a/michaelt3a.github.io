@@ -141,6 +141,58 @@ function cloneSelection(s) {
   return o;
 }
 
+// --- Sound effects ------------------------------------------------------
+// Small synthesized blips via the Web Audio API (no asset files). The
+// context is created lazily on the first interaction so autoplay policies
+// are satisfied.
+
+let audioCtx = null;
+
+function actx() {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) audioCtx = new AC();
+  }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+// One short note. `slideTo` bends the pitch; `delay` offsets it (for
+// arpeggios).
+function tone({ freq = 440, type = "triangle", dur = 0.11, gain = 0.13, slideTo = null, delay = 0 }) {
+  const ac = actx();
+  if (!ac) return;
+  const t0 = ac.currentTime + delay;
+  const osc = ac.createOscillator();
+  const g = ac.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g).connect(ac.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.03);
+}
+
+function arp(freqs, opts = {}) {
+  const step = opts.step || 0.08;
+  freqs.forEach((f, i) => tone({ freq: f, delay: i * step, ...opts }));
+}
+
+const SFX = {
+  add: () => tone({ freq: 520, type: "triangle", dur: 0.10, slideTo: 760 }),
+  remove: () => tone({ freq: 320, type: "sine", dur: 0.10, gain: 0.11, slideTo: 180 }),
+  tab: () => tone({ freq: 400, type: "square", dur: 0.05, gain: 0.05 }),
+  click: () => tone({ freq: 460, type: "triangle", dur: 0.07, gain: 0.11, slideTo: 600 }),
+  hint: () => { tone({ freq: 680, dur: 0.09, gain: 0.10 }); tone({ freq: 1020, dur: 0.11, gain: 0.09, delay: 0.08 }); },
+  wrong: () => tone({ freq: 200, type: "sawtooth", dur: 0.22, gain: 0.11, slideTo: 120 }),
+  win: () => arp([523, 659, 784, 1047], { type: "triangle", dur: 0.17, step: 0.09 }),
+  start: () => arp([392, 523, 659], { type: "triangle", dur: 0.12, step: 0.06 }),
+  fanfare: () => arp([523, 659, 784, 1047, 1319, 1568], { type: "triangle", dur: 0.24, gain: 0.14, step: 0.11 }),
+};
+
 // --- Ingredient morsels -------------------------------------------------
 
 // Per-ingredient look: colors + a shape "kind". Drawn as small morsels that
@@ -409,7 +461,7 @@ function renderRecipes() {
     btn.type = "button";
     btn.className = "recipe-btn";
     btn.textContent = r.name;
-    btn.addEventListener("click", () => selectRecipe(r));
+    btn.addEventListener("click", () => { SFX.click(); selectRecipe(r); });
     recipeGrid.appendChild(btn);
   }
 }
@@ -432,8 +484,10 @@ function renderTabs() {
       if (isLocked) {
         feedbackEl.textContent = "Add a base first!";
         feedbackEl.className = "feedback bad";
+        SFX.wrong();
         return;
       }
+      SFX.tab();
       activeTab = c;
       renderTabs();
       renderChips();
@@ -489,16 +543,19 @@ function addIngredient(cat, name) {
   if (cat !== "Base" && !hasBase()) {
     feedbackEl.textContent = "Add a base first!";
     feedbackEl.className = "feedback bad";
+    SFX.wrong();
     return;
   }
   selected[cat].add(name);
   clearFeedback();
+  SFX.add();
   refresh();
 }
 
 function removeIngredient(cat, name) {
   selected[cat].delete(name);
   clearFeedback();
+  SFX.remove();
   refresh();
 }
 
@@ -533,6 +590,11 @@ function selectRecipe(recipe) {
 }
 
 function openSelect() {
+  // Hide the builder so the previously-built bowl doesn't ghost through the
+  // semi-transparent recipe menu. selectRecipe / startSpeedrun re-show it fresh.
+  builder.hidden = true;
+  changeBtn.hidden = true;
+  recipeNameEl.textContent = "";
   overlay.classList.remove("hidden");
   successEl.classList.add("hidden");
   hintPop.classList.add("hidden");
@@ -601,6 +663,7 @@ function checkBowl() {
   if (correctGroups === CATEGORIES.length) {
     win();
   } else {
+    SFX.wrong();
     feedbackEl.textContent = `${correctGroups} / ${CATEGORIES.length} groups correct — keep going!`;
     feedbackEl.className = "feedback bad";
     bowlArea.classList.remove("shake");
@@ -614,6 +677,7 @@ function win() {
     ? `You built the ${currentRecipe.name} with ${hintsUsed} hint${hintsUsed === 1 ? "" : "s"}.`
     : `You built the ${currentRecipe.name} — no hints!`;
   successEl.classList.remove("hidden");
+  SFX.win();
   runConfetti();
 }
 
@@ -676,7 +740,13 @@ function runConfetti() {
 const BEST_KEY = "sigworks_speedrun_best";
 
 function loadBest() {
-  try { return JSON.parse(localStorage.getItem(BEST_KEY)); } catch { return null; }
+  try {
+    const b = JSON.parse(localStorage.getItem(BEST_KEY));
+    // Ignore values corrupted by the earlier double-finish bug (a run can
+    // never have more perfect bowls than there are recipes).
+    if (!b || typeof b.perfect !== "number" || b.perfect > RECIPES.length) return null;
+    return b;
+  } catch { return null; }
 }
 function saveBest(v) {
   try { localStorage.setItem(BEST_KEY, JSON.stringify(v)); } catch { /* ignore */ }
@@ -753,7 +823,7 @@ function loadRunBowl() {
 
 // Lock in the current bowl and move on (or finish the run).
 function nextRunBowl() {
-  if (!run) return;
+  if (!run || run.finished) return;
   run.results.push({ recipe: currentRecipe, sel: cloneSelection(selected) });
   if (run.index >= run.order.length - 1) {
     finishSpeedrun();
@@ -774,7 +844,10 @@ function diffCategory(sel, want) {
 }
 
 function finishSpeedrun() {
+  if (!run || run.finished) return; // a run finishes exactly once
+  run.finished = true;
   stopTimer();
+  nextBowlBtn.hidden = true; // can't be re-triggered from behind the results
   const totalMs = performance.now() - run.startMs;
   let perfect = 0;
   for (const r of run.results) {
@@ -786,10 +859,83 @@ function finishSpeedrun() {
   }
   renderResults(perfect, totalMs);
   resultsEl.classList.remove("hidden");
+
+  // A flawless run (every bowl perfect) earns a full-screen confetti burst
+  // and a fanfare.
+  if (perfect === run.results.length) {
+    SFX.fanfare();
+    runResultsConfetti();
+  }
+}
+
+let rConfettiRAF = 0;
+
+function runResultsConfetti() {
+  const cv = document.getElementById("results-confetti");
+  cv.width = window.innerWidth;
+  cv.height = window.innerHeight;
+  const CW = cv.width;
+  const CH = cv.height;
+  const rctx = cv.getContext("2d");
+  const colors = ["#ee435b", "#22b2b4", "#f5a3ad", "#8fd6d7", "#ffd15a", "#ffffff"];
+  const EMIT_MS = 2800; // keep raining down for this long, then let it clear
+
+  const parts = [];
+  function spawn(n) {
+    for (let i = 0; i < n; i++) {
+      parts.push({
+        x: Math.random() * CW,
+        y: -20 - Math.random() * 40, // just above the top edge
+        vx: (Math.random() - 0.5) * 3,
+        vy: 1.5 + Math.random() * 2.5, // gentle fall so it lingers
+        size: 6 + Math.random() * 6,
+        rot: Math.random() * Math.PI,
+        vrot: (Math.random() - 0.5) * 0.25,
+        sway: Math.random() * Math.PI * 2,
+        color: colors[(Math.random() * colors.length) | 0],
+      });
+    }
+  }
+  spawn(220); // opening burst
+
+  cancelAnimationFrame(rConfettiRAF);
+  let last = null;
+  let elapsed = 0;
+  const step = (t) => {
+    if (last == null) last = t;
+    elapsed += t - last;
+    last = t;
+    if (elapsed < EMIT_MS) spawn(7); // steady stream, not a single puff
+    rctx.clearRect(0, 0, CW, CH);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.vy += 0.03;
+      p.sway += 0.05;
+      p.x += p.vx + Math.sin(p.sway) * 0.6; // flutter side to side
+      p.y += p.vy;
+      p.rot += p.vrot;
+      if (p.y > CH + 24) { parts.splice(i, 1); continue; }
+      rctx.save();
+      rctx.translate(p.x, p.y);
+      rctx.rotate(p.rot);
+      rctx.fillStyle = p.color;
+      rctx.fillRect(-p.size / 2, -p.size * 0.35, p.size, p.size * 0.7);
+      rctx.restore();
+    }
+    if ((elapsed < EMIT_MS || parts.length) && !resultsEl.classList.contains("hidden")) {
+      rConfettiRAF = requestAnimationFrame(step);
+    } else {
+      rctx.clearRect(0, 0, CW, CH);
+    }
+  };
+  rConfettiRAF = requestAnimationFrame(step);
 }
 
 function renderResults(perfect, totalMs) {
   const N = run.results.length;
+  const allPerfect = perfect === N;
+  document.querySelector(".results-title").textContent =
+    allPerfect ? "Perfect Run! 🎉" : "Speedrun Complete!";
   let summary = `<strong>${perfect} / ${N}</strong> bowls perfect &middot; <strong>${fmtTime(totalMs)}</strong>`;
 
   const best = loadBest();
@@ -844,22 +990,31 @@ function renderResults(perfect, totalMs) {
 
 // --- Wiring -------------------------------------------------------------
 
-speedrunBtn.addEventListener("click", startSpeedrun);
-nextBowlBtn.addEventListener("click", nextRunBowl);
-resultsAgain.addEventListener("click", startSpeedrun);
+speedrunBtn.addEventListener("click", () => { SFX.start(); startSpeedrun(); });
+nextBowlBtn.addEventListener("click", () => { SFX.click(); nextRunBowl(); });
+resultsAgain.addEventListener("click", () => { SFX.start(); startSpeedrun(); });
 resultsMenu.addEventListener("click", () => {
+  SFX.click();
   stopTimer();
   run = null;
   resultsEl.classList.add("hidden");
   setMode("practice");
   openSelect();
 });
-resultsClose.addEventListener("click", () => resultsEl.classList.add("hidden"));
+resultsClose.addEventListener("click", () => {
+  SFX.click();
+  stopTimer();
+  run = null;
+  resultsEl.classList.add("hidden");
+  setMode("practice");
+  openSelect();
+});
 
-changeBtn.addEventListener("click", openSelect);
-nextBtn.addEventListener("click", openSelect);
+changeBtn.addEventListener("click", () => { SFX.click(); openSelect(); });
+nextBtn.addEventListener("click", () => { SFX.click(); openSelect(); });
 checkBtn.addEventListener("click", checkBowl);
 hintBtn.addEventListener("click", () => {
+  SFX.hint();
   hintBtn.classList.remove("pressed");
   void hintBtn.offsetWidth;
   hintBtn.classList.add("pressed");
@@ -869,6 +1024,7 @@ hintBtn.addEventListener("click", () => {
 
 hintPop.addEventListener("click", () => hintPop.classList.add("hidden"));
 clearBtn.addEventListener("click", () => {
+  SFX.remove();
   resetSelection();
   clearFeedback();
   refresh();
