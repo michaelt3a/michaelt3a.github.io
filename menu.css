@@ -97,6 +97,10 @@ body {
   background: linear-gradient(135deg, #ee435b, #22b2b4);
 }
 
+.icon-signature {
+  background: linear-gradient(135deg, #22b2b4, #ee435b);
+}
+
 .icon-placeholder {
   background: linear-gradient(135deg, #eef4f4, #dbe8e8);
 }

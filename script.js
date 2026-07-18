@@ -843,23 +843,31 @@ function dropActive() {
   }
 
   const activeTopWorld = worldTopForIndex(state.placed.length);
-
-  // Trimmed overhang tumbles away on whichever side(s) overhung.
-  if (active.x < overlapLeft) {
-    spawnShard(active.x, activeTopWorld, overlapLeft - active.x, active.color, -1);
-  }
-  const activeRight = active.x + active.width;
-  if (activeRight > overlapRight) {
-    spawnShard(overlapRight, activeTopWorld, activeRight - overlapRight, active.color, 1);
-  }
-
   const perfect = overlap >= below.width - PERFECT_TOLERANCE;
+
+  // On a perfect drop, snap to the full width below so the tower doesn't
+  // keep shrinking; otherwise trim to the overlap and let the overhang fall.
+  let placedX = overlapLeft;
+  let placedWidth = overlap;
+  if (perfect) {
+    placedX = below.x;
+    placedWidth = below.width;
+  } else {
+    if (active.x < overlapLeft) {
+      spawnShard(active.x, activeTopWorld, overlapLeft - active.x, active.color, -1);
+    }
+    const activeRight = active.x + active.width;
+    if (activeRight > overlapRight) {
+      spawnShard(overlapRight, activeTopWorld, activeRight - overlapRight, active.color, 1);
+    }
+  }
+
   state.combo = perfect ? state.combo + 1 : 0;
   updateCombo();
 
   state.placed.push({
-    x: overlapLeft,
-    width: overlap,
+    x: placedX,
+    width: placedWidth,
     ingredient: active.ingredient,
     color: active.color,
     landAnim: 1,
@@ -868,7 +876,7 @@ function dropActive() {
 
   // Splash particles along the landing seam (bottom edge of the placed block).
   const seamY = worldTopForIndex(state.placed.length - 1) + BLOCK_H;
-  spawnLandParticles(overlapLeft, overlapLeft + overlap, seamY, active.color);
+  spawnLandParticles(placedX, placedX + placedWidth, seamY, active.color);
 
   if (perfect) playPerfect();
   else playLand();

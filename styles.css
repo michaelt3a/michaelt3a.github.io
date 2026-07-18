@@ -350,27 +350,27 @@ body {
 }
 
 .difficulty-btn[data-difficulty="easy"] {
-  background: var(--teal);
+  background: #4caf72;
 }
 
 .difficulty-btn[data-difficulty="easy"]:hover {
-  background: var(--teal-dark);
+  background: #3d9760;
 }
 
 .difficulty-btn[data-difficulty="medium"] {
-  background: var(--accent);
+  background: #fd9f27;
 }
 
 .difficulty-btn[data-difficulty="medium"]:hover {
-  background: var(--accent-dark);
+  background: #e2871a;
 }
 
 .difficulty-btn[data-difficulty="impossible"] {
-  background: var(--accent-deep);
+  background: #e2574c;
 }
 
 .difficulty-btn[data-difficulty="impossible"]:hover {
-  background: #8f1a2e;
+  background: #c74438;
 }
 
 /* Buttons */

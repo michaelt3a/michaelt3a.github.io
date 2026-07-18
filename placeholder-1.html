@@ -3,18 +3,69 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Placeholder 1 — Pokeworks</title>
-  <meta name="description" content="Placeholder minigame — coming soon." />
-  <link rel="stylesheet" href="menu.css?v=3" />
+  <title>Signature Works — Pokeworks</title>
+  <meta name="description" content="Learn the Pokeworks signature works." />
+  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="placeholder-1.css?v=2" />
 </head>
 <body>
   <a href="index.html" class="back-link">← Minigames</a>
 
-  <main class="coming-soon page-content">
-    <h1 class="coming-title">Placeholder 1</h1>
-    <p class="coming-msg">This minigame is coming soon. Check back later!</p>
-  </main>
+  <div class="game-shell page-content">
+    <header class="hud">
+      <div class="hud-left">
+        <img src="pokeworks-logo-circle-1.png" alt="Pokeworks" class="logo" />
+      </div>
+      <div class="hud-right">
+        <span id="recipe-name" class="recipe-name"></span>
+        <button id="change-recipe" class="control-btn" type="button" hidden>Change</button>
+      </div>
+    </header>
+
+    <div class="builder-shell" id="builder-shell">
+      <!-- The build area (bowl + palette) -->
+      <div class="builder" id="builder" hidden>
+        <div class="bowl-area" id="bowl-area">
+          <canvas id="bowl" class="bowl-canvas" width="560" height="320"></canvas>
+          <p class="drop-hint" id="drop-hint">Tap or drag ingredients into the bowl</p>
+          <div class="bowl-contents" id="bowl-contents"></div>
+        </div>
+
+        <div class="palette">
+          <div class="tabs" id="tabs"></div>
+          <div class="chips" id="chips"></div>
+        </div>
+
+        <div class="builder-actions">
+          <button id="check-btn" class="btn" type="button">Check Bowl</button>
+          <button id="clear-btn" class="btn btn-secondary" type="button">Clear</button>
+        </div>
+        <p class="feedback" id="feedback"></p>
+      </div>
+
+      <!-- Recipe (signature work) selection -->
+      <div id="overlay" class="overlay">
+        <div class="overlay-panel">
+          <h1 class="overlay-title">Signature Works</h1>
+          <p class="overlay-subtitle">Choose a recipe to build.</p>
+          <div class="recipe-grid" id="recipe-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Correct! celebration (full-screen, outside the transformed page wrapper) -->
+  <div id="success" class="success hidden">
+    <canvas id="success-confetti" class="success-confetti" width="560" height="500"></canvas>
+    <div class="success-card">
+      <div class="success-check">✓</div>
+      <h2 class="success-title">Correct!</h2>
+      <p class="success-sub" id="success-sub"></p>
+      <button id="next-btn" class="btn" type="button">Pick Another</button>
+    </div>
+  </div>
 
   <script src="transitions.js?v=3"></script>
+  <script src="placeholder-1.js?v=2"></script>
 </body>
 </html>
