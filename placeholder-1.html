@@ -6,7 +6,7 @@
   <title>Signature Works — Pokeworks</title>
   <meta name="description" content="Learn the Pokeworks signature works." />
   <link rel="stylesheet" href="styles.css?v=7" />
-  <link rel="stylesheet" href="placeholder-1.css?v=9" />
+  <link rel="stylesheet" href="placeholder-1.css?v=10" />
 </head>
 <body>
   <a href="index.html" class="back-link">← Minigames</a>
@@ -53,13 +53,15 @@
         <div class="overlay-panel">
           <h1 class="overlay-title">Signature Works</h1>
           <p class="overlay-subtitle">Practiceee! 🎉</p>
-          <button id="speedrun-btn" class="speedrun-btn" type="button">
-            <span class="speedrun-ico">⏱</span>
-            <span class="speedrun-txt">Speedrun<small>Build all 9 bowls, timed.</small></span>
-          </button>
+          <div class="speedrun-row">
+            <button id="sr-lb-open" class="sr-lb-trophy" type="button" aria-label="Speedrun leaderboard" title="Speedrun leaderboard">🏆</button>
+            <button id="speedrun-btn" class="speedrun-btn" type="button">
+              <span class="speedrun-ico">⏱</span>
+              <span class="speedrun-txt">Speedrun<small>Build all 9 bowls, timed.</small></span>
+            </button>
+          </div>
           <p class="overlay-note">— or pick one to practice —</p>
           <div class="recipe-grid" id="recipe-grid"></div>
-          <button id="sr-lb-open" class="control-btn sr-lb-open" type="button">🏆 Speedrun Leaderboard</button>
         </div>
       </div>
     </div>

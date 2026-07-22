@@ -562,9 +562,43 @@
 .rbest { color: var(--accent); font-weight: 800; }
 
 /* --- Speedrun leaderboard --- */
-.sr-lb-open {
-  margin-top: 1rem;
+/* Trophy button sits to the left of the speedrun button */
+.speedrun-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 580px;
+  margin: 0 auto 0.2rem;
 }
+.speedrun-row .speedrun-btn {
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
+  margin: 0;
+}
+.sr-lb-trophy {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #fff;
+  background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+  box-shadow: 0 6px 18px rgba(34, 178, 180, 0.4);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.sr-lb-trophy:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(34, 178, 180, 0.5);
+}
+.sr-lb-trophy:active { transform: scale(0.97); }
 .sr-lb-sub {
   color: var(--muted);
   font-size: 0.85rem;
