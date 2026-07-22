@@ -716,15 +716,32 @@ function sbHeaders(extra) {
   );
 }
 
+// One row per player: keep each name's best score (case-insensitive), so a
+// player never appears on the board more than once.
+function dedupeByName(list) {
+  const sorted = list.slice().sort((a, b) => b.score - a.score);
+  const seen = new Set();
+  const out = [];
+  for (const e of sorted) {
+    const key = String(e.name).trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(e);
+  }
+  return out;
+}
+
 // Top scores for a difficulty from Supabase (falls back to the local board).
+// Fetches extra rows and merges duplicate names down to their best.
 async function fetchTopScores(diff) {
-  if (!useSupabase) return loadBoard()[diff] || [];
+  if (!useSupabase) return dedupeByName(loadBoard()[diff] || []).slice(0, LB_MAX);
   const url =
     SB.url + "/rest/v1/bowl_scores?select=name,score&difficulty=eq." +
-    encodeURIComponent(diff) + "&order=score.desc&limit=" + LB_MAX;
+    encodeURIComponent(diff) + "&order=score.desc&limit=500";
   const res = await fetch(url, { headers: sbHeaders() });
   if (!res.ok) throw new Error("Supabase fetch " + res.status);
-  return await res.json();
+  const rows = await res.json();
+  return dedupeByName(rows).slice(0, LB_MAX);
 }
 
 // Insert a score to Supabase; always keep a local mirror as a fallback.
@@ -759,16 +776,21 @@ function scoreQualifies(diff, score) {
   return list.length < LB_MAX || score > list[list.length - 1].score;
 }
 
-// Add a score, keep the top LB_MAX, return the new entry's rank (index).
+// Add/merge a score locally: one row per name, keeping the best.
 function addLeaderboardScore(diff, name, score) {
   const board = loadBoard();
   const list = board[diff] || (board[diff] = []);
-  const entry = { name: name || "Anon", score };
-  list.push(entry);
+  const key = String(name || "Anon").trim().toLowerCase();
+  const existing = list.find((e) => String(e.name).trim().toLowerCase() === key);
+  if (existing) {
+    if (score > existing.score) existing.score = score;
+    existing.name = name || "Anon"; // keep the latest spelling
+  } else {
+    list.push({ name: name || "Anon", score });
+  }
   list.sort((a, b) => b.score - a.score);
   board[diff] = list.slice(0, LB_MAX);
   saveBoard(board);
-  return board[diff].indexOf(entry);
 }
 
 function setLbTab(diff) {
@@ -801,7 +823,7 @@ async function renderLeaderboard() {
     const li = document.createElement("li");
     li.className = "lb-row";
     if (!highlighted && lbNewEntry && lbNewEntry.diff === diff &&
-        lbNewEntry.name === entry.name && lbNewEntry.score === entry.score) {
+        String(lbNewEntry.name).trim().toLowerCase() === String(entry.name).trim().toLowerCase()) {
       li.classList.add("lb-me");
       highlighted = true;
     }
