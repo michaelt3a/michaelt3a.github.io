@@ -332,41 +332,5 @@
     g.restore();
   }
 
-  // A single ingredient drawn as a plump food ball at (x, y) with radius r —
-  // for the flying pieces in Ahi Slice. Draw inside a translate/rotate if you
-  // want it spinning.
-  function drawItem(context, x, y, r, name) {
-    g = context;
-    const st = STYLE[name] || { c: ["#cfc6b0"], kind: "cube" };
-    const c0 = st.c[0];
-    const c1 = st.c[st.c.length > 1 ? 1 : 0];
-    g.save();
-    // ball base
-    const grad = g.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.2, x, y, r);
-    grad.addColorStop(0, c0);
-    grad.addColorStop(1, c1);
-    g.fillStyle = grad;
-    g.beginPath();
-    g.arc(x, y, r, 0, Math.PI * 2);
-    g.fill();
-    // texture morsels
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2 + 0.6;
-      const rr = r * 0.46;
-      drawMorsel(x + Math.cos(a) * rr, y + Math.sin(a) * rr, r * 0.3, name, i + 2);
-    }
-    // rim + highlight
-    g.strokeStyle = "rgba(0,0,0,0.15)";
-    g.lineWidth = 1.5;
-    g.beginPath();
-    g.arc(x, y, r, 0, Math.PI * 2);
-    g.stroke();
-    g.fillStyle = "rgba(255,255,255,0.28)";
-    g.beginPath();
-    g.ellipse(x - r * 0.32, y - r * 0.36, r * 0.3, r * 0.18, -0.5, 0, Math.PI * 2);
-    g.fill();
-    g.restore();
-  }
-
-  window.Bowl = { CATEGORIES, CATEGORY_COLOR, INGREDIENTS, RECIPES, STYLE, draw, drawScoop, drawItem };
+  window.Bowl = { CATEGORIES, CATEGORY_COLOR, INGREDIENTS, RECIPES, STYLE, draw, drawScoop };
 })();
