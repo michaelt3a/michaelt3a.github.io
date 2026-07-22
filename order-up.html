@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Up — Pokeworks</title>
+  <meta name="description" content="Pokeworks — Order Up rush minigame." />
+  <link rel="stylesheet" href="styles.css?v=10" />
+  <link rel="stylesheet" href="order-up.css?v=7" />
+</head>
+<body>
+  <a href="index.html" class="back-link">← Minigames</a>
+
+  <div class="game-shell page-content">
+    <header class="hud">
+      <div class="hud-left">
+        <img src="pokeworks-logo-circle-1.png" alt="Pokeworks" class="logo" />
+      </div>
+      <div class="hud-right">
+        <div class="lives" id="lives" aria-label="Lives"></div>
+        <div class="score">
+          <span class="score-label">Score</span>
+          <span id="score" class="score-value">0</span>
+        </div>
+        <div class="score">
+          <span class="score-label">Best</span>
+          <span id="best" class="score-value">0</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="ou-stage">
+      <!-- Store scene: tiled wall + stick-figure customers across the counter -->
+      <div class="ou-scene">
+        <div class="ou-tables" id="tables"></div>
+        <div class="ou-customers" id="customers"></div>
+        <div class="ou-guard"></div>
+      </div>
+
+      <!-- Ingredient line: pick a station on the left, its steam pans fill the grid -->
+      <div class="ou-line" id="line">
+        <div class="ou-stations" id="stations"></div>
+        <div class="ou-pans" id="pans"></div>
+      </div>
+
+      <!-- Prep counter: the worker's side — order ticket + the bowl -->
+      <div class="ou-counter">
+        <div class="ou-ticket">
+          <div class="ou-ticket-name" id="order-name">—</div>
+          <div class="ou-checklist" id="checklist"></div>
+        </div>
+        <div class="ou-bowl-wrap">
+          <canvas id="bowl" width="560" height="320" class="ou-bowl"></canvas>
+          <div class="ou-combo hidden" id="combo">🔥 x2</div>
+        </div>
+      </div>
+
+      <!-- Overlays -->
+      <div class="ou-overlay" id="overlay">
+        <div class="ou-panel" id="screen-start">
+          <h1 class="overlay-title">Order Up</h1>
+          <p class="overlay-subtitle">Build each customer's bowl before they leave. Choose a mode:</p>
+          <div class="ou-modes">
+            <button id="start-normal" class="btn" type="button">Recipes Shown</button>
+            <button id="start-hard" class="btn btn-secondary" type="button">Hidden Recipes · Hard</button>
+          </div>
+          <p class="ou-mode-note">Hard hides the ticket — build each bowl from memory for 1.5× points.</p>
+        </div>
+        <div class="ou-panel hidden" id="screen-over">
+          <h1 class="overlay-title">Shift Over</h1>
+          <p class="ou-final" id="final"></p>
+          <div class="gameover-actions">
+            <button id="again-btn" class="btn" type="button">Play Again</button>
+            <a href="index.html" class="btn btn-secondary">Quit</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="transitions.js?v=3"></script>
+  <script src="bowl-render.js?v=3"></script>
+  <script src="order-up.js?v=8"></script>
+</body>
+</html>

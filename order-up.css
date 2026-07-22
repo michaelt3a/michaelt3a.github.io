@@ -1,0 +1,440 @@
+/* Order Up (Rush Hour) — a Pokeworks line you work behind. Built on the
+   shared styles.css theme (HUD, buttons, overlay titles). */
+
+.lives {
+  font-size: 1.05rem;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.ou-stage {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* ---------------- Store scene (customers across the counter) --------------- */
+.ou-scene {
+  position: relative;
+  padding: 10px 16px 0;
+  /* subway-tile wall on top, a tiled floor band the customers stand on */
+  background-color: #eef3f4;
+  background-image:
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 68%, rgba(155, 170, 173, 0.16) 68%),
+    linear-gradient(180deg, rgba(120, 140, 143, 0.45) 68%, rgba(120, 140, 143, 0.45) calc(68% + 2px), transparent calc(68% + 2px)),
+    linear-gradient(#e2eaea 2px, transparent 2px),
+    linear-gradient(90deg, #e2eaea 2px, transparent 2px);
+  background-size: auto, auto, 46px 30px, 46px 30px;
+  background-position: 0 0;
+}
+
+/* café tables sitting on the back floor, behind the customers */
+.ou-tables {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22px;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.ou-table {
+  position: absolute;
+  opacity: 0.92;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.12));
+}
+.ou-table svg { display: block; width: 100%; height: auto; }
+
+.ou-customers {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-end;
+  gap: 16px;
+  min-height: 150px;
+  padding-left: 6px;
+  /* new customers prepend on the left and push the line to the right */
+  transition: none;
+}
+
+.ou-cust {
+  position: relative;
+  flex: 0 0 auto;
+  width: 112px;
+  background: transparent;
+  border: none;
+  padding: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font: inherit;
+  transition: transform 0.15s ease, opacity 0.3s ease;
+}
+
+.ou-cust:hover { transform: translateY(-2px); }
+.ou-cust.active { transform: translateY(-3px) scale(1.06); }
+
+/* order speech bubble */
+.ou-bubble {
+  position: relative;
+  background: #fff;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 5px 11px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+.ou-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #fff;
+}
+.ou-cust.active .ou-bubble {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ou-stick {
+  width: 80px;
+  height: 140px;
+  display: block;
+  filter: drop-shadow(0 4px 2px rgba(0, 0, 0, 0.18));
+}
+
+/* a selection ring under the active customer */
+.ou-cust.active::before {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  width: 84px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(238, 67, 91, 0.35), transparent 70%);
+}
+
+.ou-pat {
+  width: 90px;
+  height: 8px;
+  border-radius: 999px;
+  background: #d8e2e2;
+  overflow: hidden;
+}
+.ou-pat i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: #4caf72;
+  transition: width 0.1s linear;
+}
+
+.ou-cust.urgent { animation: ou-shake 0.4s ease-in-out infinite; }
+.ou-cust.served { opacity: 0; transform: translateY(-14px) scale(0.9); pointer-events: none; }
+.ou-cust.leaving { opacity: 0; transform: translateY(18px) scale(0.9); pointer-events: none; }
+
+@keyframes ou-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* glass sneeze-guard line between the customers and the counter */
+.ou-guard {
+  height: 14px;
+  margin-top: 4px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(190, 220, 224, 0.25));
+  border-top: 2px solid rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(120, 150, 155, 0.35);
+}
+
+/* ---------------- Prep counter (worker side) ------------------------------ */
+.ou-counter {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 16px;
+  /* brushed stainless steel */
+  background:
+    linear-gradient(180deg, #f2f5f6 0%, #d6dce0 45%, #c2c9cf 100%);
+  border-top: 2px solid #fbfdfd;
+  box-shadow: inset 0 8px 12px -10px rgba(0, 0, 0, 0.35);
+}
+.ou-counter::before {
+  /* thin brushed highlight lines */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.35) 0 1px, transparent 1px 4px);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.ou-ticket {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  background: #fffef7;
+  border-radius: 8px;
+  padding: 9px 11px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  border-top: 3px dashed #e7dcae;
+}
+.ou-ticket-name {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--accent);
+  margin-bottom: 7px;
+}
+.ou-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-height: 118px;
+  overflow-y: auto;
+}
+.ou-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.ou-check-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cat, #ccc);
+}
+.ou-check.checked {
+  color: var(--muted);
+  background: #eef7f7;
+  text-decoration: line-through;
+}
+.ou-check.checked .ou-check-dot { background: #4caf72; }
+.ou-check.wrong {
+  color: #c74438;
+  border-color: #e2574c;
+  background: #fdecec;
+  cursor: pointer;
+  text-decoration: none;
+}
+.ou-check.wrong .ou-check-dot { background: #e2574c; }
+
+.ou-bowl-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  width: min(42%, 250px);
+}
+.ou-bowl {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.18));
+}
+.ou-combo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.ou-combo.hidden { display: none; }
+
+/* ---------------- Ingredient line (metal bins) ---------------------------- */
+.ou-line {
+  display: flex;
+  gap: 12px;
+  padding: 10px 14px 12px;
+  /* darker steel base for the wells */
+  background: linear-gradient(180deg, #b9c0c6, #949ba1);
+  border-top: 2px solid #cfd6da;
+}
+
+/* station selector down the left */
+.ou-stations {
+  flex: 0 0 auto;
+  width: 106px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ou-station-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #aeb6bb;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text);
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.ou-station-btn i {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cat, #ccc);
+}
+.ou-station-btn:hover { background: #fff; }
+.ou-station-btn.active {
+  background: #fff;
+  border-color: var(--cat);
+  box-shadow: inset 0 0 0 1.5px var(--cat);
+}
+
+/* the pans for the active station */
+.ou-pans {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  align-content: flex-start;
+  max-height: 216px;
+  overflow-y: auto;
+}
+
+/* a stainless-steel steam pan filled to the brim with the ingredient */
+.ou-bin {
+  width: auto;
+  padding: 4px 4px 5px;
+  border: 1px solid #9aa3a8;
+  border-radius: 5px;
+  /* brushed steel frame around the pan */
+  background: linear-gradient(180deg, #f6f8f9 0%, #cfd6da 46%, #aeb6bb 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 2px 5px rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  font: inherit;
+  transition: transform 0.06s ease, box-shadow 0.12s ease;
+}
+.ou-bin:hover { transform: translateY(-2px); }
+.ou-bin:active { transform: translateY(0) scale(0.97); }
+.ou-bin-food {
+  width: 100%;
+  height: 44px;
+  border-radius: 3px;
+  /* inner well rim so the food looks recessed in the pan */
+  box-shadow: inset 0 0 0 2px rgba(120, 130, 135, 0.55), inset 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+.ou-bin-name {
+  font-size: 0.64rem;
+  font-weight: 800;
+  color: #2a2f31;
+  text-align: center;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.ou-bin.added {
+  border-color: var(--teal);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 0 0 2px var(--teal);
+}
+.ou-bin.added .ou-bin-name { color: var(--teal-dark); }
+
+/* ---------------- Overlays ------------------------------------------------ */
+.ou-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.5rem;
+  transition: opacity 0.3s ease;
+}
+.ou-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.ou-panel { max-width: 440px; }
+.ou-panel.hidden { display: none; }
+
+.ou-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+}
+.ou-mode-note {
+  margin: 0.9rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.ou-mode-tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--teal-dark);
+  background: rgba(34, 178, 180, 0.14);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.ou-memory {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ou-final {
+  font-size: 1.05rem;
+  color: #45585a;
+  margin: 0 0 1.4rem;
+}
+.ou-best {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+/* ---------------- Responsive ---------------------------------------------- */
+@media (max-width: 480px) {
+  .ou-counter { flex-direction: column; align-items: stretch; }
+  .ou-bowl-wrap { width: min(70%, 220px); align-self: center; }
+  .ou-customers { gap: 10px; }
+  .ou-cust { width: 92px; }
+  .ou-stick { width: 66px; height: 118px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ou-cust.urgent { animation: none; }
+}
