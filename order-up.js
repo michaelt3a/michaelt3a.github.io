@@ -24,6 +24,7 @@ const bestEl = document.getElementById("best");
 const overlay = document.getElementById("overlay");
 const screenStart = document.getElementById("screen-start");
 const screenOver = document.getElementById("screen-over");
+const startBabyBtn = document.getElementById("start-baby");
 const startNormalBtn = document.getElementById("start-normal");
 const startHardBtn = document.getElementById("start-hard");
 const againBtn = document.getElementById("again-btn");
@@ -41,7 +42,7 @@ const SHIRTS = ["#ee435b", "#22b2b4", "#f0a52c", "#7c5cff", "#39a85b", "#e8709b"
 let best = 0; // best for the current mode (set once S exists)
 const S = {
   running: false,
-  hardMode: false, // hard = recipe ticket hidden, build from memory
+  mode: "normal", // "baby" | "normal" | "hard"
   score: 0,
   lives: START_LIVES,
   served: 0,
@@ -98,7 +99,7 @@ const SFX = {
 
 // --- Persistence (separate best per mode) -------------------------------
 function bestKey() {
-  return BEST_KEY + (S.hardMode ? "-hard" : "");
+  return BEST_KEY + (S.mode === "normal" ? "" : "-" + S.mode);
 }
 function loadBest() {
   try { return parseInt(localStorage.getItem(bestKey()), 10) || 0; } catch { return 0; }
@@ -130,12 +131,15 @@ function pickRecipe() {
   return B.RECIPES[Math.floor(Math.random() * B.RECIPES.length)];
 }
 
-// Difficulty ramps with how many bowls you've served.
+// Difficulty ramps with how many bowls you've served. Baby mode is a flat,
+// forgiving minute per customer with no ramp.
 function maxPatienceFor(recipe) {
+  if (S.mode === "baby") return 60;
   const ramp = Math.max(0.75, 1 - S.served * 0.02);
   return Math.round((recipeSize(recipe) * 2.2 + 12) * ramp);
 }
 function spawnInterval() {
+  if (S.mode === "baby") return 9; // relaxed, steady arrivals
   return Math.max(4.5, 10.5 - S.served * 0.22);
 }
 
@@ -302,7 +306,8 @@ function serve(c) {
   const speedFrac = Math.max(0, c.patience / c.maxPatience);
   const tip = Math.round(40 * speedFrac);
   let pts = 50 + tip + S.combo * 5;
-  if (S.hardMode) pts = Math.round(pts * 1.5); // memory bonus
+  if (S.mode === "hard") pts = Math.round(pts * 1.5); // memory bonus
+  else if (S.mode === "baby") pts = Math.round(pts * 0.6); // easy mode, fewer points
   S.score += pts;
   S.served++;
   S.combo++;
@@ -349,7 +354,7 @@ function renderTicket() {
   orderNameEl.textContent = c.name;
   checklistEl.innerHTML = "";
   // Hard mode: no ticket — the player builds it from memory.
-  if (S.hardMode) {
+  if (S.mode === "hard") {
     const note = document.createElement("span");
     note.className = "ou-memory";
     note.textContent = "🧠 Build it from memory";
@@ -482,10 +487,10 @@ function frame(t) {
 }
 
 // --- Lifecycle ----------------------------------------------------------
-function startGame(hard) {
+function startGame(mode) {
   ensureAudio();
   S.customers.forEach((c) => c.el && c.el.remove());
-  S.hardMode = !!hard;
+  S.mode = mode || "normal";
   best = loadBest(); // best is tracked per mode
   S.running = true;
   S.score = 0;
@@ -514,7 +519,7 @@ function endGame() {
   bestEl.textContent = best;
   finalEl.innerHTML =
     `You served <strong>${S.served}</strong> bowl${S.served === 1 ? "" : "s"} for <strong>${S.score}</strong> points` +
-    ` <span class="ou-mode-tag">${S.hardMode ? "Hard" : "Normal"}</span>.` +
+    ` <span class="ou-mode-tag">${S.mode === "hard" ? "Hard" : S.mode === "baby" ? "Baby" : "Normal"}</span>.` +
     (isBest && S.score > 0 ? `<br><span class="ou-best">★ New best!</span>` : "");
   screenStart.classList.add("hidden");
   screenOver.classList.remove("hidden");
@@ -522,9 +527,10 @@ function endGame() {
 }
 
 // --- Wiring -------------------------------------------------------------
-startNormalBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame(false); });
-startHardBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame(true); });
-againBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame(S.hardMode); });
+startBabyBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("baby"); });
+startNormalBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("normal"); });
+startHardBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("hard"); });
+againBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame(S.mode); });
 
 // Initial paint.
 best = loadBest();
