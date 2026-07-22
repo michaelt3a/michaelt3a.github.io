@@ -752,6 +752,165 @@ function saveBest(v) {
   try { localStorage.setItem(BEST_KEY, JSON.stringify(v)); } catch { /* ignore */ }
 }
 
+// --- Speedrun leaderboard (global via Supabase, local fallback) ---------
+
+const SR_LB_LOCAL_KEY = "sigworks_speedrun_lb";
+const SR_LB_NAME_KEY = "pokeworks-lb-name";
+const SR_LB_MAX = 10;
+
+const SB = window.POKEWORKS_SUPABASE || {};
+const useSupabase =
+  !!SB.url && !!SB.anonKey && !/YOUR_/.test(SB.url) && !/YOUR_/.test(SB.anonKey);
+function sbHeaders(extra) {
+  return Object.assign({ apikey: SB.anonKey, Authorization: "Bearer " + SB.anonKey }, extra || {});
+}
+
+// Leaderboard DOM
+const srLeaderboardEl = document.getElementById("sr-leaderboard");
+const srLbList = document.getElementById("sr-lb-list");
+const srLbEntry = document.getElementById("sr-lb-entry");
+const srLbNameInput = document.getElementById("sr-lb-name");
+const srLbSubmitBtn = document.getElementById("sr-lb-submit");
+const srLbOpenBtn = document.getElementById("sr-lb-open");
+const srLbBackBtn = document.getElementById("sr-lb-back");
+const srLbCloseBtn = document.getElementById("sr-lb-close");
+const resultsLbBtn = document.getElementById("results-leaderboard");
+
+let srPendingRun = null; // { perfect, ms } awaiting a name
+let srLbNewName = null; // highlight the row for this name after a submit
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Better run = more perfect bowls, then faster time.
+function betterRun(a, b) {
+  return a.perfect !== b.perfect ? a.perfect > b.perfect : a.ms < b.ms;
+}
+function sortRuns(list) {
+  return list.slice().sort((x, y) => (x.perfect !== y.perfect ? y.perfect - x.perfect : x.ms - y.ms));
+}
+// One row per player (case-insensitive), keeping their best run.
+function dedupeRuns(list) {
+  const seen = new Set();
+  const out = [];
+  for (const e of sortRuns(list)) {
+    const key = String(e.name).trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(e);
+  }
+  return out;
+}
+
+function loadLocalRuns() {
+  try { return JSON.parse(localStorage.getItem(SR_LB_LOCAL_KEY)) || []; } catch { return []; }
+}
+function saveLocalRuns(list) {
+  try { localStorage.setItem(SR_LB_LOCAL_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+}
+function addLocalRun(name, perfect, ms) {
+  const list = loadLocalRuns();
+  const key = String(name).trim().toLowerCase();
+  const existing = list.find((e) => String(e.name).trim().toLowerCase() === key);
+  const run = { name, perfect, ms };
+  if (existing) {
+    if (betterRun(run, existing)) { existing.perfect = perfect; existing.ms = ms; existing.name = name; }
+  } else {
+    list.push(run);
+  }
+  saveLocalRuns(dedupeRuns(list).slice(0, 100));
+}
+
+function loadLbName() {
+  try { return localStorage.getItem(SR_LB_NAME_KEY) || ""; } catch { return ""; }
+}
+function saveLbName(n) {
+  try { localStorage.setItem(SR_LB_NAME_KEY, n); } catch { /* ignore */ }
+}
+
+async function fetchSpeedrunTop() {
+  if (!useSupabase) return dedupeRuns(loadLocalRuns()).slice(0, SR_LB_MAX);
+  const url = SB.url +
+    "/rest/v1/sigworks_speedruns?select=name,perfect,ms&order=perfect.desc,ms.asc&limit=500";
+  const res = await fetch(url, { headers: sbHeaders() });
+  if (!res.ok) throw new Error("Supabase fetch " + res.status);
+  return dedupeRuns(await res.json()).slice(0, SR_LB_MAX);
+}
+
+async function submitSpeedrun(name, perfect, ms) {
+  addLocalRun(name, perfect, ms); // local mirror
+  if (!useSupabase) return;
+  const res = await fetch(SB.url + "/rest/v1/sigworks_speedruns", {
+    method: "POST",
+    headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+    body: JSON.stringify({ name: name, perfect: perfect, ms: ms }),
+  });
+  if (!res.ok) throw new Error("Supabase insert " + res.status);
+}
+
+async function renderSpeedrunBoard() {
+  srLbList.innerHTML = '<li class="sr-lb-empty">Loading…</li>';
+  let list;
+  try {
+    list = await fetchSpeedrunTop();
+  } catch (e) {
+    list = dedupeRuns(loadLocalRuns()).slice(0, SR_LB_MAX);
+  }
+  srLbList.innerHTML = "";
+  if (!list.length) {
+    const li = document.createElement("li");
+    li.className = "sr-lb-empty";
+    li.textContent = "No runs yet — be the first!";
+    srLbList.appendChild(li);
+    return;
+  }
+  let highlighted = false;
+  list.forEach((e, i) => {
+    const li = document.createElement("li");
+    li.className = "sr-lb-row";
+    if (!highlighted && srLbNewName &&
+        String(srLbNewName).trim().toLowerCase() === String(e.name).trim().toLowerCase()) {
+      li.classList.add("sr-lb-me");
+      highlighted = true;
+    }
+    li.innerHTML =
+      `<span class="sr-lb-rank">${i + 1}</span>` +
+      `<span class="sr-lb-name">${escapeHtml(e.name)}</span>` +
+      `<span class="sr-lb-stat">${e.perfect}/${RECIPES.length} &middot; ${fmtTime(e.ms)}</span>`;
+    srLbList.appendChild(li);
+  });
+}
+
+function openSpeedrunBoard() {
+  srLeaderboardEl.classList.remove("hidden");
+  renderSpeedrunBoard();
+}
+function closeSpeedrunBoard() {
+  srLeaderboardEl.classList.add("hidden");
+}
+
+// Submit the just-finished run under the typed name, then show the board.
+async function submitSpeedrunName() {
+  if (!srPendingRun) return;
+  const name = (srLbNameInput.value || "").trim().slice(0, 12) || "Anon";
+  saveLbName(name);
+  const perfect = srPendingRun.perfect;
+  const ms = srPendingRun.ms;
+  srPendingRun = null;
+  srLbEntry.classList.add("hidden");
+  srLbSubmitBtn.disabled = true;
+  try {
+    await submitSpeedrun(name, perfect, ms);
+  } catch (e) {
+    /* local mirror already saved */
+  }
+  srLbSubmitBtn.disabled = false;
+  srLbNewName = name;
+  openSpeedrunBoard();
+}
+
 // Fisher–Yates shuffle (a fresh order each run).
 function shuffled(arr) {
   const a = arr.slice();
@@ -802,6 +961,9 @@ function startSpeedrun() {
   overlay.classList.add("hidden");
   resultsEl.classList.add("hidden");
   successEl.classList.add("hidden");
+  srLeaderboardEl.classList.add("hidden");
+  srLbEntry.classList.add("hidden");
+  srPendingRun = null;
   builder.hidden = false;
   loadRunBowl();
   startTimer();
@@ -859,6 +1021,12 @@ function finishSpeedrun() {
   }
   renderResults(perfect, totalMs);
   resultsEl.classList.remove("hidden");
+
+  // Offer to add this run to the global leaderboard.
+  srPendingRun = { perfect: perfect, ms: totalMs };
+  srLbNewName = null;
+  if (srLbNameInput) srLbNameInput.value = loadLbName();
+  if (srLbEntry) srLbEntry.classList.remove("hidden");
 
   // A flawless run (every bowl perfect) earns a full-screen confetti burst
   // and a fanfare.
@@ -992,6 +1160,16 @@ function renderResults(perfect, totalMs) {
 
 speedrunBtn.addEventListener("click", () => { SFX.start(); startSpeedrun(); });
 nextBowlBtn.addEventListener("click", () => { SFX.click(); nextRunBowl(); });
+
+// Speedrun leaderboard wiring
+srLbOpenBtn.addEventListener("click", () => { SFX.click(); srLbNewName = null; openSpeedrunBoard(); });
+resultsLbBtn.addEventListener("click", () => { SFX.click(); openSpeedrunBoard(); });
+srLbBackBtn.addEventListener("click", () => { SFX.click(); closeSpeedrunBoard(); });
+srLbCloseBtn.addEventListener("click", () => { SFX.click(); closeSpeedrunBoard(); });
+srLbSubmitBtn.addEventListener("click", submitSpeedrunName);
+srLbNameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); submitSpeedrunName(); }
+});
 resultsAgain.addEventListener("click", () => { SFX.start(); startSpeedrun(); });
 resultsMenu.addEventListener("click", () => {
   SFX.click();
