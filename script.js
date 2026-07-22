@@ -467,9 +467,11 @@ const state = {
   active: null, // the moving ingredient: { x, width, color, dir }
   particles: [], // splash bits (world space)
   shards: [], // trimmed overhang tumbling away (world space)
-  powerups: [], // falling power-ups (screen/canvas space): { x, y, vy, age }
-  slowTimer: 0, // seconds of slow-mo remaining
-  powerSpawnTimer: 6, // seconds until the next power-up falls
+  powerups: [], // falling power-ups (screen/canvas space): { x, y, vy, age, type }
+  toastTimer: 0, // seconds remaining on the collect toast
+  magnetDrops: 0, // drops left with magnet assist (widened perfect window)
+  hasShield: false, // holding a shield (survives one death)
+  shieldEarned: false, // a shield was collected this game (once-per-game lock)
   cam: { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 },
   lastTime: 0,
 };
@@ -857,13 +859,30 @@ function dropActive() {
   const overlap = overlapRight - overlapLeft;
 
   if (overlap <= 0) {
+    // A shield catches one otherwise-fatal miss, then it's spent for the game.
+    if (state.hasShield) {
+      state.hasShield = false;
+      updateStatusBadges();
+      showToast("🛡 Shield used!");
+      playShieldSave();
+      state.combo = 0;
+      updateCombo();
+      spawnActive(); // forgive the miss and keep going
+      return;
+    }
     playGameOver();
     endGame(); // missed the bowl / the stack entirely
     return;
   }
 
   const activeTopWorld = worldTopForIndex(state.placed.length);
-  const perfect = overlap >= below.width - PERFECT_TOLERANCE;
+  // The magnet widens the "perfect" window for a couple of drops.
+  const tolerance = state.magnetDrops > 0 ? MAGNET_TOLERANCE : PERFECT_TOLERANCE;
+  const perfect = overlap >= below.width - tolerance;
+  if (state.magnetDrops > 0) {
+    state.magnetDrops -= 1;
+    updateStatusBadges();
+  }
 
   // On a perfect drop, snap to the full width below so the tower doesn't
   // keep shrinking; otherwise trim to the overlap and let the overhang fall.
@@ -902,6 +921,7 @@ function dropActive() {
   else playLand();
 
   spawnActive();
+  notePerfectStreak(); // 3-in-a-row perfect streak earns a power-up
 
   // Earn the reward the first time you reach the difficulty's milestone.
   const cfg = DIFFICULTY[state.difficulty] || DIFFICULTY.medium;
@@ -1306,32 +1326,51 @@ function triggerReward(cfg) {
 // --- Power-ups ----------------------------------------------------------
 
 const POWERUP_R = 30; // radius (canvas space)
-const SLOW_FACTOR = 0.4; // game speed while slow-mo is active
-const SLOW_DURATION = 5; // seconds of slow-mo
+const EXPAND_AMOUNT = 26; // px added to each affected block's width when collected
 const POWERUP_FALL = 155; // fall speed (px/sec, canvas space)
-const POWER_SPAWN_MIN = 7;
-const POWER_SPAWN_MAX = 13;
+// Power-ups are earned, not idle-farmed: land this many perfect drops in a row
+// to drop one (and again for each further multiple while the streak holds).
+const PERFECTS_PER_POWER = 3;
+const MAGNET_DROPS = 2; // drops the magnet assists after collecting it
+const MAGNET_TOLERANCE = 46; // widened "perfect" window (px) while the magnet is on
+const SHIELD_CHANCE = 0.06; // chance a streak awards the rare shield (once/game)
+const FLASH_DURATION = 1.2; // seconds a collect toast stays up
 
-const slowmoEl = document.getElementById("slowmo");
-const slowmoFill = document.getElementById("slowmo-fill");
+const puToast = document.getElementById("pu-toast");
+const shieldBadge = document.getElementById("shield-badge");
+const magnetBadge = document.getElementById("magnet-badge");
+const magnetCount = document.getElementById("magnet-count");
 
-function spawnPowerup() {
+function spawnPowerup(type) {
   state.powerups.push({
     x: 90 + Math.random() * (W - 180),
     y: -POWERUP_R - 12,
     vy: POWERUP_FALL,
     age: 0,
+    type,
   });
 }
 
-// Falls in real time (not affected by slow-mo), so power-ups keep coming.
-function updatePowerups(dt) {
-  if (state.slowTimer > 0) state.slowTimer = Math.max(0, state.slowTimer - dt);
+// Which power-up a streak awards. Shield is a rare, once-per-game save; the rest
+// split evenly between expand and magnet.
+function pickPowerType() {
+  if (!state.shieldEarned && Math.random() < SHIELD_CHANCE) return "shield";
+  return Math.random() < 0.5 ? "expand" : "magnet";
+}
 
-  state.powerSpawnTimer -= dt;
-  if (state.powerSpawnTimer <= 0) {
-    spawnPowerup();
-    state.powerSpawnTimer = POWER_SPAWN_MIN + Math.random() * (POWER_SPAWN_MAX - POWER_SPAWN_MIN);
+// Called after each drop: reward a power-up whenever the perfect streak reaches
+// a multiple of the requirement (state.combo counts consecutive perfects).
+function notePerfectStreak() {
+  if (state.powerups.length > 0) return; // one falling power-up at a time
+  if (state.combo > 0 && state.combo % PERFECTS_PER_POWER === 0) {
+    spawnPowerup(pickPowerType());
+  }
+}
+
+function updatePowerups(dt) {
+  if (state.toastTimer > 0) {
+    state.toastTimer = Math.max(0, state.toastTimer - dt);
+    if (state.toastTimer === 0 && puToast) puToast.classList.add("hidden");
   }
 
   for (let i = state.powerups.length - 1; i >= 0; i--) {
@@ -1342,7 +1381,8 @@ function updatePowerups(dt) {
   }
 }
 
-function drawStopwatch(x, y, r) {
+// White disc + teal ring shared by every power-up glyph.
+function powerDisc(x, y, r) {
   ctx.save();
   ctx.shadowColor = "rgba(34,178,180,0.85)";
   ctx.shadowBlur = 18;
@@ -1352,54 +1392,111 @@ function drawStopwatch(x, y, r) {
   ctx.fill();
   ctx.restore();
 
-  ctx.fillStyle = "#22b2b4"; // top button + stem
-  ctx.beginPath();
-  ctx.roundRect(x - 7, y - r - 11, 14, 9, 3);
-  ctx.fill();
-  ctx.fillRect(x - 3, y - r - 4, 6, 6);
-
   ctx.lineWidth = 4;
   ctx.strokeStyle = "#22b2b4";
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.stroke();
+}
 
-  ctx.strokeStyle = "rgba(31,43,43,0.5)";
-  ctx.lineWidth = 2;
-  for (let t = 0; t < 12; t++) {
-    const a = (t / 12) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.moveTo(x + Math.cos(a) * (r - 6), y + Math.sin(a) * (r - 6));
-    ctx.lineTo(x + Math.cos(a) * (r - 2), y + Math.sin(a) * (r - 2));
-    ctx.stroke();
-  }
+// "grow" glyph: a little block with arrows pushing outward
+function drawExpandGlyph(x, y, r) {
+  const bw = r * 0.5;
+  const bh = r * 0.5;
+  ctx.fillStyle = "#ee435b";
+  ctx.beginPath();
+  ctx.roundRect(x - bw / 2, y - bh / 2, bw, bh, 4);
+  ctx.fill();
 
   ctx.strokeStyle = "#1f2b2b";
-  ctx.lineCap = "round";
   ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const tip = r * 0.86;
   ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x, y - r * 0.55);
+  ctx.moveTo(x + bw / 2 + 3, y);
+  ctx.lineTo(x + tip, y);
+  ctx.moveTo(x + tip - 6, y - 6);
+  ctx.lineTo(x + tip, y);
+  ctx.lineTo(x + tip - 6, y + 6);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + r * 0.42, y + r * 0.12);
+  ctx.moveTo(x - bw / 2 - 3, y);
+  ctx.lineTo(x - tip, y);
+  ctx.moveTo(x - tip + 6, y - 6);
+  ctx.lineTo(x - tip, y);
+  ctx.lineTo(x - tip + 6, y + 6);
   ctx.stroke();
-  ctx.fillStyle = "#1f2b2b";
+}
+
+// horseshoe magnet glyph
+function drawMagnetGlyph(x, y, r) {
+  ctx.save();
+  ctx.translate(x, y);
+  const rad = r * 0.46;
+  const lw = r * 0.32;
+  const topY = -r * 0.05;
+  const botY = r * 0.5;
+  ctx.strokeStyle = "#ee435b"; // red U body
+  ctx.lineWidth = lw;
+  ctx.lineCap = "butt";
   ctx.beginPath();
-  ctx.arc(x, y, 3, 0, Math.PI * 2);
+  ctx.arc(0, topY, rad, Math.PI, 0); // top curve (opens downward)
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-rad, topY);
+  ctx.lineTo(-rad, botY);
+  ctx.moveTo(rad, topY);
+  ctx.lineTo(rad, botY);
+  ctx.stroke();
+  ctx.strokeStyle = "#b9c6c6"; // grey pole tips
+  ctx.beginPath();
+  ctx.moveTo(-rad, botY - lw * 0.9);
+  ctx.lineTo(-rad, botY);
+  ctx.moveTo(rad, botY - lw * 0.9);
+  ctx.lineTo(rad, botY);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// shield glyph with a check mark
+function drawShieldGlyph(x, y, r) {
+  ctx.save();
+  ctx.translate(x, y - r * 0.04);
+  const w = r * 0.98;
+  const h = r * 1.12;
+  ctx.beginPath();
+  ctx.moveTo(0, -h / 2);
+  ctx.lineTo(w / 2, -h / 2 + h * 0.16);
+  ctx.lineTo(w / 2, h * 0.12);
+  ctx.quadraticCurveTo(w / 2, h * 0.42, 0, h / 2);
+  ctx.quadraticCurveTo(-w / 2, h * 0.42, -w / 2, h * 0.12);
+  ctx.lineTo(-w / 2, -h / 2 + h * 0.16);
+  ctx.closePath();
+  ctx.fillStyle = "#22b2b4";
   ctx.fill();
+
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = r * 0.16;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.22, 0);
+  ctx.lineTo(-w * 0.02, h * 0.16);
+  ctx.lineTo(w * 0.26, -h * 0.16);
+  ctx.stroke();
+  ctx.restore();
 }
 
 // Drawn after render() (identity transform), so in plain canvas space.
 function drawPowerups() {
-  if (state.slowTimer > 0) {
-    ctx.fillStyle = "rgba(34,178,180,0.1)"; // blue tint while active
-    ctx.fillRect(0, 0, W, H);
-  }
   for (const p of state.powerups) {
     const pulse = 1 + Math.sin(p.age * 6) * 0.06;
-    drawStopwatch(p.x, p.y, POWERUP_R * pulse);
+    const r = POWERUP_R * pulse;
+    powerDisc(p.x, p.y, r);
+    if (p.type === "magnet") drawMagnetGlyph(p.x, p.y, r);
+    else if (p.type === "shield") drawShieldGlyph(p.x, p.y, r);
+    else drawExpandGlyph(p.x, p.y, r);
   }
 }
 
@@ -1409,14 +1506,51 @@ function collectPowerupAt(px, py) {
     const p = state.powerups[i];
     const hitR = POWERUP_R + 16; // generous hit area for touch
     if ((px - p.x) ** 2 + (py - p.y) ** 2 <= hitR * hitR) {
+      const type = p.type;
       state.powerups.splice(i, 1);
-      state.slowTimer = SLOW_DURATION;
+      applyPower(type);
       playPowerup();
-      updateSlowIndicator();
       return true;
     }
   }
   return false;
+}
+
+function applyPower(type) {
+  if (type === "magnet") {
+    state.magnetDrops = MAGNET_DROPS;
+    showToast("🧲 Magnet on!");
+  } else if (type === "shield") {
+    state.hasShield = true;
+    state.shieldEarned = true;
+    showToast("🛡 Shield up!");
+  } else {
+    applyExpand();
+    showToast("↔ Bigger block!");
+  }
+  updateStatusBadges();
+}
+
+// Widen a block in place: grow from its center, capped to the lane and clamped
+// so it stays on screen.
+function widenBlock(b, min, max) {
+  const center = b.x + b.width / 2;
+  b.width = Math.min(b.width + EXPAND_AMOUNT, max - min);
+  b.x = center - b.width / 2;
+  if (b.x < min) b.x = min;
+  if (b.x + b.width > max) b.x = max - b.width;
+}
+
+// Expand the block you're about to place AND the surface it lands on, so a good
+// drop actually keeps the extra width instead of shedding it as overhang. The
+// top couple of placed blocks widen together so the boost carries up the tower.
+function applyExpand() {
+  const { min, max } = slideBounds();
+  if (state.active) widenBlock(state.active, min, max);
+  // widen the top 2 placed blocks (the landing surface + its support)
+  for (let i = state.placed.length - 1; i >= 0 && i >= state.placed.length - 2; i--) {
+    widenBlock(state.placed[i], min, max);
+  }
 }
 
 function playPowerup() {
@@ -1424,20 +1558,38 @@ function playPowerup() {
   tone({ freq: 990, type: "sine", dur: 0.15, gain: 0.18, delay: 0.08 });
 }
 
-function updateSlowIndicator() {
-  if (state.slowTimer > 0) {
-    slowmoEl.classList.remove("hidden");
-    slowmoFill.style.width = (state.slowTimer / SLOW_DURATION) * 100 + "%";
-  } else {
-    slowmoEl.classList.add("hidden");
+function playShieldSave() {
+  tone({ freq: 320, freqEnd: 680, type: "sawtooth", dur: 0.2, gain: 0.18 });
+  tone({ freq: 660, freqEnd: 1040, type: "sine", dur: 0.28, gain: 0.16, delay: 0.11 });
+}
+
+function showToast(msg) {
+  state.toastTimer = FLASH_DURATION;
+  if (!puToast) return;
+  puToast.textContent = msg;
+  puToast.classList.remove("hidden");
+}
+
+function updateStatusBadges() {
+  if (shieldBadge) shieldBadge.classList.toggle("hidden", !state.hasShield);
+  if (magnetBadge) {
+    if (state.magnetDrops > 0) {
+      magnetBadge.classList.remove("hidden");
+      if (magnetCount) magnetCount.textContent = state.magnetDrops;
+    } else {
+      magnetBadge.classList.add("hidden");
+    }
   }
 }
 
 function clearPowerups() {
   state.powerups = [];
-  state.slowTimer = 0;
-  state.powerSpawnTimer = POWER_SPAWN_MIN;
-  updateSlowIndicator();
+  state.toastTimer = 0;
+  state.magnetDrops = 0;
+  state.hasShield = false;
+  state.shieldEarned = false;
+  if (puToast) puToast.classList.add("hidden");
+  updateStatusBadges();
 }
 
 function frame(timestamp) {
@@ -1449,12 +1601,10 @@ function frame(timestamp) {
     // While paused for the reward, leave the frozen frame on the canvas and
     // give the confetti all the frame budget.
     if (!state.paused) {
-      updatePowerups(dt); // real time
-      const gameDt = state.slowTimer > 0 ? dt * SLOW_FACTOR : dt; // slow-mo affects the game
-      update(gameDt);
+      updatePowerups(dt);
+      update(dt);
       render();
       drawPowerups();
-      updateSlowIndicator();
     }
   } else {
     updateMenu(dt);

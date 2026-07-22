@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bowl Builder — Pokeworks</title>
   <meta name="description" content="Pokeworks — Bowl Builder minigame." />
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=10" />
 </head>
 <body>
   <a href="index.html" class="back-link">← Minigames</a>
@@ -34,10 +34,13 @@
       <!-- Perfect-drop combo counter (top-right of the box) -->
       <div id="combo" class="combo hidden"><span id="combo-count">x2</span></div>
 
-      <!-- Slow-mo power-up indicator (top-center of the box) -->
-      <div id="slowmo" class="slowmo hidden">
-        <span class="slowmo-label">⏱ Slow-mo</span>
-        <div class="slowmo-track"><i id="slowmo-fill" class="slowmo-fill"></i></div>
+      <!-- Power-up toast (top-center of the box) -->
+      <div id="pu-toast" class="pu-toast hidden"></div>
+
+      <!-- Active power-up badges (top-left of the box) -->
+      <div class="status">
+        <div id="shield-badge" class="status-badge shield hidden" title="Shield — survives one miss">🛡</div>
+        <div id="magnet-badge" class="status-badge magnet hidden" title="Magnet — auto-perfect if you're close">🧲<span id="magnet-count" class="badge-count">2</span></div>
       </div>
 
       <!-- Start overlay -->
@@ -107,6 +110,6 @@
   </div>
 
   <script src="transitions.js?v=3"></script>
-  <script src="script.js?v=6"></script>
+  <script src="script.js?v=11"></script>
 </body>
 </html>

@@ -135,58 +135,92 @@ body {
   touch-action: none;
 }
 
-/* Slow-mo power-up indicator — pinned top-center of the box while active */
-.slowmo {
+/* Power-up toast — a brief badge that pops up top-center when a power-up fires */
+.pu-toast {
   position: absolute;
   top: 12px;
   left: 50%;
-  transform: translateX(-50%);
   z-index: 16;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 7px 14px 9px;
-  border-radius: 12px;
-  background: rgba(34, 178, 180, 0.16);
-  border: 1.5px solid var(--teal);
-  box-shadow: 0 2px 12px rgba(34, 178, 180, 0.35);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(34, 178, 180, 0.5);
   pointer-events: none;
-  animation: slowmo-pulse 1s ease-in-out infinite;
+  transform: translateX(-50%);
+  animation: pu-toast-pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
-.slowmo.hidden {
+.pu-toast.hidden {
   display: none;
 }
 
-.slowmo-label {
-  font-size: 0.82rem;
+@keyframes pu-toast-pop {
+  0% { transform: translate(-50%, -8px) scale(0.7); opacity: 0; }
+  100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+}
+
+/* Active power-up badges — pinned top-left of the box while a held effect lasts */
+.status {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 16;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.status-badge {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.status-badge.hidden {
+  display: none;
+}
+
+.status-badge.shield {
+  border: 2px solid var(--teal);
+  animation: shield-glow 1.4s ease-in-out infinite;
+}
+
+.status-badge.magnet {
+  border: 2px solid var(--accent);
+}
+
+.badge-count {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
   font-weight: 800;
-  letter-spacing: 0.03em;
-  color: var(--teal-dark);
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.slowmo-track {
-  width: 96px;
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(27, 144, 146, 0.25);
-  overflow: hidden;
-}
-
-.slowmo-fill {
-  display: block;
-  height: 100%;
-  width: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--teal), #4fd4d6);
-  transition: width 0.1s linear;
-}
-
-@keyframes slowmo-pulse {
-  0%, 100% { box-shadow: 0 2px 12px rgba(34, 178, 180, 0.35); }
-  50% { box-shadow: 0 2px 20px rgba(34, 178, 180, 0.65); }
+@keyframes shield-glow {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18), 0 0 6px 1px rgba(34, 178, 180, 0.5); }
+  50% { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18), 0 0 14px 4px rgba(34, 178, 180, 0.85); }
 }
 
 /* Overlay */
