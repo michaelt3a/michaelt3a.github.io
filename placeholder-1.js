@@ -664,7 +664,7 @@ function checkBowl() {
     win();
   } else {
     SFX.wrong();
-    feedbackEl.textContent = `${correctGroups} / ${CATEGORIES.length} groups correct — keep going!`;
+    feedbackEl.textContent = `${correctGroups} / ${CATEGORIES.length} groups correct. Keep going!`;
     feedbackEl.className = "feedback bad";
     bowlArea.classList.remove("shake");
     void bowlArea.offsetWidth;
@@ -675,7 +675,7 @@ function checkBowl() {
 function win() {
   successSub.textContent = hintsUsed
     ? `You built the ${currentRecipe.name} with ${hintsUsed} hint${hintsUsed === 1 ? "" : "s"}.`
-    : `You built the ${currentRecipe.name} — no hints!`;
+    : `You built the ${currentRecipe.name}  with no hints!`;
   successEl.classList.remove("hidden");
   SFX.win();
   runConfetti();
@@ -864,7 +864,7 @@ async function renderSpeedrunBoard() {
   if (!list.length) {
     const li = document.createElement("li");
     li.className = "sr-lb-empty";
-    li.textContent = "No runs yet — be the first!";
+    li.textContent = "No runs yet. Be the first!";
     srLbList.appendChild(li);
     return;
   }

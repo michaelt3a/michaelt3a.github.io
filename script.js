@@ -814,7 +814,7 @@ async function renderLeaderboard() {
   if (!list.length) {
     const li = document.createElement("li");
     li.className = "lb-empty";
-    li.textContent = "No scores yet — be the first!";
+    li.textContent = "No scores yet. Be the first!";
     lbList.appendChild(li);
     return;
   }
@@ -985,8 +985,8 @@ function startGame(difficulty) {
 
 // Quippy remarks shown on game over. Edit these to taste.
 const GAME_OVER_QUIPS = {
-  best: ["New personal best! 🎉", "A new high — nicely done!", "Top of your game!"],
-  none: ["Oof — the bowl deserved better.", "Zero ingredients. Bold strategy.", "Straight to the trash, huh?"],
+  best: ["New personal best! 🎉", "A new high, nicely done!", "Top of your game!"],
+  none: ["Oof. The bowl deserved better.", "Zero ingredients. Bold strategy.", "Straight to the trash, huh?"],
   low: ["A humble start.", "Every bowl begins somewhere.", "Room to grow!"],
   mid: ["Now that's a snack.", "Solid bowl-building!", "Getting the hang of it."],
   high: ["Chef-level stacking!", "That's a serious bowl.", "The bowl is impressed."],
@@ -1532,7 +1532,7 @@ function triggerReward(cfg) {
   render(); // capture the just-completed bowl as the frozen backdrop
   state.paused = true;
   state.rewardShowing = true;
-  rewardSubtitle.textContent = `You reached ${cfg.reward} — here's ${cfg.discount}% off your next bowl.`;
+  rewardSubtitle.textContent = `You reached ${cfg.reward}, so here's ${cfg.discount}% off your next bowl.`;
   rewardCode.textContent = `POKEREWARDS${cfg.reward}`;
   spawnConfetti(200, false); // seed across the whole box so it's full immediately
   playReward();

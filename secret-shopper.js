@@ -1,14 +1,11 @@
 // Secret Shopper — the secret shopper is somewhere in your shift. Three guests
 // come in, each with their own personality, and every step of every visit is
-// audited like the hospitality sheet: greeting speed, warmth, first-time
-// question, menu knowledge (harder with each guest), upsell, rewards, order
-// speed, parting comment, dining-room check-ins — plus surprise events
-// (spills, phone calls, walk-ins, complaints) that test you too.
+// audited like the hospitality sheet. Every question is timed, has four
+// options, and the menu quizzes get harder with each guest.
 
 const B = window.Bowl;
 const RECIPES = B.RECIPES;
 const ING = B.INGREDIENTS;
-const CATS = B.CATEGORIES;
 
 // --- DOM ----------------------------------------------------------------
 const doorEl = document.getElementById("door");
@@ -38,8 +35,11 @@ const bestEl = document.getElementById("best");
 // --- Config ---------------------------------------------------------------
 const GUESTS_PER_SHIFT = 3;
 const BEST_KEY = "pokeworks-shopper-best";
-const SPOT = { enter: 4, greet: 22, counter: 52, table: 10, wait: 12 };
-const CUST_SHIRTS = ["#22b2b4", "#f0a52c", "#7c5cff", "#39a85b", "#e8709b", "#4c7dd1"];
+const QUESTION_SECS = 7; // thinking time on regular prompts
+const MENU_SECS = 9; // menu quizzes get a little longer to read
+const WALKIN_SECS = 3; // a waiting guest wants acknowledging FAST
+const SPOT = { greet: 24, counter: 46, table: 8, tableTalk: 24, wait: 30 };
+const CUST_SHIRTS = ["#22b2b4", "#fd9f27", "#7c5cff", "#39a85b", "#e8709b", "#4c7dd1"];
 
 // Personalities change pacing, dialogue, and whether they dine in.
 const PERSONALITIES = {
@@ -50,19 +50,63 @@ const PERSONALITIES = {
 };
 
 // --- Dialogue pools (variety between runs) --------------------------------
-const GREET_GOOD = ["“Aloha! Welcome in!”", "“Welcome to Pokeworks!”", "“Hey there — welcome in!”", "“Good afternoon! Come on in!”"];
-const GREET_BAD = ["“Yo.”", "(Keep restocking the napkins)", "(Stare at the register)", "“We close in an hour.”", "(Check your phone)"];
-const PREORDER_GOOD = ["“Welcome to Pokeworks! How's your day going?”", "“Hi! How are you today?”", "“Great to see you — how's it going?”"];
-const PREORDER_BAD = ["“What do you want?”", "“Hurry it up, there's a line.”", "“Next.”", "(Point at the menu silently)"];
-const UPSELL_GOOD = ["“Would you like to add avocado or a drink?”", "“Can I add a snack or a drink for you?”", "“Avocado on that? It's amazing.”"];
-const UPSELL_BAD = ["“That everything? Cool.”", "“Anything else? No? Fine.”", "(Ring them up without asking)"];
-const REWARDS_GOOD = ["“Do you have our rewards app? You earn points!”", "“Are you in our rewards program yet?”"];
-const REWARDS_BAD = ["“Alright, that'll be $13.45.”", "(Skip straight to payment)", "“Cash or card. Pick.”"];
-const PARTING_GOOD = ["“Thank you! Have a great day!”", "“Thanks so much — enjoy!”", "“Have a wonderful rest of your day!”"];
-const PARTING_BAD = ["“NEXT!”", "(Turn away silently)", "“Finally.”"];
+const GREET_GOOD = [
+  "“Aloha! Welcome in!”", "“Welcome to Pokeworks!”", "“Hey there, welcome in!”",
+  "“Good afternoon! Come on in!”", "“Hi there! Great to see you!”",
+];
+const GREET_BAD = [
+  "“Yo.”", "(Keep restocking the napkins)", "(Stare at the register)",
+  "“We close in an hour.”", "(Check your phone)", "(Yawn loudly)",
+];
+const PREORDER_GOOD = [
+  "“Welcome to Pokeworks! How's your day going?”", "“Hi! How are you today?”",
+  "“Great to see you. How's it going?”", "“Hi there! What can I get started for you?”",
+];
+const PREORDER_BAD = [
+  "“What do you want?”", "“Hurry it up, there's a line.”", "“Next.”",
+  "(Point at the menu silently)", "(Sigh) “Go ahead.”",
+];
+const FIRSTTIME_GOOD = ["“Is this your first time visiting us?”", "“Have you been in before?”"];
+const FIRSTTIME_BAD = [
+  "(Skip the small talk)", "“You look like you eat here too much.”",
+  "“You already know what you want, right?”", "“Name for the order. Go.”",
+];
+const UPSELL_GOOD = [
+  "“Would you like to add avocado or a drink?”", "“Can I add a snack or a drink for you?”",
+  "“Avocado on that? It's amazing.”", "“Any drinks or snacks with that today?”",
+];
+const UPSELL_BAD = [
+  "“That everything? Cool.”", "“Anything else? No? Fine.”",
+  "(Ring them up without asking)", "(Just total it up)",
+];
+const REWARDS_GOOD = [
+  "“Do you have our rewards app? You earn points!”", "“Are you in our rewards program yet?”",
+  "“Want me to scan your rewards app?”",
+];
+const REWARDS_BAD = [
+  "“Alright, that'll be $13.45.”", "(Skip straight to payment)",
+  "“Cash or card. Pick.”", "(Tap the card reader impatiently)",
+];
+const PARTING_GOOD = [
+  "“Thank you! Have a great day!”", "“Thanks so much. Enjoy!”",
+  "“Have a wonderful rest of your day!”", "“Mahalo! See you next time!”",
+];
+const PARTING_BAD = [
+  "“NEXT!”", "(Turn away silently)", "“Finally.”", "(Slide the bowl over wordlessly)",
+];
+const DINING_GOOD = ["Visit their table: “How is everything?”", "Swing by: “Can I get you anything else?”"];
+const DINING_BAD = [
+  "(Stand around behind the counter)", "(Watch them eat, silently, from a distance)",
+  "(Start sweeping loudly next to them)",
+];
 
-const REPLY_HAPPY = ["Great, thanks for asking!", "Doing well, thanks!", "Aw, thanks for asking!"];
-const REPLY_ANNOYED = ["Uh… okay then.", "Wow. Friendly.", "…sure."];
+const REPLY_HAPPY = ["Great, thanks for asking!", "Doing well, thanks!", "Aw, thanks for asking!", "Doing great now, thanks!"];
+const REPLY_ANNOYED = ["Uh... okay then.", "Wow. Friendly.", "...sure.", "Charming."];
+const REPLY_FIRSTTIME = ["First time, actually!", "I come here all the time!", "First visit! What do you recommend?", "My friend wouldn't stop talking about this place."];
+const REPLY_UPSELL_YES = ["Ooh, avocado please!", "A drink sounds good!", "Go on then, add the avocado.", "Twist my arm... yes."];
+const REPLY_REWARDS_YES = ["Just downloaded it!", "Already got it. 2,000 points!", "Sure, scan away!"];
+const REPLY_TABLE = ["Delicious, thank you!", "So good. I'm telling everyone.", "Best bowl yet!", "Perfect, as always."];
+const REPLY_SLOW = ["That took a while...", "I was about to send a search party.", "Finally..."];
 
 // --- State ------------------------------------------------------------------
 let running = false;
@@ -134,21 +178,22 @@ function stickmanSVG(shirt, mood) {
     "</svg>"
   );
 }
+// White table with Pokeworks-orange chairs, like the real stores.
 function tableSVG() {
   return (
     '<svg viewBox="0 0 140 92" width="100%" height="100%" aria-hidden="true">' +
     '<ellipse cx="70" cy="84" rx="54" ry="7" fill="rgba(0,0,0,0.10)"/>' +
-    '<rect x="18" y="34" width="13" height="30" rx="6" fill="#94a0aa"/>' +
-    '<rect x="109" y="34" width="13" height="30" rx="6" fill="#94a0aa"/>' +
-    '<rect x="14" y="54" width="30" height="9" rx="4" fill="#aab4bd"/>' +
-    '<rect x="96" y="54" width="30" height="9" rx="4" fill="#aab4bd"/>' +
-    '<line x1="20" y1="63" x2="20" y2="80" stroke="#8b96a0" stroke-width="4" stroke-linecap="round"/>' +
-    '<line x1="38" y1="63" x2="38" y2="80" stroke="#8b96a0" stroke-width="4" stroke-linecap="round"/>' +
-    '<line x1="102" y1="63" x2="102" y2="80" stroke="#8b96a0" stroke-width="4" stroke-linecap="round"/>' +
-    '<line x1="120" y1="63" x2="120" y2="80" stroke="#8b96a0" stroke-width="4" stroke-linecap="round"/>' +
+    '<rect x="18" y="34" width="13" height="30" rx="6" fill="#fd9f27"/>' +
+    '<rect x="109" y="34" width="13" height="30" rx="6" fill="#fd9f27"/>' +
+    '<rect x="14" y="54" width="30" height="9" rx="4" fill="#fd9f27"/>' +
+    '<rect x="96" y="54" width="30" height="9" rx="4" fill="#fd9f27"/>' +
+    '<line x1="20" y1="63" x2="20" y2="80" stroke="#d9821b" stroke-width="4" stroke-linecap="round"/>' +
+    '<line x1="38" y1="63" x2="38" y2="80" stroke="#d9821b" stroke-width="4" stroke-linecap="round"/>' +
+    '<line x1="102" y1="63" x2="102" y2="80" stroke="#d9821b" stroke-width="4" stroke-linecap="round"/>' +
+    '<line x1="120" y1="63" x2="120" y2="80" stroke="#d9821b" stroke-width="4" stroke-linecap="round"/>' +
     '<rect x="66" y="46" width="8" height="30" fill="#b98f57"/>' +
     '<rect x="56" y="74" width="28" height="6" rx="3" fill="#9c7743"/>' +
-    '<ellipse cx="70" cy="44" rx="42" ry="12" fill="#d9b07a" stroke="#a97f4a" stroke-width="2"/>' +
+    '<ellipse cx="70" cy="44" rx="42" ry="12" fill="#ffffff" stroke="#c9ced2" stroke-width="2"/>' +
     "</svg>"
   );
 }
@@ -187,7 +232,7 @@ function saveBestPct(v) {
 }
 function showBest() {
   const b = loadBestPct();
-  bestEl.textContent = b > 0 ? b + "%" : "—";
+  bestEl.textContent = b > 0 ? b + "%" : "0%";
 }
 
 function walkTo(wrap, pct, ms) {
@@ -214,10 +259,15 @@ function log(guest, label, pts, got) {
 }
 
 // --- Prompt / choices ---------------------------------------------------
-function ask(title, options, timerSec) {
+// Show a timed prompt. Resolves { good, text, inTime, timedOut }.
+// If failOnTimeout (the default when a timer is set), running out of time
+// counts as a miss: the right answer flashes and the prompt resolves bad.
+function ask(title, options, timerSec, opts = {}) {
+  const failOnTimeout = opts.failOnTimeout !== false;
   promptTitle.textContent = title;
   choicesEl.innerHTML = "";
   let timedOut = false;
+  let settled = false;
   let timeoutId = null;
 
   if (timerSec) {
@@ -228,15 +278,12 @@ function ask(title, options, timerSec) {
     void timerFill.offsetWidth;
     timerFill.style.transition = "width " + timerSec + "s linear";
     timerFill.style.width = "0%";
-    timeoutId = setTimeout(() => {
-      timedOut = true;
-      timerFill.classList.add("late");
-    }, timerSec * 1000);
   } else {
     timerEl.classList.add("hidden");
   }
 
   return new Promise((resolve) => {
+    const buttons = [];
     for (const opt of shuffle(options)) {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -244,15 +291,35 @@ function ask(title, options, timerSec) {
       btn.textContent = opt.t;
       btn.dataset.good = opt.good ? "1" : "0";
       btn.addEventListener("click", async () => {
+        if (settled) return;
+        settled = true;
         if (timeoutId) clearTimeout(timeoutId);
         timerEl.classList.add("hidden");
-        for (const b of choicesEl.querySelectorAll("button")) b.disabled = true;
+        for (const b of buttons) b.disabled = true;
         btn.classList.add(opt.good ? "picked-good" : "picked-bad");
         if (opt.good) SFX.good(); else SFX.bad();
         await wait(650);
-        resolve({ good: opt.good, text: opt.t, inTime: !timedOut });
+        resolve({ good: opt.good, text: opt.t, inTime: !timedOut, timedOut: false });
       });
       choicesEl.appendChild(btn);
+      buttons.push(btn);
+    }
+
+    if (timerSec) {
+      timeoutId = setTimeout(async () => {
+        timedOut = true;
+        timerFill.classList.add("late");
+        if (!failOnTimeout) return; // greeting-style: late clicks still count
+        if (settled) return;
+        settled = true;
+        for (const b of buttons) b.disabled = true;
+        const goodBtn = buttons.find((b) => b.dataset.good === "1");
+        if (goodBtn) goodBtn.classList.add("reveal-good");
+        SFX.bad();
+        await wait(900);
+        timerEl.classList.add("hidden");
+        resolve({ good: false, text: null, inTime: false, timedOut: true });
+      }, timerSec * 1000);
     }
   });
 }
@@ -269,64 +336,59 @@ function mix(goodPool, badPool, badCount) {
   return opts;
 }
 
-// --- Menu questions, harder for each guest -------------------------------
-// level 0: sauce/protein of a bowl (3 options)
-// level 1: what's inside / how many mix-ins (3 options)
-// level 2: NOT in the bowl, or reverse lookup (4 options)
-function menuQuestion(level) {
+// --- Menu questions: 4 options, harder for each guest ---------------------
+const EXTRAS_POOL = [...new Set(ING["Mix-ins"].concat(ING["Toppings"]))];
+
+function extrasOf(r) {
+  return r.items["Mix-ins"].concat(r.items["Toppings"]);
+}
+function qSauceProtein() {
   const r = pick(RECIPES);
-
-  if (level <= 0) {
-    const useSauce = Math.random() < 0.5;
-    const cat = useSauce ? "Sauce" : "Protein";
-    const correct = r.items[cat][0];
-    const wrongs = pickN(ING[cat].filter((n) => !r.items[cat].includes(n)), 2);
-    return {
-      recipe: r,
-      text: useSauce
-        ? `Quick question — what sauce comes on the ${r.name}?`
-        : `Quick question — which protein is in the ${r.name}?`,
-      options: [{ t: correct, good: true }, { t: wrongs[0], good: false }, { t: wrongs[1], good: false }],
-    };
-  }
-
-  if (level === 1) {
-    if (Math.random() < 0.5) {
-      // which of these comes in the bowl?
-      const inside = r.items["Mix-ins"].concat(r.items["Toppings"]);
-      const correct = pick(inside);
-      const pool = ING["Mix-ins"].concat(ING["Toppings"]).filter((n) => !inside.includes(n) && n !== correct);
-      const wrongs = pickN([...new Set(pool)], 2);
-      return {
-        recipe: r,
-        text: `Hmm — which of these actually comes in the ${r.name}?`,
-        options: [{ t: correct, good: true }, { t: wrongs[0], good: false }, { t: wrongs[1], good: false }],
-      };
-    }
-    // how many mix-ins?
-    const n = r.items["Mix-ins"].length;
-    const decoys = shuffle([n - 1, n + 1, n + 2].filter((x) => x > 0 && x !== n)).slice(0, 2);
-    return {
-      recipe: r,
-      text: `How many mix-ins come in the ${r.name}?`,
-      options: [{ t: String(n), good: true }, { t: String(decoys[0]), good: false }, { t: String(decoys[1]), good: false }],
-    };
-  }
-
-  // level >= 2
-  if (Math.random() < 0.5) {
-    // which is NOT in the bowl? (3 real + 1 imposter)
-    const inside = r.items["Mix-ins"].concat(r.items["Toppings"]);
-    const reals = pickN(inside, 3);
-    const pool = ING["Mix-ins"].concat(ING["Toppings"]).filter((n) => !inside.includes(n));
-    const imposter = pick([...new Set(pool)]);
-    return {
-      recipe: r,
-      text: `Tricky one — which of these is NOT in the ${r.name}?`,
-      options: [{ t: imposter, good: true }].concat(reals.map((t) => ({ t, good: false }))),
-    };
-  }
-  // reverse lookup: which bowl comes with X? (pick an ingredient unique to one recipe)
+  const useSauce = Math.random() < 0.5;
+  const cat = useSauce ? "Sauce" : "Protein";
+  const correct = r.items[cat][0];
+  const wrongs = pickN(ING[cat].filter((n) => !r.items[cat].includes(n)), 3);
+  return {
+    recipe: r, correct,
+    text: useSauce
+      ? `Quick question: what sauce comes on the ${r.name}?`
+      : `Quick question: which protein is in the ${r.name}?`,
+    options: [{ t: correct, good: true }].concat(wrongs.map((t) => ({ t, good: false }))),
+  };
+}
+function qContains() {
+  const r = pick(RECIPES);
+  const inside = extrasOf(r);
+  const correct = pick(inside);
+  const wrongs = pickN(EXTRAS_POOL.filter((n) => !inside.includes(n)), 3);
+  return {
+    recipe: r, correct,
+    text: `Which of these actually comes in the ${r.name}?`,
+    options: [{ t: correct, good: true }].concat(wrongs.map((t) => ({ t, good: false }))),
+  };
+}
+function qHowMany() {
+  const r = pick(RECIPES);
+  const n = r.items["Mix-ins"].length;
+  const decoys = [n - 1, n + 1, n + 2].filter((x) => x > 0 && x !== n).slice(0, 3);
+  return {
+    recipe: r, correct: String(n),
+    text: `How many mix-ins come in the ${r.name}?`,
+    options: [{ t: String(n), good: true }].concat(decoys.map((d) => ({ t: String(d), good: false }))),
+  };
+}
+function qNot() {
+  const r = pick(RECIPES);
+  const inside = extrasOf(r);
+  const reals = pickN(inside, 3);
+  const imposter = pick(EXTRAS_POOL.filter((n) => !inside.includes(n)));
+  return {
+    recipe: r, correct: imposter,
+    text: `Tricky one: which of these is NOT in the ${r.name}?`,
+    options: [{ t: imposter, good: true }].concat(reals.map((t) => ({ t, good: false }))),
+  };
+}
+function qReverse() {
   for (const cat of shuffle(["Sauce", "Protein"])) {
     const count = {};
     for (const rec of RECIPES) for (const n of rec.items[cat]) count[n] = (count[n] || 0) + 1;
@@ -336,45 +398,85 @@ function menuQuestion(level) {
       const owner = RECIPES.find((rec) => rec.items[cat].includes(ingr));
       const others = pickN(RECIPES.filter((rec) => rec !== owner), 3);
       return {
-        recipe: owner,
+        recipe: owner, correct: owner.name,
         text: `Which bowl comes with ${ingr}?`,
         options: [{ t: owner.name, good: true }].concat(others.map((o) => ({ t: o.name, good: false }))),
       };
     }
   }
-  return menuQuestion(0); // fallback (shouldn't happen)
+  return qNot();
+}
+function qTotal() {
+  const r = pick(RECIPES);
+  const n = extrasOf(r).length;
+  const decoys = [n - 2, n - 1, n + 1, n + 2].filter((x) => x > 0 && x !== n);
+  return {
+    recipe: r, correct: String(n),
+    text: `Counting mix-ins AND toppings, how many extras come on the ${r.name}?`,
+    options: [{ t: String(n), good: true }].concat(pickN(decoys, 3).map((d) => ({ t: String(d), good: false }))),
+  };
+}
+function qCommon() {
+  for (let tries = 0; tries < 6; tries++) {
+    const [a, b2] = pickN(RECIPES, 2);
+    const setA = new Set(extrasOf(a));
+    const setB = new Set(extrasOf(b2));
+    const common = [...setA].filter((x) => setB.has(x));
+    const onlyOne = [...new Set([...setA, ...setB])].filter((x) => !(setA.has(x) && setB.has(x)));
+    const outsiders = EXTRAS_POOL.filter((x) => !setA.has(x) && !setB.has(x));
+    const wrongPool = onlyOne.concat(outsiders);
+    if (common.length && wrongPool.length >= 3) {
+      const correct = pick(common);
+      return {
+        recipe: a, correct,
+        text: `Which ingredient do the ${a.name} and the ${b2.name} BOTH have?`,
+        options: [{ t: correct, good: true }].concat(pickN(wrongPool, 3).map((t) => ({ t, good: false }))),
+      };
+    }
+  }
+  return qNot();
+}
+
+// Guest 1 warms you up, guest 3 is genuinely hard.
+function menuQuestion(level) {
+  const pools = {
+    1: [qSauceProtein, qContains],
+    2: [qContains, qHowMany, qNot],
+    3: [qNot, qReverse, qTotal, qCommon],
+  };
+  return pick(pools[Math.min(3, Math.max(1, level))])();
 }
 
 // --- Random events --------------------------------------------------------
-// Each event is worth 2 audit points. `when` is "before" (pre-order-making)
-// or "after" (after serving).
 const EVENTS = {
   spill: {
     when: "before",
     label: "Handled the spill quickly",
-    async run(g) {
+    async run() {
       SFX.crash();
-      await say(custBubble, "Oh no — someone spilled a drink!", 1400);
+      await say(custBubble, pick(["Oh no, someone spilled a drink!", "Whoa, watch out, there's a spill!"]), 1400);
       const r = await ask("A drink spills near the counter!", [
         { t: "Grab the mop and a wet-floor sign", good: true },
         { t: "(Someone else will get it)", good: false },
         { t: "Toss one napkin at it from here", good: false },
-      ]);
-      if (r.good) await say(empBubble, "All cleaned up — sorry about that!", 1200);
+        { t: "“Careful, everyone!” and keep working", good: false },
+      ], QUESTION_SECS);
+      if (r.good) await say(empBubble, "All cleaned up. Sorry about that!", 1200);
       return r.good;
     },
   },
   phone: {
     when: "before",
     label: "Handled the phone professionally",
-    async run(g) {
+    async run() {
       SFX.ring();
       await say(empBubble, "*ring ring*", 900);
       const r = await ask("The store phone rings mid-order.", [
-        { t: "“Excuse me one moment” — answer politely", good: true },
+        { t: "“Excuse me one moment,” then answer politely", good: true },
         { t: "(Let it ring forever)", good: false },
         { t: "Answer it and chat for five minutes", good: false },
-      ]);
+        { t: "(Unplug the phone)", good: false },
+      ], QUESTION_SECS);
       if (r.good) await say(custBubble, "No problem, take your time!", 1100);
       else moodDown();
       return r.good;
@@ -383,7 +485,7 @@ const EVENTS = {
   walkin: {
     when: "before",
     label: "Acknowledged the waiting guest",
-    async run(g) {
+    async run() {
       doorEl.classList.add("open");
       SFX.bell();
       extraStick.innerHTML = stickmanSVG(pick(CUST_SHIRTS), "ok");
@@ -392,30 +494,33 @@ const EVENTS = {
       extraWrap.style.left = "-12%";
       await wait(60);
       walkTo(extraWrap, SPOT.wait, 1400);
-      const r = await ask("Another guest walks in while you're busy.", [
+      // Waiting guests want acknowledging FAST, faster than a normal greeting.
+      const r = await ask("Another guest walks in while you're busy. Quick!", [
         { t: "“Welcome in! I'll be right with you!”", good: true },
         { t: "(Don't look up)", good: false },
         { t: "“There's a line. Wait.”", good: false },
-      ]);
+        { t: "(Groan audibly)", good: false },
+      ], WALKIN_SECS);
       doorEl.classList.remove("open");
-      if (r.good) await say(extraBubble, "No rush — just picking up!", 1200);
+      if (r.good) await say(extraBubble, pick(["No rush, just picking up!", "Thanks! Take your time."]), 1200);
       return r.good;
     },
   },
   complaint: {
     when: "after",
     label: "Recovered from a mistake",
-    async run(g) {
+    async run() {
       custMood("warn");
-      await say(custBubble, "Wait — I asked for no onions!", 1400);
+      await say(custBubble, pick(["Wait, I asked for no onions!", "Hold on, this isn't the right sauce..."]), 1400);
       const r = await ask("They found a mistake in the bowl!", [
         { t: "“So sorry! I'll remake that right away.”", good: true },
         { t: "“No refunds.”", good: false },
         { t: "(Shrug)", good: false },
-      ]);
+        { t: "“Are you sure you ordered that?”", good: false },
+      ], QUESTION_SECS);
       if (r.good) {
         moodUp();
-        await say(custBubble, "Wow, that was fast — thank you!", 1200);
+        await say(custBubble, "Wow, that was fast. Thank you!", 1200);
       } else {
         custMood("mad");
       }
@@ -425,14 +530,18 @@ const EVENTS = {
   smalltalk: {
     when: "before",
     label: "Stayed engaged with the guest",
-    async run(g) {
-      await say(custBubble, "…so anyway, that's when my cat learned to open the fridge—", 1700);
+    async run() {
+      await say(custBubble, pick([
+        "...so anyway, that's when my cat learned to open the fridge...",
+        "...and THAT'S why I'm never allowed back at that karaoke bar...",
+      ]), 1700);
       const r = await ask("They're deep into a story. What do you do?", [
         { t: "Listen and react warmly", good: true },
         { t: "(Walk away mid-sentence)", good: false },
         { t: "“Is this going anywhere?”", good: false },
-      ]);
-      if (r.good) await say(empBubble, "No way — through the child lock?!", 1300);
+        { t: "“Cool cool cool.” (Look at the door)", good: false },
+      ], QUESTION_SECS);
+      if (r.good) await say(empBubble, pick(["No way. Through the child lock?!", "Stop, that's incredible."]), 1300);
       else moodDown();
       return r.good;
     },
@@ -461,16 +570,17 @@ async function runGuest(idx, personaKey) {
   note(`Guest ${idx + 1} of ${GUESTS_PER_SHIFT} is arriving…`);
   await wait(500);
 
-  // 1-2. Walk in — greet fast and warm (rushed guests give you less time).
+  // 1-2. Walk in and greet fast + warm (late clicks still count as warm).
   doorEl.classList.add("open");
   SFX.bell();
   await wait(250);
   walkTo(custWrap, SPOT.greet, 2200);
   if (personaKey === "rush") say(custBubble, "In a hurry, sorry!", 1400);
   const greet = await ask(
-    personaKey === "rush" ? "A customer rushes in — quick!" : "A customer just walked in!",
-    mix(GREET_GOOD, GREET_BAD, 2),
-    P.greetSecs
+    personaKey === "rush" ? "A customer rushes in. Quick!" : "A customer just walked in!",
+    mix(GREET_GOOD, GREET_BAD, 3),
+    P.greetSecs,
+    { failOnTimeout: false }
   );
   doorEl.classList.remove("open");
   log(idx, `Greeted within ${P.greetSecs} seconds of entering`, 3, greet.good && greet.inTime);
@@ -480,57 +590,57 @@ async function runGuest(idx, personaKey) {
     moodUp();
   } else {
     moodDown();
-    await say(custBubble, "…hello?", 1000);
+    await say(custBubble, "...hello?", 1000);
   }
 
   note("They're heading to the counter…");
   await walkTo(custWrap, SPOT.counter, 1400);
 
   // 3. Pleasant greeting before the order.
-  await say(custBubble, personaKey === "rush" ? "Hi — I'd like to order, fast!" : "Hi, I'd like to order.", 1200);
-  const pre = await ask("Take their order — how do you start?", mix(PREORDER_GOOD, PREORDER_BAD, 2));
+  await say(custBubble, personaKey === "rush" ? "Hi, I'd like to order. Fast!" : "Hi, I'd like to order.", 1200);
+  const pre = await ask("Take their order. How do you start?", mix(PREORDER_GOOD, PREORDER_BAD, 3), QUESTION_SECS);
   log(idx, "Pleasant greeting before taking the order", 2, pre.good);
   if (pre.good) await say(custBubble, pick(REPLY_HAPPY), 1000);
   else { moodDown(); await say(custBubble, pick(REPLY_ANNOYED), 1000); }
 
   // 4. First time visiting?
-  const ft = await ask("Anything to ask before the order?", [
-    { t: "“Is this your first time visiting us?”", good: true },
-    { t: "(Skip the small talk)", good: false },
-    { t: "“You look like you eat here too much.”", good: false },
-  ]);
+  const ft = await ask("Anything to ask before the order?", mix(FIRSTTIME_GOOD, FIRSTTIME_BAD, 3), QUESTION_SECS);
   log(idx, "Asked if it was their first time visiting", 2, ft.good);
-  if (ft.good) {
-    await say(custBubble, pick(["First time, actually!", "I come here all the time!", "First visit — what do you recommend?"]), 1200);
-  }
+  if (ft.good) await say(custBubble, pick(REPLY_FIRSTTIME), 1200);
 
-  // 5. Menu knowledge — harder with each guest.
-  const q = menuQuestion(idx);
+  // 5. Menu knowledge, harder with each guest.
+  const q = menuQuestion(idx + 1);
   await say(custBubble, q.text, 1600);
   // Repeat the question in the panel so it stays readable on every screen.
-  const mk = await ask(q.text, q.options);
+  const mk = await ask(q.text, q.options, MENU_SECS);
   log(idx, "Demonstrated menu knowledge", 4, mk.good);
   if (mk.good) {
-    await say(custBubble, `Nice — you know your stuff. One ${q.recipe.name}, please!`, 1500);
     moodUp();
+    await say(custBubble, pick([
+      `Exactly! ${q.correct} it is. One ${q.recipe.name}, please!`,
+      `Yep, ${q.correct}! You know your menu. I'll take the ${q.recipe.name}.`,
+      `Right on. Okay, one ${q.recipe.name} for me!`,
+    ]), 1500);
   } else {
     moodDown();
-    await say(custBubble, `…that's not right. I'll take a ${q.recipe.name} anyway.`, 1500);
+    await say(custBubble, mk.timedOut
+      ? `Uh, hello? Anyway... one ${q.recipe.name}, please.`
+      : `It's actually ${q.correct}... I'll still take a ${q.recipe.name}.`, 1500);
   }
 
   // 6. Upsell.
-  const up = await ask("They've picked their bowl. Anything else?", mix(UPSELL_GOOD, UPSELL_BAD, 2));
+  const up = await ask("They've picked their bowl. Anything else?", mix(UPSELL_GOOD, UPSELL_BAD, 3), QUESTION_SECS);
   log(idx, "Offered an upsell", 3, up.good);
-  if (up.good) await say(custBubble, pick(["Ooh, avocado please!", "A drink sounds good!", "Go on then — add the avocado."]), 1100);
+  if (up.good) await say(custBubble, pick(REPLY_UPSELL_YES), 1100);
 
   // 7. Rewards / app.
-  const rw = await ask("Before ringing them up…", mix(REWARDS_GOOD, REWARDS_BAD, 2));
+  const rw = await ask("Before ringing them up…", mix(REWARDS_GOOD, REWARDS_BAD, 3), QUESTION_SECS);
   log(idx, "Asked about rewards/app", 2, rw.good);
-  if (rw.good) await say(custBubble, pick(["Just downloaded it!", "Already got it — 2,000 points!"]), 1100);
+  if (rw.good) await say(custBubble, pick(REPLY_REWARDS_YES), 1100);
 
   // Surprise event (pre-serve ones fire here).
   if (event.when === "before") {
-    log(idx, event.label, 2, await event.run(idx));
+    log(idx, event.label, 2, await event.run());
   }
 
   // 8. Make the order fast.
@@ -541,16 +651,26 @@ async function runGuest(idx, personaKey) {
     await say(empBubble, `Order up! One ${q.recipe.name}!`, 1200);
   } else {
     moodDown();
-    await say(custBubble, "That took a while…", 1200);
+    await say(custBubble, pick(REPLY_SLOW), 1200);
+  }
+
+  // The pickup guest grabs their order and heads out before anything else.
+  if (eventKey === "walkin" && !extraWrap.classList.contains("hidden")) {
+    say(extraBubble, "Got my pickup. Thanks!", 1000);
+    await wait(300);
+    doorEl.classList.add("open");
+    await walkTo(extraWrap, -12, 1400);
+    doorEl.classList.remove("open");
+    extraWrap.classList.add("hidden");
   }
 
   // Post-serve event (complaint).
   if (event.when === "after") {
-    log(idx, event.label, 2, await event.run(idx));
+    log(idx, event.label, 2, await event.run());
   }
 
   // 9. Parting comment.
-  const part = await ask("Hand it over — say goodbye:", mix(PARTING_GOOD, PARTING_BAD, 2));
+  const part = await ask("Hand it over and say goodbye:", mix(PARTING_GOOD, PARTING_BAD, 3), QUESTION_SECS);
   log(idx, "Pleasant parting comment", 2, part.good);
   if (part.good) { moodUp(); await say(custBubble, "Thanks so much!", 1000); }
   else moodDown();
@@ -559,21 +679,16 @@ async function runGuest(idx, personaKey) {
   if (dine) {
     note("They're sitting down in the dining room…");
     await walkTo(custWrap, SPOT.table, 1700);
-    const dr = await ask("They're dining in. What do you do?", [
-      { t: "Visit their table: “How is everything?”", good: true },
-      { t: "(Stand around behind the counter)", good: false },
-      { t: "(Watch them eat, silently, from a distance)", good: false },
-    ]);
+    const dr = await ask("They're dining in. What do you do?", mix(DINING_GOOD, DINING_BAD, 3), QUESTION_SECS);
     log(idx, "Engaged with their table in the dining room", 1, dr.good);
     if (dr.good) {
       note("Checking in on their table…");
-      await walkTo(empWrap, SPOT.table + 9, 1400);
+      await walkTo(empWrap, SPOT.tableTalk, 1400);
       await say(empBubble, "How is everything?", 1200);
       moodUp();
-      await say(custBubble, pick(["Delicious, thank you!", "So good. I'm telling everyone.", "Best bowl yet!"]), 1200);
+      await say(custBubble, pick(REPLY_TABLE), 1200);
       await walkTo(empWrap, 74, 1400);
     }
-    // They finish and head out.
     note("They're finishing up…");
     await wait(400);
     doorEl.classList.add("open");
@@ -586,16 +701,6 @@ async function runGuest(idx, personaKey) {
     await walkTo(custWrap, -12, 1900);
     doorEl.classList.remove("open");
   }
-
-  // If a walk-in guest was waiting, they grab their pickup and leave.
-  if (eventKey === "walkin" && !extraWrap.classList.contains("hidden")) {
-    say(extraBubble, "Got my pickup — thanks!", 1000);
-    await wait(300);
-    doorEl.classList.add("open");
-    await walkTo(extraWrap, -12, 1400);
-    doorEl.classList.remove("open");
-    extraWrap.classList.add("hidden");
-  }
   hush();
 }
 
@@ -603,13 +708,13 @@ async function runGuest(idx, personaKey) {
 function scoopStage(recipe, secs) {
   const NEED = 6;
   return new Promise((resolve) => {
-    promptTitle.textContent = `Make the ${recipe.name} — tap Scoop, fast!`;
+    promptTitle.textContent = `Make the ${recipe.name}: tap Scoop, fast!`;
     choicesEl.innerHTML = "";
 
     const prog = document.createElement("div");
     prog.className = "ss-scoop-prog";
     const segs = [];
-    const segColors = ["#c9a97a", "#ee435b", "#4caf72", "#f0a52c", "#22b2b4", "#7c5cff"];
+    const segColors = ["#c9a97a", "#ee435b", "#4caf72", "#fd9f27", "#22b2b4", "#7c5cff"];
     for (let i = 0; i < NEED; i++) {
       const s = document.createElement("i");
       s.style.setProperty("--seg", segColors[i]);
@@ -683,7 +788,7 @@ async function runShift() {
   for (let i = 0; i < GUESTS_PER_SHIFT; i++) {
     await runGuest(i, cast[i]);
     if (i < GUESTS_PER_SHIFT - 1) {
-      note("Nice — next guest incoming…");
+      note("Nice. Next guest incoming…");
       await wait(700);
     }
   }
@@ -733,8 +838,8 @@ function finishShift() {
 
   gradeEl.textContent =
     pct === 100 ? "Perfect audit! The secret shopper is telling everyone about you." :
-    pct >= 90 ? "Outstanding — corporate is framing this one." :
-    pct >= 80 ? "Great shift — the secret shopper left smiling." :
+    pct >= 90 ? "Outstanding! Corporate is framing this one." :
+    pct >= 80 ? "Great shift. The secret shopper left smiling." :
     pct >= 60 ? "Decent, but the audit found some gaps." :
     pct >= 40 ? "Rough shift. Time to reread the training binder." :
     "Yikes. Corporate wants a word…";
