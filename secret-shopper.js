@@ -1,7 +1,8 @@
-// Secret Shopper — the secret shopper is somewhere in your shift. Three guests
-// come in, each with their own personality, and every step of every visit is
-// audited like the hospitality sheet. Every question is timed, has four
-// options, and the menu quizzes get harder with each guest.
+// Secret Shopper — one of the three guests in your shift is the secret
+// shopper (you won't know which). Every step of every visit is audited like
+// the hospitality sheet. Every question is timed with four options. Normal
+// guests storm out (and leave a bad review) if you keep messing up or stop
+// responding; every guest leaves a star review when their visit ends.
 
 const B = window.Bowl;
 const RECIPES = B.RECIPES;
@@ -31,6 +32,7 @@ const auditRows = document.getElementById("audit-rows");
 const gradeEl = document.getElementById("grade");
 const againBtn = document.getElementById("again-btn");
 const bestEl = document.getElementById("best");
+const toastsEl = document.getElementById("toasts");
 
 // --- Config ---------------------------------------------------------------
 const GUESTS_PER_SHIFT = 3;
@@ -38,7 +40,9 @@ const BEST_KEY = "pokeworks-shopper-best";
 const QUESTION_SECS = 7; // thinking time on regular prompts
 const MENU_SECS = 9; // menu quizzes get a little longer to read
 const WALKIN_SECS = 3; // a waiting guest wants acknowledging FAST
-const SPOT = { greet: 24, counter: 46, table: 8, tableTalk: 24, wait: 30 };
+const STRIKES_TO_LEAVE = 3; // wrong answers before a normal guest storms out
+const SILENCE_TO_LEAVE = 2; // consecutive timeouts before they give up on you
+const SPOT = { greet: 24, counter: 46, table: 10, tableTalk: 26, wait: 32 };
 const CUST_SHIRTS = ["#22b2b4", "#fd9f27", "#7c5cff", "#39a85b", "#e8709b", "#4c7dd1"];
 
 // Personalities change pacing, dialogue, and whether they dine in.
@@ -48,6 +52,21 @@ const PERSONALITIES = {
   chatty: { label: "Chatty", greetSecs: 5, scoopSecs: 8, dineChance: 0.75 },
   grumpy: { label: "Grumpy", greetSecs: 4.5, scoopSecs: 7.5, dineChance: 0.5 },
 };
+
+// Audit line definitions (label may embed the greet window at runtime).
+const ITEMDEF = {
+  greetFast: { pts: 3, label: (s) => `Greeted within ${s} seconds of entering` },
+  greetWarm: { pts: 3, label: () => "Warm and genuine greeting" },
+  preOrder: { pts: 2, label: () => "Pleasant greeting before taking the order" },
+  firstTime: { pts: 2, label: () => "Asked if it was their first time visiting" },
+  menuKnow: { pts: 4, label: () => "Demonstrated menu knowledge" },
+  upsell: { pts: 3, label: () => "Offered an upsell" },
+  rewards: { pts: 2, label: () => "Asked about rewards/app" },
+  fastOrder: { pts: 3, label: () => "Order ready in time" },
+  parting: { pts: 2, label: () => "Pleasant parting comment" },
+  dining: { pts: 1, label: () => "Engaged with their table in the dining room" },
+};
+const CORE_ORDER = ["greetFast", "greetWarm", "preOrder", "firstTime", "menuKnow", "upsell", "rewards", "fastOrder", "parting"];
 
 // --- Dialogue pools (variety between runs) --------------------------------
 const GREET_GOOD = [
@@ -107,12 +126,56 @@ const REPLY_UPSELL_YES = ["Ooh, avocado please!", "A drink sounds good!", "Go on
 const REPLY_REWARDS_YES = ["Just downloaded it!", "Already got it. 2,000 points!", "Sure, scan away!"];
 const REPLY_TABLE = ["Delicious, thank you!", "So good. I'm telling everyone.", "Best bowl yet!", "Perfect, as always."];
 const REPLY_SLOW = ["That took a while...", "I was about to send a search party.", "Finally..."];
+const LEAVE_LINES = ["That's it. I'm leaving!", "Forget it, I'll go somewhere else.", "Unbelievable. I'm out."];
+
+// Review comment fragments, keyed by audit item.
+const REVIEW_BAD = {
+  greetFast: "Walked in and nobody said a word.",
+  greetWarm: "The greeting was... not a greeting.",
+  preOrder: "The counter person was kind of rude.",
+  firstTime: "Zero warmth, no small talk at all.",
+  menuKnow: "They don't even know their own menu.",
+  upsell: "Service felt like a drive-thru.",
+  rewards: "Never mentioned the rewards app.",
+  fastOrder: "Waited forever for one bowl.",
+  parting: "Not even a thank-you on the way out.",
+  dining: "Nobody checked on our table.",
+  spill: "There was a spill on the floor the whole visit.",
+  phone: "They let the phone ring off the hook.",
+  walkin: "Watched them ignore another guest.",
+  complaint: "They got my order wrong and barely cared.",
+  smalltalk: "They clearly weren't listening to me.",
+};
+const REVIEW_GOOD = {
+  greetFast: "Greeted the second I walked in!",
+  greetWarm: "So welcoming!",
+  preOrder: "Super friendly at the counter.",
+  firstTime: "They made me feel like a regular.",
+  menuKnow: "They know the menu inside out.",
+  upsell: "Great recommendations!",
+  rewards: "Hooked me up with the rewards app.",
+  fastOrder: "My bowl came out fast.",
+  parting: "Sweetest goodbye.",
+  dining: "They even checked on our table!",
+  spill: "Handled a spill like a pro.",
+  phone: "Juggled a phone call politely.",
+  walkin: "Made sure everyone felt seen.",
+  complaint: "Fixed a mixup instantly.",
+  smalltalk: "Great conversation!",
+};
+const REVIEW_LEFT = [
+  "Walked out before I even got my food. Never again.",
+  "Three strikes and I was OUT of there.",
+  "Couldn't get a single response out of them. Left.",
+];
 
 // --- State ------------------------------------------------------------------
 let running = false;
-let audit = []; // { guest, label, pts, got }
-let guestMeta = []; // { label, dine } per guest
+let audit = []; // { guest, key, label, pts, got }
+let guestMeta = []; // { label, dine, shopper, leftEarly } per guest
+let shopperIdx = 0; // which guest is secretly the shopper
 let custShirt = CUST_SHIRTS[0];
+let custSitting = false;
 
 // --- Sound --------------------------------------------------------------
 let audioCtx = null;
@@ -151,19 +214,29 @@ const SFX = {
   serve: () => arp([523, 659, 784], { dur: 0.13, step: 0.06 }),
   ring: () => { tone({ freq: 1180, type: "square", dur: 0.09, gain: 0.05 }); tone({ freq: 1180, type: "square", dur: 0.09, gain: 0.05, delay: 0.16 }); },
   crash: () => tone({ freq: 180, type: "sawtooth", slideTo: 70, dur: 0.3, gain: 0.12 }),
+  storm: () => arp([330, 262, 196], { type: "sawtooth", dur: 0.16, gain: 0.11, step: 0.09 }),
+  toast: () => { tone({ freq: 740, type: "sine", dur: 0.09, gain: 0.09 }); tone({ freq: 988, type: "sine", dur: 0.12, gain: 0.08, delay: 0.08 }); },
   start: () => arp([392, 523, 659], { dur: 0.12, step: 0.06 }),
   fanfare: () => arp([523, 659, 784, 1047, 1319], { dur: 0.2, gain: 0.13, step: 0.09 }),
 };
 
 // --- Stick figures (same look as Order Up) ------------------------------
-function stickmanSVG(shirt, mood) {
+function faceSVG(cy, mood) {
+  const my = cy + 7;
   const mouth =
-    mood === "ok" ? '<path d="M26 31 Q32 37 38 31" fill="none" stroke="#7a4a2a" stroke-width="2" stroke-linecap="round"/>' :
-    mood === "warn" ? '<path d="M27 33 L37 33" fill="none" stroke="#7a4a2a" stroke-width="2" stroke-linecap="round"/>' :
-    '<path d="M26 34 Q32 28 38 34" fill="none" stroke="#7a4a2a" stroke-width="2" stroke-linecap="round"/>';
+    mood === "ok" ? `<path d="M${26} ${my} Q32 ${my + 6} ${38} ${my}" fill="none" stroke="#7a4a2a" stroke-width="2" stroke-linecap="round"/>` :
+    mood === "warn" ? `<path d="M27 ${my + 2} L37 ${my + 2}" fill="none" stroke="#7a4a2a" stroke-width="2" stroke-linecap="round"/>` :
+    `<path d="M26 ${my + 3} Q32 ${my - 3} 38 ${my + 3}" fill="none" stroke="#7a4a2a" stroke-width="2" stroke-linecap="round"/>`;
   const brow = mood === "mad"
-    ? '<path d="M24 18 L30 20 M40 18 L34 20" stroke="#5a3a20" stroke-width="2" stroke-linecap="round"/>'
+    ? `<path d="M24 ${cy - 6} L30 ${cy - 4} M40 ${cy - 6} L34 ${cy - 4}" stroke="#5a3a20" stroke-width="2" stroke-linecap="round"/>`
     : "";
+  return (
+    `<circle cx="32" cy="${cy}" r="15" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5"/>` +
+    `<circle cx="27" cy="${cy}" r="2" fill="#333"/><circle cx="37" cy="${cy}" r="2" fill="#333"/>` +
+    brow + mouth
+  );
+}
+function stickmanSVG(shirt, mood) {
   const L = 'stroke="' + shirt + '" stroke-width="5" stroke-linecap="round"';
   return (
     '<svg viewBox="0 0 64 120" width="100%" height="100%" aria-hidden="true">' +
@@ -172,9 +245,23 @@ function stickmanSVG(shirt, mood) {
     '<line x1="32" y1="40" x2="32" y2="79" ' + L + "/>" +
     '<line x1="32" y1="50" x2="15" y2="64" ' + L + "/>" +
     '<line x1="32" y1="50" x2="49" y2="64" ' + L + "/>" +
-    '<circle cx="32" cy="24" r="15" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5"/>' +
-    '<circle cx="27" cy="24" r="2" fill="#333"/><circle cx="37" cy="24" r="2" fill="#333"/>' +
-    brow + mouth +
+    faceSVG(24, mood) +
+    "</svg>"
+  );
+}
+// Seated pose for dining in: bent legs on the chair, one arm on the table.
+function stickmanSitSVG(shirt, mood) {
+  const L = 'stroke="' + shirt + '" stroke-width="5" stroke-linecap="round"';
+  return (
+    '<svg viewBox="0 0 64 120" width="100%" height="100%" aria-hidden="true">' +
+    '<line x1="32" y1="84" x2="50" y2="86" ' + L + "/>" + // thigh
+    '<line x1="50" y1="86" x2="50" y2="112" ' + L + "/>" + // shin
+    '<line x1="32" y1="86" x2="44" y2="90" ' + L + "/>" + // back thigh
+    '<line x1="44" y1="90" x2="44" y2="112" ' + L + "/>" + // back shin
+    '<line x1="32" y1="49" x2="32" y2="86" ' + L + "/>" + // spine
+    '<line x1="32" y1="60" x2="48" y2="70" ' + L + "/>" + // arm to the table
+    '<line x1="32" y1="60" x2="42" y2="78" ' + L + "/>" +
+    faceSVG(34, mood) +
     "</svg>"
   );
 }
@@ -201,7 +288,12 @@ function tableSVG() {
 let custMoodNow = "ok";
 function custMood(m) {
   custMoodNow = m;
-  custStick.innerHTML = stickmanSVG(custShirt, m);
+  custStick.innerHTML = custSitting ? stickmanSitSVG(custShirt, m) : stickmanSVG(custShirt, m);
+}
+function setSitting(on) {
+  custSitting = on;
+  custWrap.classList.toggle("sitting", on);
+  custMood(custMoodNow);
 }
 function moodUp() {
   if (custMoodNow === "mad") custMood("warn");
@@ -244,8 +336,6 @@ function walkTo(wrap, pct, ms) {
 function say(bubble, text, holdMs) {
   bubble.textContent = text;
   bubble.classList.remove("hidden");
-  // Hold long enough to actually read it: scale with text length, and treat
-  // any explicit hold as a minimum, not a cap.
   const ms = Math.max(holdMs || 0, 1500, 900 + text.length * 55);
   return wait(ms).then(() => bubble.classList.add("hidden"));
 }
@@ -254,19 +344,16 @@ function hush() {
   empBubble.classList.add("hidden");
   extraBubble.classList.add("hidden");
 }
-function log(guest, label, pts, got) {
-  audit.push({ guest, label, pts, got: !!got });
+function log(guest, key, pts, got, labelText) {
+  audit.push({ guest, key, label: labelText, pts, got: !!got });
 }
 
 // --- Prompt / choices ---------------------------------------------------
-// Show a timed prompt. Resolves { good, text, inTime, timedOut }.
-// If failOnTimeout (the default when a timer is set), running out of time
-// counts as a miss: the right answer flashes and the prompt resolves bad.
-function ask(title, options, timerSec, opts = {}) {
-  const failOnTimeout = opts.failOnTimeout !== false;
+// Show a timed prompt. Resolves { good, text, inTime, timedOut }. Running out
+// of time counts as a miss: the right answer flashes red and play moves on.
+function ask(title, options, timerSec) {
   promptTitle.textContent = title;
   choicesEl.innerHTML = "";
-  let timedOut = false;
   let settled = false;
   let timeoutId = null;
 
@@ -299,7 +386,7 @@ function ask(title, options, timerSec, opts = {}) {
         btn.classList.add(opt.good ? "picked-good" : "picked-bad");
         if (opt.good) SFX.good(); else SFX.bad();
         await wait(650);
-        resolve({ good: opt.good, text: opt.t, inTime: !timedOut, timedOut: false });
+        resolve({ good: opt.good, text: opt.t, inTime: true, timedOut: false });
       });
       choicesEl.appendChild(btn);
       buttons.push(btn);
@@ -307,14 +394,12 @@ function ask(title, options, timerSec, opts = {}) {
 
     if (timerSec) {
       timeoutId = setTimeout(async () => {
-        timedOut = true;
-        timerFill.classList.add("late");
-        if (!failOnTimeout) return; // greeting-style: late clicks still count
         if (settled) return;
         settled = true;
+        timerFill.classList.add("late");
         for (const b of buttons) b.disabled = true;
         const goodBtn = buttons.find((b) => b.dataset.good === "1");
-        if (goodBtn) goodBtn.classList.add("reveal-good");
+        if (goodBtn) goodBtn.classList.add("reveal-answer");
         SFX.bad();
         await wait(900);
         timerEl.classList.add("hidden");
@@ -436,8 +521,6 @@ function qCommon() {
   }
   return qNot();
 }
-
-// Guest 1 warms you up, guest 3 is genuinely hard.
 function menuQuestion(level) {
   const pools = {
     1: [qSauceProtein, qContains],
@@ -451,7 +534,6 @@ function menuQuestion(level) {
 const EVENTS = {
   spill: {
     when: "before",
-    label: "Handled the spill quickly",
     async run() {
       SFX.crash();
       await say(custBubble, pick(["Oh no, someone spilled a drink!", "Whoa, watch out, there's a spill!"]), 1400);
@@ -462,12 +544,12 @@ const EVENTS = {
         { t: "“Careful, everyone!” and keep working", good: false },
       ], QUESTION_SECS);
       if (r.good) await say(empBubble, "All cleaned up. Sorry about that!", 1200);
-      return r.good;
+      return r;
     },
+    label: "Handled the spill quickly",
   },
   phone: {
     when: "before",
-    label: "Handled the phone professionally",
     async run() {
       SFX.ring();
       await say(empBubble, "*ring ring*", 900);
@@ -479,12 +561,12 @@ const EVENTS = {
       ], QUESTION_SECS);
       if (r.good) await say(custBubble, "No problem, take your time!", 1100);
       else moodDown();
-      return r.good;
+      return r;
     },
+    label: "Handled the phone professionally",
   },
   walkin: {
     when: "before",
-    label: "Acknowledged the waiting guest",
     async run() {
       doorEl.classList.add("open");
       SFX.bell();
@@ -494,7 +576,6 @@ const EVENTS = {
       extraWrap.style.left = "-12%";
       await wait(60);
       walkTo(extraWrap, SPOT.wait, 1400);
-      // Waiting guests want acknowledging FAST, faster than a normal greeting.
       const r = await ask("Another guest walks in while you're busy. Quick!", [
         { t: "“Welcome in! I'll be right with you!”", good: true },
         { t: "(Don't look up)", good: false },
@@ -503,12 +584,12 @@ const EVENTS = {
       ], WALKIN_SECS);
       doorEl.classList.remove("open");
       if (r.good) await say(extraBubble, pick(["No rush, just picking up!", "Thanks! Take your time."]), 1200);
-      return r.good;
+      return r;
     },
+    label: "Acknowledged the waiting guest",
   },
   complaint: {
     when: "after",
-    label: "Recovered from a mistake",
     async run() {
       custMood("warn");
       await say(custBubble, pick(["Wait, I asked for no onions!", "Hold on, this isn't the right sauce..."]), 1400);
@@ -524,12 +605,12 @@ const EVENTS = {
       } else {
         custMood("mad");
       }
-      return r.good;
+      return r;
     },
+    label: "Recovered from a mistake",
   },
   smalltalk: {
     when: "before",
-    label: "Stayed engaged with the guest",
     async run() {
       await say(custBubble, pick([
         "...so anyway, that's when my cat learned to open the fridge...",
@@ -543,77 +624,162 @@ const EVENTS = {
       ], QUESTION_SECS);
       if (r.good) await say(empBubble, pick(["No way. Through the child lock?!", "Stop, that's incredible."]), 1300);
       else moodDown();
-      return r.good;
+      return r;
     },
+    label: "Stayed engaged with the guest",
   },
 };
+
+// --- Reviews ---------------------------------------------------------------
+function starRow(n) {
+  let s = "";
+  for (let i = 1; i <= 5; i++) s += `<span class="${i <= n ? "on" : "off"}">★</span>`;
+  return s;
+}
+function showReview(idx) {
+  const meta = guestMeta[idx];
+  const rows = audit.filter((a) => a.guest === idx);
+  let earned = 0, total = 0;
+  for (const a of rows) { total += a.pts; if (a.got) earned += a.pts; }
+  const pct = total ? earned / total : 0;
+  let stars, comment;
+
+  if (meta.leftEarly) {
+    stars = 0;
+    comment = pick(REVIEW_LEFT);
+  } else {
+    stars = Math.max(0, Math.min(5, Math.round(pct * 5)));
+    const gots = rows.filter((a) => a.got && REVIEW_GOOD[a.key]).map((a) => REVIEW_GOOD[a.key]);
+    const misses = rows.filter((a) => !a.got && REVIEW_BAD[a.key]).map((a) => REVIEW_BAD[a.key]);
+    if (stars >= 4) comment = pickN(gots, 2).join(" ") || "Lovely visit!";
+    else if (stars <= 2) comment = pickN(misses, 2).join(" ") || "Not great.";
+    else comment = ((pickN(gots, 1)[0] || "") + " But... " + (pickN(misses, 1)[0] || "")).trim();
+  }
+
+  const toast = document.createElement("div");
+  toast.className = "ss-toast";
+  toast.innerHTML =
+    `<div class="ss-toast-head"><span>Guest ${idx + 1} left a review</span>` +
+    `<span class="ss-toast-stars">${starRow(stars)}</span></div>` +
+    `<div class="ss-toast-body">“${comment}”</div>`;
+  toastsEl.appendChild(toast);
+  SFX.toast();
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.add("hide");
+    setTimeout(() => toast.remove(), 400);
+  }, 6500);
+}
 
 // --- One guest's visit ------------------------------------------------------
 async function runGuest(idx, personaKey) {
   const P = PERSONALITIES[personaKey];
+  const isShopper = idx === shopperIdx;
   const dine = Math.random() < P.dineChance;
-  guestMeta.push({ label: P.label, dine });
+  const meta = { label: P.label, dine, shopper: isShopper, leftEarly: false };
+  guestMeta.push(meta);
+
+  // Strike tracking: normal guests walk out on repeated misses or silence.
+  let strikes = 0;
+  let silences = 0;
+  const logged = new Set();
+  const put = (key, got, ptsOverride, labelOverride) => {
+    const def = ITEMDEF[key];
+    const pts = ptsOverride != null ? ptsOverride : (def ? def.pts : 2);
+    const label = labelOverride || (def ? def.label(P.greetSecs) : key);
+    log(idx, key, pts, got, label);
+    logged.add(key);
+  };
+  const track = (res) => {
+    if (res.timedOut) { strikes++; silences++; }
+    else if (!res.good) { strikes++; silences = 0; }
+    else silences = 0;
+    return res;
+  };
+  const fedUp = () => !isShopper && (strikes >= STRIKES_TO_LEAVE || silences >= SILENCE_TO_LEAVE);
 
   // Fresh guest
   custShirt = pick(CUST_SHIRTS);
+  custSitting = false;
+  custWrap.classList.remove("sitting");
   custMood(personaKey === "grumpy" ? "warn" : "ok");
   custWrap.style.transitionDuration = "0ms";
   custWrap.style.left = "-12%";
   hush();
 
-  // Pick this guest's surprise event. Chatty guests always launch the story.
   const eventKey = personaKey === "chatty"
     ? "smalltalk"
     : pick(["spill", "phone", "walkin", "complaint"]);
   const event = EVENTS[eventKey];
 
+  // Storms out mid-visit: mark everything not yet logged as missed.
+  const stormOut = async () => {
+    meta.leftEarly = true;
+    for (const key of CORE_ORDER) if (!logged.has(key)) put(key, false);
+    if (dine && !logged.has("dining")) put("dining", false);
+    custMood("mad");
+    SFX.storm();
+    note("They've had enough…");
+    await say(custBubble, pick(LEAVE_LINES), 1400);
+    doorEl.classList.add("open");
+    await walkTo(custWrap, -12, 1500);
+    doorEl.classList.remove("open");
+    if (!extraWrap.classList.contains("hidden")) {
+      await walkTo(extraWrap, -12, 1100);
+      extraWrap.classList.add("hidden");
+    }
+    hush();
+    showReview(idx);
+  };
+
   note(`Guest ${idx + 1} of ${GUESTS_PER_SHIFT} is arriving…`);
   await wait(500);
 
-  // 1-2. Walk in and greet fast + warm (late clicks still count as warm).
+  // 1-2. Walk in and greet fast + warm. Timing out fails BOTH.
   doorEl.classList.add("open");
   SFX.bell();
   await wait(250);
   walkTo(custWrap, SPOT.greet, 2200);
   if (personaKey === "rush") say(custBubble, "In a hurry, sorry!", 1400);
-  const greet = await ask(
+  const greet = track(await ask(
     personaKey === "rush" ? "A customer rushes in. Quick!" : "A customer just walked in!",
     mix(GREET_GOOD, GREET_BAD, 3),
-    P.greetSecs,
-    { failOnTimeout: false }
-  );
+    P.greetSecs
+  ));
   doorEl.classList.remove("open");
-  log(idx, `Greeted within ${P.greetSecs} seconds of entering`, 3, greet.good && greet.inTime);
-  log(idx, "Warm and genuine greeting", 3, greet.good);
+  put("greetFast", greet.good && greet.inTime);
+  put("greetWarm", greet.good);
   if (greet.good) {
     await say(empBubble, greet.text.replace(/[“”]/g, ""), 1100);
     moodUp();
   } else {
     moodDown();
-    await say(custBubble, "...hello?", 1000);
+    await say(custBubble, greet.timedOut ? "...hello?? Anyone?" : "...hello?", 1000);
   }
+  if (fedUp()) return stormOut();
 
   note("They're heading to the counter…");
   await walkTo(custWrap, SPOT.counter, 1400);
 
   // 3. Pleasant greeting before the order.
   await say(custBubble, personaKey === "rush" ? "Hi, I'd like to order. Fast!" : "Hi, I'd like to order.", 1200);
-  const pre = await ask("Take their order. How do you start?", mix(PREORDER_GOOD, PREORDER_BAD, 3), QUESTION_SECS);
-  log(idx, "Pleasant greeting before taking the order", 2, pre.good);
+  const pre = track(await ask("Take their order. How do you start?", mix(PREORDER_GOOD, PREORDER_BAD, 3), QUESTION_SECS));
+  put("preOrder", pre.good);
   if (pre.good) await say(custBubble, pick(REPLY_HAPPY), 1000);
   else { moodDown(); await say(custBubble, pick(REPLY_ANNOYED), 1000); }
+  if (fedUp()) return stormOut();
 
   // 4. First time visiting?
-  const ft = await ask("Anything to ask before the order?", mix(FIRSTTIME_GOOD, FIRSTTIME_BAD, 3), QUESTION_SECS);
-  log(idx, "Asked if it was their first time visiting", 2, ft.good);
+  const ft = track(await ask("Anything to ask before the order?", mix(FIRSTTIME_GOOD, FIRSTTIME_BAD, 3), QUESTION_SECS));
+  put("firstTime", ft.good);
   if (ft.good) await say(custBubble, pick(REPLY_FIRSTTIME), 1200);
+  if (fedUp()) return stormOut();
 
   // 5. Menu knowledge, harder with each guest.
   const q = menuQuestion(idx + 1);
   await say(custBubble, q.text, 1600);
-  // Repeat the question in the panel so it stays readable on every screen.
-  const mk = await ask(q.text, q.options, MENU_SECS);
-  log(idx, "Demonstrated menu knowledge", 4, mk.good);
+  const mk = track(await ask(q.text, q.options, MENU_SECS));
+  put("menuKnow", mk.good);
   if (mk.good) {
     moodUp();
     await say(custBubble, pick([
@@ -627,25 +793,30 @@ async function runGuest(idx, personaKey) {
       ? `Uh, hello? Anyway... one ${q.recipe.name}, please.`
       : `It's actually ${q.correct}... I'll still take a ${q.recipe.name}.`, 1500);
   }
+  if (fedUp()) return stormOut();
 
   // 6. Upsell.
-  const up = await ask("They've picked their bowl. Anything else?", mix(UPSELL_GOOD, UPSELL_BAD, 3), QUESTION_SECS);
-  log(idx, "Offered an upsell", 3, up.good);
+  const up = track(await ask("They've picked their bowl. Anything else?", mix(UPSELL_GOOD, UPSELL_BAD, 3), QUESTION_SECS));
+  put("upsell", up.good);
   if (up.good) await say(custBubble, pick(REPLY_UPSELL_YES), 1100);
+  if (fedUp()) return stormOut();
 
   // 7. Rewards / app.
-  const rw = await ask("Before ringing them up…", mix(REWARDS_GOOD, REWARDS_BAD, 3), QUESTION_SECS);
-  log(idx, "Asked about rewards/app", 2, rw.good);
+  const rw = track(await ask("Before ringing them up…", mix(REWARDS_GOOD, REWARDS_BAD, 3), QUESTION_SECS));
+  put("rewards", rw.good);
   if (rw.good) await say(custBubble, pick(REPLY_REWARDS_YES), 1100);
+  if (fedUp()) return stormOut();
 
   // Surprise event (pre-serve ones fire here).
   if (event.when === "before") {
-    log(idx, event.label, 2, await event.run());
+    const er = track(await event.run());
+    put(eventKey, er.good, 2, event.label);
+    if (fedUp()) return stormOut();
   }
 
   // 8. Make the order fast.
   const made = await scoopStage(q.recipe, P.scoopSecs);
-  log(idx, "Order ready in time", 3, made);
+  put("fastOrder", made);
   if (made) {
     SFX.serve();
     await say(empBubble, `Order up! One ${q.recipe.name}!`, 1200);
@@ -666,21 +837,25 @@ async function runGuest(idx, personaKey) {
 
   // Post-serve event (complaint).
   if (event.when === "after") {
-    log(idx, event.label, 2, await event.run());
+    const er = track(await event.run());
+    put(eventKey, er.good, 2, event.label);
+    if (fedUp()) return stormOut();
   }
 
   // 9. Parting comment.
-  const part = await ask("Hand it over and say goodbye:", mix(PARTING_GOOD, PARTING_BAD, 3), QUESTION_SECS);
-  log(idx, "Pleasant parting comment", 2, part.good);
+  const part = track(await ask("Hand it over and say goodbye:", mix(PARTING_GOOD, PARTING_BAD, 3), QUESTION_SECS));
+  put("parting", part.good);
   if (part.good) { moodUp(); await say(custBubble, "Thanks so much!", 1000); }
   else moodDown();
 
-  // 10. Dine in (check the table) or leave (takeout).
+  // 10. Dine in (they sit down at the table) or leave (takeout).
   if (dine) {
     note("They're sitting down in the dining room…");
     await walkTo(custWrap, SPOT.table, 1700);
+    setSitting(true);
+    await wait(350);
     const dr = await ask("They're dining in. What do you do?", mix(DINING_GOOD, DINING_BAD, 3), QUESTION_SECS);
-    log(idx, "Engaged with their table in the dining room", 1, dr.good);
+    put("dining", dr.good);
     if (dr.good) {
       note("Checking in on their table…");
       await walkTo(empWrap, SPOT.tableTalk, 1400);
@@ -690,7 +865,8 @@ async function runGuest(idx, personaKey) {
       await walkTo(empWrap, 74, 1400);
     }
     note("They're finishing up…");
-    await wait(400);
+    await wait(500);
+    setSitting(false);
     doorEl.classList.add("open");
     await walkTo(custWrap, -12, 1700);
     doorEl.classList.remove("open");
@@ -702,6 +878,7 @@ async function runGuest(idx, personaKey) {
     doorEl.classList.remove("open");
   }
   hush();
+  showReview(idx);
 }
 
 // Tap-to-scoop stage.
@@ -772,6 +949,8 @@ async function runShift() {
   running = true;
   audit = [];
   guestMeta = [];
+  shopperIdx = Math.floor(Math.random() * GUESTS_PER_SHIFT);
+  toastsEl.innerHTML = "";
 
   empStick.innerHTML = stickmanSVG("#ee435b", "ok");
   empWrap.style.transitionDuration = "0ms";
@@ -782,17 +961,14 @@ async function runShift() {
   scorecardEl.classList.add("hidden");
   hush();
 
-  // A varied cast: three different personalities each shift.
   const cast = pickN(Object.keys(PERSONALITIES), GUESTS_PER_SHIFT);
-
   for (let i = 0; i < GUESTS_PER_SHIFT; i++) {
     await runGuest(i, cast[i]);
     if (i < GUESTS_PER_SHIFT - 1) {
-      note("Nice. Next guest incoming…");
-      await wait(700);
+      note("Next guest incoming…");
+      await wait(1000);
     }
   }
-
   finishShift();
 }
 
@@ -815,11 +991,12 @@ function finishShift() {
     total += gTotal;
 
     const meta = guestMeta[g] || { label: "?", dine: false };
+    const bits = [`Guest ${g + 1} · ${meta.label} · ${meta.dine ? "Dine-in" : "Takeout"}`];
+    if (meta.shopper) bits.push("🕵️ the secret shopper!");
+    if (meta.leftEarly) bits.push("stormed out");
     const head = document.createElement("div");
     head.className = "ss-audit-cust";
-    head.innerHTML =
-      `<span>Guest ${g + 1} · ${meta.label} · ${meta.dine ? "Dine-in" : "Takeout"}</span>` +
-      `<span>${gEarned}/${gTotal}</span>`;
+    head.innerHTML = `<span>${bits.join(" · ")}</span><span>${gEarned}/${gTotal}</span>`;
     auditRows.appendChild(head);
 
     for (const a of rows) {
