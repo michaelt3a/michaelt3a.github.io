@@ -199,8 +199,10 @@ function walkTo(wrap, pct, ms) {
 function say(bubble, text, holdMs) {
   bubble.textContent = text;
   bubble.classList.remove("hidden");
-  if (holdMs) return wait(holdMs).then(() => bubble.classList.add("hidden"));
-  return Promise.resolve();
+  // Hold long enough to actually read it: scale with text length, and treat
+  // any explicit hold as a minimum, not a cap.
+  const ms = Math.max(holdMs || 0, 1500, 900 + text.length * 55);
+  return wait(ms).then(() => bubble.classList.add("hidden"));
 }
 function hush() {
   custBubble.classList.add("hidden");
@@ -505,7 +507,8 @@ async function runGuest(idx, personaKey) {
   // 5. Menu knowledge — harder with each guest.
   const q = menuQuestion(idx);
   await say(custBubble, q.text, 1600);
-  const mk = await ask("Show your menu knowledge:", q.options);
+  // Repeat the question in the panel so it stays readable on every screen.
+  const mk = await ask(q.text, q.options);
   log(idx, "Demonstrated menu knowledge", 4, mk.good);
   if (mk.good) {
     await say(custBubble, `Nice — you know your stuff. One ${q.recipe.name}, please!`, 1500);
