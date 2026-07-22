@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bowl Builder - Pokeworks</title>
   <meta name="description" content="Pokeworks Bowl Builder minigame." />
-  <link rel="stylesheet" href="styles.css?v=11" />
+  <link rel="stylesheet" href="styles.css?v=12" />
 </head>
 <body>
   <a href="index.html" class="back-link">← Minigames</a>
@@ -41,6 +41,7 @@
       <div class="status">
         <div id="shield-badge" class="status-badge shield hidden" title="Shield: survives one miss">🛡</div>
         <div id="magnet-badge" class="status-badge magnet hidden" title="Magnet: auto-perfect if you're close">🧲<span id="magnet-count" class="badge-count">2</span></div>
+        <div id="saver-badge" class="status-badge saver hidden" title="Sticky Rice: saves your combo once">🍚</div>
       </div>
 
       <!-- Start overlay -->
@@ -91,6 +92,12 @@
           <h1 class="overlay-title">Game Over</h1>
           <p class="gameover-quip" id="gameover-quip">Nice job!</p>
           <p class="overlay-subtitle" id="gameover-subtitle">Nice bowl!</p>
+          <!-- Run stats -->
+          <div class="go-stats">
+            <div class="go-stat"><span id="gs-perfects">0</span><label>Perfects</label></div>
+            <div class="go-stat"><span id="gs-combo">0</span><label>Best Combo</label></div>
+            <div class="go-stat"><span id="gs-power">0</span><label>Power-ups</label></div>
+          </div>
           <!-- Name entry, shown only when the score makes the leaderboard -->
           <div id="lb-entry" class="lb-entry hidden">
             <p class="lb-entry-msg">🏆 You made the leaderboard!</p>
@@ -135,6 +142,6 @@
 
   <script src="transitions.js?v=3"></script>
   <script src="supabase-config.js?v=2"></script>
-  <script src="script.js?v=15"></script>
+  <script src="script.js?v=16"></script>
 </body>
 </html>

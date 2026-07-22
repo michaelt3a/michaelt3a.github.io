@@ -201,6 +201,10 @@ body {
   border: 2px solid var(--accent);
 }
 
+.status-badge.saver {
+  border: 2px solid #fd9f27;
+}
+
 .badge-count {
   position: absolute;
   right: -3px;
@@ -435,6 +439,41 @@ body {
   font-weight: 700;
   margin: 0 0 0.35rem;
   text-shadow: 0 1px 3px rgba(255, 255, 255, 0.85);
+}
+
+/* Run stats on the game-over screen */
+.go-stats {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  margin: 0 0 1.1rem;
+}
+
+.go-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.5rem 0.9rem;
+  min-width: 84px;
+}
+
+.go-stat span {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.go-stat label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
 }
 
 /* Game over actions */

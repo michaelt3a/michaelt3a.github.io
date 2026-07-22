@@ -484,6 +484,12 @@ const state = {
   magnetDrops: 0, // drops left with magnet assist (widened perfect window)
   hasShield: false, // holding a shield (survives one death)
   shieldEarned: false, // a shield was collected this game (once-per-game lock)
+  hasSaver: false, // holding a combo saver (sticky rice)
+  floaters: [], // floating text popups (world space): { text, color, x, y, life }
+  shake: 0, // seconds of camera shake remaining
+  sessionBest: 0, // high score when this run started (ghost line target)
+  passedBest: false, // beat the ghost line this run
+  stats: { perfects: 0, bestCombo: 0, powerups: 0 }, // per-run stats
   cam: { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 },
   lastTime: 0,
 };
@@ -528,9 +534,37 @@ function playLand() {
   tone({ freq: base * 2, freqEnd: base * 1.6, type: "triangle", dur: 0.05, gain: 0.08 });
 }
 
-function playPerfect() {
-  tone({ freq: 880, type: "sine", dur: 0.12, gain: 0.22 });
-  tone({ freq: 1320, type: "sine", dur: 0.16, gain: 0.18, delay: 0.09 });
+// Each consecutive perfect rings a step higher, so streaks *sound* like streaks.
+function playPerfect(combo) {
+  const step = Math.min(Math.max(combo, 1) - 1, 8);
+  const base = 880 * Math.pow(1.122, step); // whole-tone steps upward
+  tone({ freq: base, type: "sine", dur: 0.12, gain: 0.22 });
+  tone({ freq: base * 1.5, type: "sine", dur: 0.16, gain: 0.18, delay: 0.09 });
+}
+
+function playMilestone() {
+  tone({ freq: 784, type: "triangle", dur: 0.12, gain: 0.16 });
+  tone({ freq: 1046, type: "triangle", dur: 0.12, gain: 0.15, delay: 0.09 });
+  tone({ freq: 1568, type: "sine", dur: 0.2, gain: 0.13, delay: 0.18 });
+}
+
+function playNewBest() {
+  tone({ freq: 659, type: "triangle", dur: 0.14, gain: 0.18 });
+  tone({ freq: 880, type: "triangle", dur: 0.14, gain: 0.17, delay: 0.1 });
+  tone({ freq: 1174, type: "triangle", dur: 0.16, gain: 0.16, delay: 0.2 });
+  tone({ freq: 1568, type: "sine", dur: 0.26, gain: 0.15, delay: 0.3 });
+}
+
+function playSave() {
+  tone({ freq: 500, freqEnd: 740, type: "sine", dur: 0.16, gain: 0.16 });
+  tone({ freq: 990, type: "sine", dur: 0.12, gain: 0.1, delay: 0.12 });
+}
+
+// Small mobile haptics; silently ignored where unsupported.
+function buzz(pattern) {
+  try {
+    if (navigator.vibrate) navigator.vibrate(pattern);
+  } catch (e) { /* ignore */ }
 }
 
 function playGameOver() {
@@ -654,6 +688,18 @@ function updateEffects(dt) {
   for (const b of state.placed) {
     if (b.landAnim > 0) b.landAnim = Math.max(0, b.landAnim - dt / LAND_DUR);
   }
+  for (let i = state.floaters.length - 1; i >= 0; i--) {
+    const f = state.floaters[i];
+    f.y -= 46 * dt; // drift upward
+    f.life -= dt;
+    if (f.life <= 0) state.floaters.splice(i, 1);
+  }
+  if (state.shake > 0) state.shake = Math.max(0, state.shake - dt);
+}
+
+// Floating in-world text ("Perfect x4!", "NEW BEST!", milestone pings).
+function addFloater(text, color, x, y) {
+  state.floaters.push({ text, color, x, y, life: 1.15, maxLife: 1.15 });
 }
 
 // --- Camera -------------------------------------------------------------
@@ -679,7 +725,15 @@ function applyCamera() {
   const s = state.cam.scale;
   const tx = W / 2 - s * BOWL.cx;
   const ty = state.cam.focusScreenY - s * state.cam.focusWorldY;
-  ctx.setTransform(s, 0, 0, s, tx, ty);
+  // Brief screen shake on rough landings.
+  let ox = 0;
+  let oy = 0;
+  if (state.shake > 0) {
+    const m = 26 * state.shake;
+    ox = (Math.random() - 0.5) * m;
+    oy = (Math.random() - 0.5) * m;
+  }
+  ctx.setTransform(s, 0, 0, s, tx + ox, ty + oy);
 }
 
 // --- Screen / flow helpers ---------------------------------------------
@@ -971,6 +1025,11 @@ function startGame(difficulty) {
   state.placed = [];
   state.particles = [];
   state.shards = [];
+  state.floaters = [];
+  state.shake = 0;
+  state.sessionBest = state.highScore; // ghost line to chase this run
+  state.passedBest = false;
+  state.stats = { perfects: 0, bestCombo: 0, powerups: 0 };
   state.baseIngredient = randomFrom(BASES);
   state.cam = { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 };
   spawnActive();
@@ -1012,10 +1071,19 @@ function endGame() {
   clearPowerups();
 
   const isNewBest = updateHighScore();
+  buzz(80);
 
   gameoverQuip.textContent = pickQuip(state.score, isNewBest);
   gameoverSubtitle.textContent =
     `You added ${state.score} ingredient${state.score === 1 ? "" : "s"}.`;
+
+  // Run stats.
+  const gsPerfects = document.getElementById("gs-perfects");
+  const gsCombo = document.getElementById("gs-combo");
+  const gsPower = document.getElementById("gs-power");
+  if (gsPerfects) gsPerfects.textContent = state.stats.perfects;
+  if (gsCombo) gsCombo.textContent = state.stats.bestCombo;
+  if (gsPower) gsPower.textContent = state.stats.powerups;
 
   // Offer a leaderboard entry. Global (Supabase) boards accept any positive
   // score; a local-only board only offers when the score cracks the top 10.
@@ -1123,7 +1191,20 @@ function dropActive() {
     }
   }
 
-  state.combo = perfect ? state.combo + 1 : 0;
+  // Combo bookkeeping. A held Sticky Rice saver absorbs one imperfect drop
+  // so the streak survives.
+  let comboSaved = false;
+  if (perfect) {
+    state.combo += 1;
+    state.stats.perfects += 1;
+    if (state.combo > state.stats.bestCombo) state.stats.bestCombo = state.combo;
+  } else if (state.combo > 0 && state.hasSaver) {
+    state.hasSaver = false;
+    comboSaved = true;
+    updateStatusBadges();
+  } else {
+    state.combo = 0;
+  }
   updateCombo();
 
   state.placed.push({
@@ -1139,8 +1220,37 @@ function dropActive() {
   const seamY = worldTopForIndex(state.placed.length - 1) + BLOCK_H;
   spawnLandParticles(placedX, placedX + placedWidth, seamY, active.color);
 
-  if (perfect) playPerfect();
-  else playLand();
+  const midX = placedX + placedWidth / 2;
+  const topY = activeTopWorld - 10;
+
+  if (perfect) {
+    playPerfect(state.combo);
+    buzz(12);
+    addFloater(state.combo > 1 ? `Perfect x${state.combo}!` : "Perfect!", "#fd9f27", midX, topY);
+  } else {
+    playLand();
+    state.shake = Math.max(state.shake, 0.14); // rough landing rattles the camera
+    if (comboSaved) {
+      playSave();
+      showToast("🍚 Combo saved!");
+      addFloater("Combo saved!", "#4caf72", midX, topY);
+    }
+  }
+
+  // Milestone flags every 10 blocks.
+  if (state.score % 10 === 0) {
+    playMilestone();
+    addFloater(`▲ ${state.score}!`, "#22b2b4", midX, topY - 26);
+    spawnLandParticles(placedX, placedX + placedWidth, activeTopWorld, "#ffd15a");
+  }
+
+  // Crossing your all-time best mid-run is worth celebrating immediately.
+  if (!state.passedBest && state.sessionBest > 0 && state.score > state.sessionBest) {
+    state.passedBest = true;
+    playNewBest();
+    buzz([30, 40, 30]);
+    addFloater("NEW BEST!", "#ee435b", midX, topY - 52);
+  }
 
   spawnActive();
   notePerfectStreak(); // 3-in-a-row perfect streak earns a power-up
@@ -1385,17 +1495,156 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
+// --- Evolving sky ---------------------------------------------------------
+// The higher the tower, the later in the day it gets: day → golden hour →
+// sunset → dusk → starry night. Colors blend continuously between stops.
+const SKY_STOPS = [
+  { h: 0, top: "#e9f5f5", bottom: "#f7fbfb" }, // bright day (matches the stage)
+  { h: 12, top: "#fbe3b8", bottom: "#fdf4e0" }, // golden hour
+  { h: 22, top: "#f7c2ae", bottom: "#fde5d6" }, // sunset
+  { h: 32, top: "#b9aede", bottom: "#e6def4" }, // dusk
+  { h: 44, top: "#16294a", bottom: "#3c5684" }, // night
+];
+
+function hexToRgb(hex) {
+  const v = parseInt(hex.slice(1), 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+}
+function lerpColor(a, b, t) {
+  const ca = hexToRgb(a);
+  const cb = hexToRgb(b);
+  const c = ca.map((v, i) => Math.round(v + (cb[i] - v) * t));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+function drawBackground() {
+  const h = state.placed.length;
+  let a = SKY_STOPS[0];
+  let b = SKY_STOPS[0];
+  let t = 0;
+  for (let i = 0; i < SKY_STOPS.length - 1; i++) {
+    if (h >= SKY_STOPS[i].h) {
+      a = SKY_STOPS[i];
+      b = SKY_STOPS[i + 1];
+      t = Math.min(1, (h - a.h) / (b.h - a.h));
+    }
+  }
+  if (h >= SKY_STOPS[SKY_STOPS.length - 1].h) {
+    a = b = SKY_STOPS[SKY_STOPS.length - 1];
+    t = 0;
+  }
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, lerpColor(a.top, b.top, t));
+  grad.addColorStop(1, lerpColor(a.bottom, b.bottom, t));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars fade in as night falls.
+  const starAlpha = Math.max(0, Math.min(1, (h - 34) / 10));
+  if (starAlpha > 0) {
+    ctx.save();
+    ctx.globalAlpha = starAlpha;
+    ctx.fillStyle = "#fff";
+    for (let i = 0; i < 46; i++) {
+      const sx = rnd2(i, 7) * W;
+      const sy = rnd2(i, 13) * H * 0.75;
+      const sr = 0.8 + rnd2(i, 29) * 1.5;
+      ctx.globalAlpha = starAlpha * (0.35 + rnd2(i, 41) * 0.65);
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// Deterministic pseudo-random in [0,1) from two seeds (stable every frame).
+function rnd2(i, j) {
+  const s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+// Dashed ghost line at your all-time best height, with a tag. Turns green
+// once you pass it.
+function drawBestLine() {
+  const best = state.sessionBest;
+  if (!best) return;
+  const y = FLOOR_Y - best * BLOCK_H;
+  const col = state.passedBest ? "rgba(76,175,114,0.8)" : "rgba(238,67,91,0.55)";
+  ctx.save();
+  ctx.setLineDash([10, 8]);
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(LANE_MIN - 40, y);
+  ctx.lineTo(LANE_MAX + 40, y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = "700 15px system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillStyle = col;
+  ctx.fillText("BEST " + best, LANE_MIN - 40, y - 7);
+  ctx.restore();
+}
+
+// A little flag planted on the tower every 10 blocks.
+function drawFlags() {
+  for (let m = 10; m <= state.placed.length; m += 10) {
+    const b = state.placed[m - 1];
+    if (!b) continue;
+    const y = worldTopForIndex(m - 1) + BLOCK_H * 0.5;
+    const px = b.x + b.width + 6;
+    ctx.strokeStyle = "#7a5b32";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(px, y + 12);
+    ctx.lineTo(px, y - 18);
+    ctx.stroke();
+    ctx.fillStyle = m % 20 === 0 ? "#fd9f27" : "#22b2b4";
+    ctx.beginPath();
+    ctx.moveTo(px, y - 18);
+    ctx.lineTo(px + 22, y - 12.5);
+    ctx.lineTo(px, y - 7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "800 9px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(String(m), px + 3, y - 9.5);
+  }
+}
+
+function drawFloaters() {
+  for (const f of state.floaters) {
+    ctx.globalAlpha = Math.max(0, Math.min(1, f.life / (f.maxLife * 0.45)));
+    ctx.font = "800 26px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.lineWidth = 5;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, W, H);
+  drawBackground();
 
   applyCamera();
   const t = bowlOpacity(); // 0 see-through (zoomed in) → 1 opaque (zoomed out)
+  drawBestLine();
   drawBowlBack(t); // far rim, behind the ingredients
   drawIngredients();
+  drawFlags();
   drawBowlFront(t); // body + near rim, in front of the ingredients
   drawShards();
   drawParticles();
+  drawFloaters();
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
@@ -1573,10 +1822,11 @@ function spawnPowerup(type) {
   });
 }
 
-// Which power-up a streak awards. Shield is a rare, once-per-game save; the rest
-// split evenly between expand and magnet.
+// Which power-up a streak awards. Shield is a rare, once-per-game save; Sticky
+// Rice (combo saver) is uncommon; the rest split evenly between expand/magnet.
 function pickPowerType() {
   if (!state.shieldEarned && Math.random() < SHIELD_CHANCE) return "shield";
+  if (!state.hasSaver && Math.random() < 0.22) return "saver";
   return Math.random() < 0.5 ? "expand" : "magnet";
 }
 
@@ -1710,6 +1960,38 @@ function drawShieldGlyph(x, y, r) {
   ctx.restore();
 }
 
+// sticky-rice glyph: a mound of rice in a little red bowl
+function drawSaverGlyph(x, y, r) {
+  ctx.save();
+  ctx.translate(x, y);
+  // rice mound (three overlapping bumps)
+  ctx.fillStyle = "#fff8ea";
+  ctx.strokeStyle = "#dfd2b2";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(-r * 0.3, -r * 0.02, r * 0.28, Math.PI, 0);
+  ctx.arc(0, -r * 0.2, r * 0.32, Math.PI, 0);
+  ctx.arc(r * 0.3, -r * 0.02, r * 0.28, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // a few grains
+  ctx.fillStyle = "#e4d7b8";
+  for (const [gx, gy] of [[-0.25, -0.16], [0.05, -0.3], [0.28, -0.14], [-0.02, -0.08]]) {
+    ctx.beginPath();
+    ctx.ellipse(gx * r, gy * r, r * 0.07, r * 0.035, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // bowl
+  ctx.fillStyle = "#ee435b";
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.56, 0);
+  ctx.quadraticCurveTo(0, r * 0.78, r * 0.56, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 // Drawn after render() (identity transform), so in plain canvas space.
 function drawPowerups() {
   for (const p of state.powerups) {
@@ -1718,6 +2000,7 @@ function drawPowerups() {
     powerDisc(p.x, p.y, r);
     if (p.type === "magnet") drawMagnetGlyph(p.x, p.y, r);
     else if (p.type === "shield") drawShieldGlyph(p.x, p.y, r);
+    else if (p.type === "saver") drawSaverGlyph(p.x, p.y, r);
     else drawExpandGlyph(p.x, p.y, r);
   }
 }
@@ -1730,8 +2013,10 @@ function collectPowerupAt(px, py) {
     if ((px - p.x) ** 2 + (py - p.y) ** 2 <= hitR * hitR) {
       const type = p.type;
       state.powerups.splice(i, 1);
+      state.stats.powerups += 1;
       applyPower(type);
       playPowerup();
+      buzz(15);
       return true;
     }
   }
@@ -1746,6 +2031,9 @@ function applyPower(type) {
     state.hasShield = true;
     state.shieldEarned = true;
     showToast("🛡 Shield up!");
+  } else if (type === "saver") {
+    state.hasSaver = true;
+    showToast("🍚 Combo saver!");
   } else {
     applyExpand();
     showToast("↔ Bigger block!");
@@ -1794,6 +2082,8 @@ function showToast(msg) {
 
 function updateStatusBadges() {
   if (shieldBadge) shieldBadge.classList.toggle("hidden", !state.hasShield);
+  const saverBadge = document.getElementById("saver-badge");
+  if (saverBadge) saverBadge.classList.toggle("hidden", !state.hasSaver);
   if (magnetBadge) {
     if (state.magnetDrops > 0) {
       magnetBadge.classList.remove("hidden");
@@ -1810,6 +2100,7 @@ function clearPowerups() {
   state.magnetDrops = 0;
   state.hasShield = false;
   state.shieldEarned = false;
+  state.hasSaver = false;
   if (puToast) puToast.classList.add("hidden");
   updateStatusBadges();
 }
@@ -1924,6 +2215,11 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     dropActive();
   }
+});
+
+// Auto-pause when the tab is hidden so a background game never dies unfairly.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state.running && !state.paused) pauseGame();
 });
 
 loadHighScore();
