@@ -1064,6 +1064,9 @@ async function runShift() {
   doorEl.classList.remove("open");
   overlay.classList.add("hidden");
   scorecardEl.classList.add("hidden");
+  ssLeaderboardEl.classList.add("hidden");
+  ssLbEntry.classList.add("hidden");
+  ssLbPending = null;
   hush();
 
   const cast = pickN(Object.keys(PERSONALITIES), GUESTS_PER_SHIFT);
@@ -1130,14 +1133,182 @@ function finishShift() {
   if (pct > prevBest) saveBestPct(pct);
   showBest();
 
+  if (window.PokeAch) {
+    PokeAch.unlock("ss-first");
+    if (pct >= 80) PokeAch.unlock("ss-pass");
+    if (pct === 100) PokeAch.unlock("ss-perfect");
+    if (guestMeta.every((m) => !m.leftEarly)) PokeAch.unlock("ss-noleave");
+  }
+
+  // Offer a global leaderboard entry for the shift.
+  ssLbNewName = null;
+  ssLbPending = { pct: pct, pts: earned };
+  ssLbNameInput.value = loadLbNameSaved();
+  ssLbEntry.classList.remove("hidden");
+
   if (pct === 100) SFX.fanfare();
   scorecardEl.classList.remove("hidden");
   scorecardEl.scrollTop = 0;
 }
 
+// --- Global leaderboard (Supabase; local fallback) -----------------------
+// Ranked by hospitality percent, then points earned. Falls back to a
+// per-browser board when Supabase is unreachable or the table is missing.
+const SBC = window.POKEWORKS_SUPABASE || {};
+const useSupabase =
+  !!SBC.url && !!SBC.anonKey && !/YOUR_/.test(SBC.url) && !/YOUR_/.test(SBC.anonKey);
+function sbHeaders(extra) {
+  return Object.assign({ apikey: SBC.anonKey, Authorization: "Bearer " + SBC.anonKey }, extra || {});
+}
+
+const SS_LB_LOCAL = "pokeworks-shopper-lb";
+const NAME_KEY = "pokeworks-lb-name";
+const SS_LB_MAX = 10;
+
+const ssLeaderboardEl = document.getElementById("ss-leaderboard");
+const ssLbList = document.getElementById("ss-lb-list");
+const ssLbEntry = document.getElementById("ss-lb-entry");
+const ssLbNameInput = document.getElementById("ss-lb-name");
+const ssLbSaveBtn = document.getElementById("ss-lb-save");
+const ssLbOpenBtn = document.getElementById("ss-lb-open");
+const ssLbViewBtn = document.getElementById("ss-lb-view");
+const ssLbBackBtn = document.getElementById("ss-lb-back");
+
+let ssLbPending = null; // { pct, pts } awaiting a name
+let ssLbNewName = null;
+
+function betterAudit(a, b) {
+  return a.pct !== b.pct ? a.pct > b.pct : a.pts > b.pts;
+}
+function sortAudits(list) {
+  return list.slice().sort((x, y) => (x.pct !== y.pct ? y.pct - x.pct : y.pts - x.pts));
+}
+function dedupeAudits(list) {
+  const seen = new Set();
+  const out = [];
+  for (const e of sortAudits(list)) {
+    const k = String(e.name).trim().toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(e);
+  }
+  return out;
+}
+function loadLocalAudits() {
+  try { return JSON.parse(localStorage.getItem(SS_LB_LOCAL)) || []; } catch { return []; }
+}
+function saveLocalAudits(l) {
+  try { localStorage.setItem(SS_LB_LOCAL, JSON.stringify(l)); } catch { /* ignore */ }
+}
+function addLocalAudit(name, pct, pts) {
+  const list = loadLocalAudits();
+  const k = name.trim().toLowerCase();
+  const ex = list.find((e) => String(e.name).trim().toLowerCase() === k);
+  const entry = { name, pct, pts };
+  if (ex) {
+    if (betterAudit(entry, ex)) { ex.pct = pct; ex.pts = pts; ex.name = name; }
+  } else {
+    list.push(entry);
+  }
+  saveLocalAudits(dedupeAudits(list).slice(0, 50));
+}
+function loadLbNameSaved() {
+  try { return localStorage.getItem(NAME_KEY) || ""; } catch { return ""; }
+}
+function saveLbNameSaved(n) {
+  try { localStorage.setItem(NAME_KEY, n); } catch { /* ignore */ }
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+async function fetchTopAudits() {
+  if (!useSupabase) return dedupeAudits(loadLocalAudits()).slice(0, SS_LB_MAX);
+  const url = SBC.url + "/rest/v1/shopper_scores?select=name,pct,pts&order=pct.desc,pts.desc&limit=500";
+  const res = await fetch(url, { headers: sbHeaders() });
+  if (!res.ok) throw new Error("Supabase fetch " + res.status);
+  return dedupeAudits(await res.json()).slice(0, SS_LB_MAX);
+}
+async function submitAudit(name, pct, pts) {
+  addLocalAudit(name, pct, pts); // local mirror
+  if (!useSupabase) return;
+  const res = await fetch(SBC.url + "/rest/v1/shopper_scores", {
+    method: "POST",
+    headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+    body: JSON.stringify({ name: name, pct: pct, pts: pts }),
+  });
+  if (!res.ok) throw new Error("Supabase insert " + res.status);
+}
+async function renderShopperBoard() {
+  ssLbList.innerHTML = '<li class="lb-empty">Loading…</li>';
+  let list;
+  try {
+    list = await fetchTopAudits();
+  } catch {
+    list = dedupeAudits(loadLocalAudits()).slice(0, SS_LB_MAX);
+  }
+  ssLbList.innerHTML = "";
+  if (!list.length) {
+    const li = document.createElement("li");
+    li.className = "lb-empty";
+    li.textContent = "No audits yet. Be the first!";
+    ssLbList.appendChild(li);
+    return;
+  }
+  let hi = false;
+  list.forEach((e, i) => {
+    const li = document.createElement("li");
+    li.className = "lb-row";
+    if (!hi && ssLbNewName &&
+        String(ssLbNewName).trim().toLowerCase() === String(e.name).trim().toLowerCase()) {
+      li.classList.add("lb-me");
+      hi = true;
+    }
+    li.innerHTML =
+      `<span class="lb-rank">${i + 1}</span>` +
+      `<span class="lb-name">${escapeHtml(e.name)}</span>` +
+      `<span class="lb-score">${e.pct}% · ${e.pts} pts</span>`;
+    ssLbList.appendChild(li);
+  });
+}
+function openShopperBoard() {
+  ssLeaderboardEl.classList.remove("hidden");
+  renderShopperBoard();
+}
+function closeShopperBoard() {
+  ssLeaderboardEl.classList.add("hidden");
+}
+async function submitShopperName() {
+  if (!ssLbPending) return;
+  const name = (ssLbNameInput.value || "").trim().slice(0, 12) || "Anon";
+  saveLbNameSaved(name);
+  const pct = ssLbPending.pct;
+  const pts = ssLbPending.pts;
+  ssLbPending = null;
+  ssLbEntry.classList.add("hidden");
+  ssLbSaveBtn.disabled = true;
+  try {
+    await submitAudit(name, pct, pts);
+  } catch (e) {
+    /* local mirror already saved */
+  }
+  ssLbSaveBtn.disabled = false;
+  ssLbNewName = name;
+  openShopperBoard();
+}
+
 // --- Wiring -------------------------------------------------------------
 startBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); runShift(); });
 againBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); runShift(); });
+
+// Leaderboard wiring
+ssLbOpenBtn.addEventListener("click", () => { ssLbNewName = null; openShopperBoard(); });
+ssLbViewBtn.addEventListener("click", openShopperBoard);
+ssLbBackBtn.addEventListener("click", closeShopperBoard);
+ssLbSaveBtn.addEventListener("click", submitShopperName);
+ssLbNameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); submitShopperName(); }
+});
 
 // Initial paint
 tableEl.innerHTML = tableSVG();

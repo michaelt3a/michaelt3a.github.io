@@ -310,6 +310,11 @@ function serve(c) {
   else if (S.mode === "baby") pts = Math.round(pts * 0.6); // easy mode, fewer points
   S.score += pts;
   S.served++;
+  if (window.PokeAch) {
+    if (S.served === 1) PokeAch.unlock("ou-first");
+    if (S.served === 10) PokeAch.unlock("ou-10");
+    if (S.mode === "hard" && S.served === 5) PokeAch.unlock("ou-hard");
+  }
   S.combo++;
   scoreEl.textContent = S.score;
   updateCombo();
@@ -521,9 +526,177 @@ function endGame() {
     `You served <strong>${S.served}</strong> bowl${S.served === 1 ? "" : "s"} for <strong>${S.score}</strong> points` +
     ` <span class="ou-mode-tag">${S.mode === "hard" ? "Hard" : S.mode === "baby" ? "Baby" : "Normal"}</span>.` +
     (isBest && S.score > 0 ? `<br><span class="ou-best">★ New best!</span>` : "");
-  screenStart.classList.add("hidden");
-  screenOver.classList.remove("hidden");
+
+  // Offer a global leaderboard entry for any scoring shift.
+  lbNewName = null;
+  if (S.score > 0) {
+    lbPending = { mode: S.mode, score: S.score };
+    ouLbName.value = loadLbNameSaved();
+    ouLbEntry.classList.remove("hidden");
+  } else {
+    lbPending = null;
+    ouLbEntry.classList.add("hidden");
+  }
+  showPanel("over");
+}
+
+// --- Global leaderboard (Supabase; local fallback) -----------------------
+// One board per mode. The anon key is public by design; falls back to a
+// per-browser board when Supabase is unreachable or the table is missing.
+const SBC = window.POKEWORKS_SUPABASE || {};
+const useSupabase =
+  !!SBC.url && !!SBC.anonKey && !/YOUR_/.test(SBC.url) && !/YOUR_/.test(SBC.anonKey);
+function sbHeaders(extra) {
+  return Object.assign({ apikey: SBC.anonKey, Authorization: "Bearer " + SBC.anonKey }, extra || {});
+}
+
+const OU_LB_LOCAL = "pokeworks-orderup-lb";
+const NAME_KEY = "pokeworks-lb-name";
+const LB_MAX = 10;
+
+const screenLb = document.getElementById("screen-lb");
+const ouLbOpen = document.getElementById("ou-lb-open");
+const ouLbView = document.getElementById("ou-lb-view");
+const ouLbBack = document.getElementById("ou-lb-back");
+const ouLbEntry = document.getElementById("ou-lb-entry");
+const ouLbName = document.getElementById("ou-lb-name");
+const ouLbSave = document.getElementById("ou-lb-save");
+const ouLbList = document.getElementById("ou-lb-list");
+const ouLbTabs = document.querySelectorAll("#screen-lb .lb-tab");
+
+let lbTab = "normal";
+let lbReturn = "start"; // which panel Back goes to
+let lbPending = null; // { mode, score } awaiting a name
+let lbNewName = null; // highlight this name after a save
+
+// One row per player (case-insensitive), keeping their best score.
+function dedupeScores(list) {
+  const sorted = list.slice().sort((a, b) => b.score - a.score);
+  const seen = new Set();
+  const out = [];
+  for (const e of sorted) {
+    const k = String(e.name).trim().toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(e);
+  }
+  return out;
+}
+function loadLocalLb() {
+  try { return JSON.parse(localStorage.getItem(OU_LB_LOCAL)) || {}; } catch { return {}; }
+}
+function saveLocalLb(b) {
+  try { localStorage.setItem(OU_LB_LOCAL, JSON.stringify(b)); } catch { /* ignore */ }
+}
+function addLocalScore(mode, name, score) {
+  const b = loadLocalLb();
+  const list = b[mode] || (b[mode] = []);
+  const k = name.trim().toLowerCase();
+  const ex = list.find((e) => String(e.name).trim().toLowerCase() === k);
+  if (ex) {
+    if (score > ex.score) { ex.score = score; ex.name = name; }
+  } else {
+    list.push({ name, score });
+  }
+  b[mode] = dedupeScores(list).slice(0, 50);
+  saveLocalLb(b);
+}
+async function fetchTopScores(mode) {
+  if (!useSupabase) return dedupeScores(loadLocalLb()[mode] || []).slice(0, LB_MAX);
+  const url = SBC.url + "/rest/v1/orderup_scores?select=name,score&mode=eq." +
+    encodeURIComponent(mode) + "&order=score.desc&limit=500";
+  const res = await fetch(url, { headers: sbHeaders() });
+  if (!res.ok) throw new Error("Supabase fetch " + res.status);
+  return dedupeScores(await res.json()).slice(0, LB_MAX);
+}
+async function submitScore(mode, name, score) {
+  addLocalScore(mode, name, score); // local mirror
+  if (!useSupabase) return;
+  const res = await fetch(SBC.url + "/rest/v1/orderup_scores", {
+    method: "POST",
+    headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+    body: JSON.stringify({ mode: mode, name: name, score: score }),
+  });
+  if (!res.ok) throw new Error("Supabase insert " + res.status);
+}
+function loadLbNameSaved() {
+  try { return localStorage.getItem(NAME_KEY) || ""; } catch { return ""; }
+}
+function saveLbNameSaved(n) {
+  try { localStorage.setItem(NAME_KEY, n); } catch { /* ignore */ }
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function showPanel(which) {
+  screenStart.classList.toggle("hidden", which !== "start");
+  screenOver.classList.toggle("hidden", which !== "over");
+  screenLb.classList.toggle("hidden", which !== "lb");
   overlay.classList.remove("hidden");
+}
+function setLbTab(mode) {
+  lbTab = mode;
+  ouLbTabs.forEach((t) => t.classList.toggle("active", t.dataset.mode === mode));
+  renderLb();
+}
+async function renderLb() {
+  const mode = lbTab;
+  ouLbList.innerHTML = '<li class="lb-empty">Loading…</li>';
+  let list;
+  try {
+    list = await fetchTopScores(mode);
+  } catch {
+    list = dedupeScores(loadLocalLb()[mode] || []).slice(0, LB_MAX);
+  }
+  if (mode !== lbTab) return; // tab changed mid-fetch
+  ouLbList.innerHTML = "";
+  if (!list.length) {
+    const li = document.createElement("li");
+    li.className = "lb-empty";
+    li.textContent = "No scores yet. Be the first!";
+    ouLbList.appendChild(li);
+    return;
+  }
+  let hi = false;
+  list.forEach((e, i) => {
+    const li = document.createElement("li");
+    li.className = "lb-row";
+    if (!hi && lbNewName &&
+        String(lbNewName).trim().toLowerCase() === String(e.name).trim().toLowerCase()) {
+      li.classList.add("lb-me");
+      hi = true;
+    }
+    li.innerHTML =
+      `<span class="lb-rank">${i + 1}</span>` +
+      `<span class="lb-name">${escapeHtml(e.name)}</span>` +
+      `<span class="lb-score">${e.score}</span>`;
+    ouLbList.appendChild(li);
+  });
+}
+function openLb(from, mode) {
+  lbReturn = from;
+  setLbTab(mode || lbTab);
+  showPanel("lb");
+}
+async function submitLbName() {
+  if (!lbPending) return;
+  const name = (ouLbName.value || "").trim().slice(0, 12) || "Anon";
+  saveLbNameSaved(name);
+  const mode = lbPending.mode;
+  const score = lbPending.score;
+  lbPending = null;
+  ouLbEntry.classList.add("hidden");
+  ouLbSave.disabled = true;
+  try {
+    await submitScore(mode, name, score);
+  } catch (e) {
+    /* local mirror already saved */
+  }
+  ouLbSave.disabled = false;
+  lbNewName = name;
+  openLb("over", mode);
 }
 
 // --- Wiring -------------------------------------------------------------
@@ -531,6 +704,16 @@ startBabyBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); start
 startNormalBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("normal"); });
 startHardBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("hard"); });
 againBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame(S.mode); });
+
+// Leaderboard wiring
+ouLbOpen.addEventListener("click", () => { openLb("start", lbTab); });
+ouLbView.addEventListener("click", () => { openLb("over", S.mode || lbTab); });
+ouLbBack.addEventListener("click", () => { showPanel(lbReturn); });
+ouLbSave.addEventListener("click", submitLbName);
+ouLbName.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); submitLbName(); }
+});
+ouLbTabs.forEach((t) => t.addEventListener("click", () => setLbTab(t.dataset.mode)));
 
 // Initial paint.
 best = loadBest();

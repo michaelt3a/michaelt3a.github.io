@@ -1155,6 +1155,7 @@ function dropActive() {
       updateStatusBadges();
       showToast("🛡 Shield used!");
       playShieldSave();
+      if (window.PokeAch) PokeAch.unlock("bb-shield");
       state.combo = 0;
       updateCombo();
       spawnActive(); // forgive the miss and keep going
@@ -1215,6 +1216,13 @@ function dropActive() {
     landAnim: 1,
   });
   setScore(state.placed.length);
+
+  if (window.PokeAch) {
+    if (state.score === 1) PokeAch.unlock("bb-first");
+    if (state.score === 25) PokeAch.unlock("bb-25");
+    if (state.score === 50) PokeAch.unlock("bb-50");
+    if (state.combo >= 10) PokeAch.unlock("bb-combo10");
+  }
 
   // Splash particles along the landing seam (bottom edge of the placed block).
   const seamY = worldTopForIndex(state.placed.length - 1) + BLOCK_H;
@@ -2028,6 +2036,7 @@ function collectPowerupAt(px, py) {
       const type = p.type;
       state.powerups.splice(i, 1);
       state.stats.powerups += 1;
+      if (window.PokeAch && state.stats.powerups >= 5) PokeAch.unlock("bb-power5");
       applyPower(type);
       playPowerup();
       buzz(15);

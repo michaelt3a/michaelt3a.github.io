@@ -391,6 +391,11 @@
 .ou-panel { max-width: 440px; }
 .ou-panel.hidden { display: none; }
 
+/* Leaderboard bits (shared .lb-* styles come from styles.css) */
+.ou-lb-open { margin-top: 1rem; }
+.ou-panel .lb-list { margin: 0 auto 1rem; }
+.ou-panel .lb-entry { margin: 0 auto 1rem; }
+
 .ou-modes {
   display: flex;
   flex-direction: column;

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=9" />
+  <link rel="stylesheet" href="menu.css?v=10" />
 </head>
 <body>
   <main class="hub page-content">
@@ -52,8 +52,21 @@
         </div>
       </a>
     </div>
+
+    <!-- Achievement wall -->
+    <section class="ach">
+      <div class="ach-head">
+        <h2 class="ach-title">Achievements</h2>
+        <span class="ach-count" id="ach-count">0 / 0</span>
+      </div>
+      <div class="ach-grid" id="ach-grid"></div>
+    </section>
   </main>
 
   <script src="transitions.js?v=3"></script>
+  <script src="achievements.js?v=1"></script>
+  <script>
+    PokeAch.renderWall(document.getElementById("ach-grid"), document.getElementById("ach-count"));
+  </script>
 </body>
 </html>

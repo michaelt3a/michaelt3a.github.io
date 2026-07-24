@@ -675,10 +675,14 @@ function checkBowl() {
 function win() {
   successSub.textContent = hintsUsed
     ? `You built the ${currentRecipe.name} with ${hintsUsed} hint${hintsUsed === 1 ? "" : "s"}.`
-    : `You built the ${currentRecipe.name}  with no hints!`;
+    : `You built the ${currentRecipe.name} with no hints!`;
   successEl.classList.remove("hidden");
   SFX.win();
   runConfetti();
+  if (window.PokeAch) {
+    PokeAch.unlock("sw-first");
+    if (hintsUsed === 0) PokeAch.unlock("sw-nohints");
+  }
 }
 
 // --- Confetti (success) -------------------------------------------------
@@ -1023,6 +1027,11 @@ function finishSpeedrun() {
   }
   renderResults(perfect, totalMs);
   resultsEl.classList.remove("hidden");
+
+  if (window.PokeAch) {
+    PokeAch.unlock("sw-speedrun");
+    if (perfect === run.results.length) PokeAch.unlock("sw-perfectrun");
+  }
 
   // Offer to add this run to the global leaderboard. Round the time — the DB
   // stores whole milliseconds (an int column).
