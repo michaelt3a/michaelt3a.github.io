@@ -34,6 +34,8 @@
     { id: "ou-upgrade", game: "Order Up", icon: "🛠️", title: "Reinvested", how: "Buy your first restaurant upgrade." },
     { id: "ou-vip", game: "Order Up", icon: "💎", title: "High Roller Service", how: "Serve a VIP customer a perfect bowl." },
     { id: "ou-5star", game: "Order Up", icon: "🌟", title: "Five-Star Kitchen", how: "Reach a 4.8★ rating with 10+ reviews." },
+    { id: "ou-critic", game: "Order Up", icon: "🎩", title: "Critic's Choice", how: "Earn a 5-star review from the food critic." },
+    { id: "ou-franchise", game: "Order Up", icon: "🏪", title: "Chain Reaction", how: "Open your first franchise." },
     // Secret Shopper
     { id: "ss-first", game: "Secret Shopper", icon: "🕵️", title: "Clocked In", how: "Finish a shift." },
     { id: "ss-pass", game: "Secret Shopper", icon: "📋", title: "Passing Grade", how: "Finish a shift with a score of 80% or higher." },

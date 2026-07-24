@@ -6,7 +6,7 @@
   <title>Order Up - Pokeworks</title>
   <meta name="description" content="Pokeworks Order Up rush minigame." />
   <link rel="stylesheet" href="styles.css?v=14" />
-  <link rel="stylesheet" href="order-up.css?v=12" />
+  <link rel="stylesheet" href="order-up.css?v=13" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -53,6 +53,7 @@
         <div class="ou-tables" id="tables"></div>
         <div class="ou-customers" id="customers"></div>
         <div class="ou-worker hidden" id="worker"></div>
+        <div class="ou-event hidden" id="ou-event"></div>
         <div class="ou-guard"></div>
       </div>
 
@@ -106,6 +107,7 @@
         <div class="ou-panel hidden" id="screen-over">
           <h1 class="overlay-title">Shift Over</h1>
           <p class="ou-final" id="final"></p>
+          <p class="ou-life" id="ou-life"></p>
           <p class="ou-bank hidden" id="ou-bank"></p>
           <div class="ou-shop hidden" id="ou-shop"></div>
           <!-- Name entry for the hub leaderboard -->
@@ -131,10 +133,10 @@
 
   <script src="transitions.js?v=3"></script>
   <script src="supabase-config.js?v=2"></script>
-  <script src="achievements.js?v=4"></script>
+  <script src="achievements.js?v=5"></script>
   <script src="bowl-render.js?v=3"></script>
   <script src="daily.js?v=3"></script>
-  <script src="order-up.js?v=20"></script>
+  <script src="order-up.js?v=21"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

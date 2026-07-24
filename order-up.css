@@ -755,3 +755,66 @@
   .ou-var strong { flex: none; }
   .ou-var small { flex: 1 1 auto; }
 }
+
+/* -------- Shift events, specials, franchise, lifetime --------------------- */
+
+/* Event banner slides down over the scene */
+.ou-event {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 4;
+  transform: translate(-50%, -160%);
+  max-width: min(92%, 520px);
+  background: linear-gradient(180deg, #ffe9a8, #f5c542);
+  color: #6a4c00;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 8px 16px;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  pointer-events: none;
+  transition: transform 0.4s cubic-bezier(0.3, 1.4, 0.4, 1);
+}
+.ou-event.hidden { display: none; }
+.ou-event { display: block; } /* .hidden above still wins */
+.ou-event.show { transform: translate(-50%, 0); }
+
+/* Critic & inspector nametags */
+.ou-nametag.t-critic {
+  background: #2a2f31;
+  color: #ffd15a;
+  box-shadow: 0 0 10px rgba(42, 47, 49, 0.6);
+}
+.ou-nametag.t-inspector {
+  background: #eaf2f6;
+  color: #2f5666;
+  border: 1px solid #9db9c6;
+}
+.ou-toast.special { border-left-color: #2a2f31; }
+
+/* Franchise card + badge */
+.ou-up-franchise {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #fdf6e3, #ffe9a8);
+  border-color: #f5c542;
+}
+.ou-up-franchise.locked { opacity: 0.72; filter: saturate(0.6); }
+.ou-fr-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: linear-gradient(180deg, #ffe9a8, #f5c542);
+  color: #6a4c00;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+/* Lifetime line on the shift-over screen */
+.ou-life {
+  margin: -0.3rem 0 0.5rem;
+  font-size: 0.74rem;
+  color: var(--muted);
+}

@@ -94,15 +94,27 @@ const UPGRADES = {
   },
 };
 
-// --- Persistent restaurant (bank, upgrades, reviews) --------------------
+// --- Persistent restaurant (bank, upgrades, reviews, lifetime) ----------
 function freshTycoon() {
-  return { bank: 0, upgrades: { worker: 0, prices: 0, lobby: 0, ads: 0 }, reviews: [] };
+  return {
+    bank: 0,
+    upgrades: { worker: 0, prices: 0, lobby: 0, ads: 0 },
+    reviews: [],
+    franchises: 0, // permanent +10% earnings each (see the Franchise shop card)
+    life: { served: 0, perfect: 0, walkouts: 0, earned: 0, shifts: 0 },
+  };
 }
 let T = freshTycoon();
 function loadTycoon() {
   try {
     const t = JSON.parse(localStorage.getItem(TYCOON_KEY));
-    if (t && t.upgrades) return Object.assign(freshTycoon(), t, { upgrades: Object.assign(freshTycoon().upgrades, t.upgrades) });
+    if (t && t.upgrades) {
+      const fresh = freshTycoon();
+      return Object.assign(fresh, t, {
+        upgrades: Object.assign(fresh.upgrades, t.upgrades),
+        life: Object.assign(fresh.life, t.life || {}),
+      });
+    }
   } catch { /* fall through */ }
   return freshTycoon();
 }
@@ -122,6 +134,13 @@ function workerInterval() { return [0, 8, 5.5, 3.5][upgradeLvl("worker")] || 0; 
 function priceMult() { return 1 + 0.2 * upgradeLvl("prices"); }
 function lobbyMult() { return 1 - 0.1 * upgradeLvl("lobby"); }
 function adsMult() { return 1 - 0.15 * upgradeLvl("ads"); }
+// Each franchise is a permanent +10% on earnings. Like upgrades, it sits out
+// daily runs.
+function franchiseMult() { return isDailyRun ? 1 : 1 + 0.1 * (T.franchises || 0); }
+const FRANCHISE_COST = 1500;
+function franchiseReady() {
+  return Object.keys(UPGRADES).every((k) => (T.upgrades[k] || 0) >= UPGRADES[k].costs.length);
+}
 
 // --- State --------------------------------------------------------------
 let best = 0; // best for the current mode (set once S exists)
@@ -144,7 +163,13 @@ const S = {
   activeId: null,
   spawnTimer: 0,
   lastTime: 0,
+  // Shift events (never on daily runs — the shared board stays deterministic)
+  elapsed: 0,
+  nextEventAt: Infinity,
+  rushUntil: 0, // Lunch Rush: while elapsed < this, double pay + faster spawns
+  pendingSpecial: null, // "critic" | "inspector" — claims the next walk-in
 };
+function lunchRushActive() { return S.elapsed < S.rushUntil; }
 let nextId = 1;
 let activeStation = CATS[0]; // which station's pans are shown ("Base" first)
 const panEls = {}; // name -> pan element (current station only)
@@ -240,7 +265,43 @@ function maxPatienceFor(recipe, tier) {
 }
 function spawnInterval() {
   const base = Math.max(4.5, 10.5 - S.served * 0.22);
-  return base * adsMult();
+  return base * adsMult() * (lunchRushActive() ? 0.5 : 1);
+}
+
+// --- Shift events --------------------------------------------------------
+// Every so often the shift throws a moment at you: a Lunch Rush (double pay,
+// customers pour in), a Food Critic (their review counts triple), or the
+// Health Inspector (no check, but the visit swings your rating hard).
+const eventBannerEl = document.getElementById("ou-event");
+let eventBannerTimer = null;
+function showEventBanner(text, ms) {
+  eventBannerEl.textContent = text;
+  eventBannerEl.classList.remove("hidden");
+  eventBannerEl.classList.remove("show");
+  void eventBannerEl.offsetWidth;
+  eventBannerEl.classList.add("show");
+  clearTimeout(eventBannerTimer);
+  eventBannerTimer = setTimeout(() => eventBannerEl.classList.remove("show"), ms || 5000);
+}
+
+function fireEvent() {
+  const pool = ["rush"];
+  // one special guest in the pipeline at a time
+  if (!S.pendingSpecial && !S.customers.some((c) => c.special)) pool.push("critic", "inspector");
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  if (pick === "rush") {
+    S.rushUntil = S.elapsed + 25;
+    showEventBanner("🍜 LUNCH RUSH — double pay for 25 seconds!", 6000);
+    SFX.bell();
+  } else if (pick === "critic") {
+    S.pendingSpecial = "critic";
+    showEventBanner("🎩 A food critic is on their way — their review counts triple.", 6000);
+    SFX.bell();
+  } else {
+    S.pendingSpecial = "inspector";
+    showEventBanner("📋 Health inspector incoming — a perfect bowl or it goes on the record.", 6000);
+    SFX.bell();
+  }
 }
 
 // Which tier walks in. Odds scale with the restaurant's star rating — the
@@ -340,18 +401,23 @@ function buildTables() {
 function addCustomer() {
   if (S.customers.length >= MAX_CUSTOMERS) return;
   const recipe = pickRecipe();
-  const tier = pickTier();
+  // A pending critic/inspector claims this walk-in (plain tier — their whole
+  // point is the review, not the check).
+  const special = S.pendingSpecial;
+  S.pendingSpecial = null;
+  const tier = special ? TIERS.regular : pickTier();
   const maxP = maxPatienceFor(recipe, tier);
   const c = {
     id: nextId++,
     recipe,
     name: recipe.name,
-    custName: CUST_NAMES[Math.floor(Math.random() * CUST_NAMES.length)],
+    custName: special === "critic" ? "The Critic" : special === "inspector" ? "Inspector" : CUST_NAMES[Math.floor(Math.random() * CUST_NAMES.length)],
     tier,
+    special,
     sel: emptySel(),
     patience: maxP,
     maxPatience: maxP,
-    shirt: tier.shirt || SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
+    shirt: special === "critic" ? "#2a2f31" : special === "inspector" ? "#5a7d8c" : tier.shirt || SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
     mood: "ok",
   };
   // New arrivals join the back (left); everyone already in line shifts right.
@@ -365,10 +431,12 @@ function buildCustomer(c) {
   const el = document.createElement("button");
   el.type = "button";
   el.className = "ou-cust";
+  const tagClass = c.special ? "t-" + c.special : "t-" + c.tier.key;
+  const tagIcon = c.special === "critic" ? "🎩" : c.special === "inspector" ? "📋" : c.tier.icon;
   el.innerHTML =
     `<span class="ou-bubble">${c.name}</span>` +
     `<span class="ou-stick">${stickmanSVG(c.shirt, c.mood)}</span>` +
-    `<span class="ou-nametag t-${c.tier.key}">${c.tier.icon ? c.tier.icon + " " : ""}${c.custName}</span>` +
+    `<span class="ou-nametag ${tagClass}">${tagIcon ? tagIcon + " " : ""}${c.custName}</span>` +
     `<span class="ou-pat"><i data-role="bar"></i></span>`;
   el.addEventListener("click", () => { SFX.pick(); setActive(c.id); });
   c.el = el;
@@ -446,13 +514,18 @@ function bowlAccuracy(c) {
 // check for an instant perfect serve), shrinks with mistakes, and rich tiers
 // tip on their bigger checks.
 function payoutFor(c, a) {
+  // The inspector isn't a customer — no check, the visit is about the rating.
+  if (c.special === "inspector") return { money: 0, tip: 0 };
   const price = (10 + a.size * 1.5) * a.frac;
   const speedFrac = Math.max(0, c.patience / c.maxPatience);
   let tip = price * 0.6 * speedFrac * a.frac;
   if (!a.perfect) tip *= 0.5; // a fast-but-wrong bowl still earns a little
   let m = price + tip + (a.perfect ? S.combo * 2 : 0);
   const mult =
-    c.tier.pay * priceMult() * (isHard() ? 1.5 : 1);
+    c.tier.pay * priceMult() * franchiseMult() *
+    (isHard() ? 1.5 : 1) *
+    (lunchRushActive() ? 2 : 1) *
+    (c.special === "critic" ? 2 : 1);
   m *= mult;
   tip *= mult;
   if (a.frac <= 0) return { money: 0, tip: 0 };
@@ -465,6 +538,9 @@ function serve(c) {
   const money = pay.money;
   S.score += money;
   S.served++;
+  T.life.served++;
+  if (a.perfect) T.life.perfect++;
+  T.life.earned += money;
   if (window.PokeAch) {
     if (S.served === 1) PokeAch.unlock("ou-first");
     if (S.served === 10) PokeAch.unlock("ou-10");
@@ -478,16 +554,32 @@ function serve(c) {
   if (a.perfect) SFX.serve();
   else { SFX.serve(); SFX.remove(); } // a slightly sour note under the ring
   cashFloater(money, pay.tip, a.perfect);
-  postReview(c, reviewForServe(c, a));
+  if (c.special === "inspector") {
+    // Pass or fail: the inspection is worth two reviews' weight either way.
+    postReview(c, a.perfect
+      ? { stars: 5, comment: "Passed with flying colors. Spotless line." }
+      : { stars: 1, comment: "Violations noted. Ticket accuracy: poor." }, 2);
+  } else {
+    const r = reviewForServe(c, a);
+    // A critic's verdict lands three times as hard on the rating.
+    postReview(c, r, c.special === "critic" ? 3 : 1);
+    if (window.PokeAch && c.special === "critic" && r.stars === 5) PokeAch.unlock("ou-critic");
+  }
   removeCustomer(c, "served");
 }
 
 function loseCustomer(c) {
   S.lost++;
+  T.life.walkouts++;
   S.combo = 0;
   updateCombo();
   SFX.angry();
-  postReview(c, { stars: Math.random() < 0.5 ? 0 : 1, comment: pickFrom(REVIEW_LEFT) });
+  // Losing the critic or inspector hurts as much as their good visit helps.
+  const weight = c.special === "critic" ? 3 : c.special === "inspector" ? 2 : 1;
+  const comment = c.special === "inspector"
+    ? "Establishment refused inspection. Reported."
+    : pickFrom(REVIEW_LEFT);
+  postReview(c, { stars: Math.random() < 0.5 ? 0 : 1, comment }, weight);
   removeCustomer(c, "leaving");
   renderPace();
   // In Endless, walkouts are the end condition.
@@ -525,18 +617,20 @@ function starRow(n) {
 // Show the toast and fold the stars into the restaurant's rating. Daily runs
 // show toasts for flavour but don't move the persistent rating — a bad daily
 // shouldn't tank the restaurant you're building.
-function postReview(c, r) {
+function postReview(c, r, weight) {
+  const w = weight || 1;
   if (!isDailyRun) {
-    T.reviews.push(r.stars);
+    for (let i = 0; i < w; i++) T.reviews.push(r.stars);
     if (T.reviews.length > 20) T.reviews = T.reviews.slice(-20);
     saveTycoon();
     renderRating();
     if (window.PokeAch && T.reviews.length >= 10 && rating() >= 4.8) PokeAch.unlock("ou-5star");
   }
+  const headIcon = c.special === "critic" ? "🎩 " : c.special === "inspector" ? "📋 " : c.tier.icon ? c.tier.icon + " " : "";
   const toast = document.createElement("div");
-  toast.className = "ou-toast";
+  toast.className = "ou-toast" + (c.special ? " special" : "");
   toast.innerHTML =
-    `<div class="ou-toast-head"><span>${c.tier.icon ? c.tier.icon + " " : ""}${c.custName} left a review</span>` +
+    `<div class="ou-toast-head"><span>${headIcon}${c.custName} left a review${w > 1 ? " (×" + w + ")" : ""}</span>` +
     `<span class="ou-toast-stars">${starRow(r.stars)}</span></div>` +
     `<div class="ou-toast-body">“${r.comment}”</div>`;
   toastsEl.appendChild(toast);
@@ -783,6 +877,12 @@ function frame(t) {
       S.timeLeft -= dt;
       renderPace();
     }
+    S.elapsed += dt;
+    // Shift events fire on a loose timer (never during daily runs).
+    if (S.elapsed >= S.nextEventAt) {
+      fireEvent();
+      S.nextEventAt = S.elapsed + 45 + Math.random() * 25;
+    }
     if (isRush() && S.timeLeft <= 0) {
       endGame();
     } else {
@@ -829,6 +929,12 @@ function startGame(mode) {
   S.timeLeft = SHIFT_LEN;
   S.workerT = 0;
   S.ratingStart = rating();
+  S.elapsed = 0;
+  S.rushUntil = 0;
+  S.pendingSpecial = null;
+  // First event lands 20–35s in; dailies get none.
+  S.nextEventAt = isDailyRun ? Infinity : 20 + Math.random() * 15;
+  if (eventBannerEl) eventBannerEl.classList.remove("show");
   S.customers = [];
   S.activeId = null;
   customersEl.innerHTML = "";
@@ -856,7 +962,15 @@ function endGame() {
   bestEl.textContent = "$" + best;
   // Shift earnings go into the bank that buys upgrades.
   T.bank += S.score;
+  T.life.shifts++;
   saveTycoon();
+  const lifeEl = document.getElementById("ou-life");
+  if (lifeEl) {
+    lifeEl.textContent =
+      "Lifetime: $" + T.life.earned.toLocaleString() + " earned · " +
+      T.life.served + " served · " + T.life.shifts + " shift" + (T.life.shifts === 1 ? "" : "s") +
+      (T.franchises ? " · 🏪 ×" + (T.franchises + 1) : "");
+  }
   const rNow = rating();
   const arrow = rNow > S.ratingStart + 0.01 ? "📈" : rNow < S.ratingStart - 0.01 ? "📉" : "";
   finalEl.innerHTML =
@@ -900,7 +1014,9 @@ function renderShop() {
   }
   bankEl.classList.remove("hidden");
   shopEl.classList.remove("hidden");
-  bankEl.innerHTML = `💰 Bank: <strong>$${T.bank}</strong>`;
+  bankEl.innerHTML =
+    `💰 Bank: <strong>$${T.bank}</strong>` +
+    (T.franchises ? ` <span class="ou-fr-badge">🏪 Pokeworks #${T.franchises + 1} · +${T.franchises * 10}% earnings</span>` : "");
   shopEl.innerHTML = "";
   for (const key of Object.keys(UPGRADES)) {
     const u = UPGRADES[key];
@@ -938,6 +1054,38 @@ function renderShop() {
     card.appendChild(btn);
     shopEl.appendChild(card);
   }
+
+  // Franchise: the endgame card. Max everything, then trade it all in for a
+  // permanent +10% and a fresh store.
+  const ready = franchiseReady();
+  const fr = document.createElement("div");
+  fr.className = "ou-up ou-up-franchise" + (ready ? "" : " locked");
+  fr.innerHTML =
+    `<span class="ou-up-icon">🏪</span>` +
+    `<span class="ou-up-body"><strong>Open a franchise</strong>` +
+    `<small>${ready
+      ? "Reset upgrades & rating for a permanent +10% earnings. Forever."
+      : "Max every upgrade to unlock. Then: permanent +10% earnings."}</small></span>`;
+  const frBtn = document.createElement("button");
+  frBtn.type = "button";
+  frBtn.className = "ou-up-buy";
+  frBtn.textContent = "$" + FRANCHISE_COST;
+  frBtn.disabled = !ready || T.bank < FRANCHISE_COST;
+  frBtn.addEventListener("click", () => {
+    if (!franchiseReady() || T.bank < FRANCHISE_COST) return;
+    T.bank -= FRANCHISE_COST;
+    T.franchises = (T.franchises || 0) + 1;
+    T.upgrades = { worker: 0, prices: 0, lobby: 0, ads: 0 };
+    T.reviews = []; // a new store earns its own reputation
+    saveTycoon();
+    SFX.serve();
+    if (window.PokeAch) PokeAch.unlock("ou-franchise");
+    renderRating();
+    renderWorker(); // Kai heads to the new store too
+    renderShop();
+  });
+  fr.appendChild(frBtn);
+  shopEl.appendChild(fr);
 }
 
 // --- Leaderboard submission (viewed on the hub) ---------------------------
