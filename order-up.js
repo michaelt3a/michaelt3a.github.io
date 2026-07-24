@@ -1288,6 +1288,14 @@ if (isDailyRun) {
 
 // Initial paint.
 T = loadTycoon();
+// Playtest cheat: on a local/LAN server only, ?rich=1 stuffs the bank so
+// upgrades and the franchise can be tried without grinding. The hostname gate
+// makes it inert on the live site.
+const isLocalHost = /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.|10\.)/.test(location.hostname);
+if (isLocalHost && new URLSearchParams(location.search).get("rich") === "1") {
+  T.bank = 999999;
+  saveTycoon();
+}
 best = loadBest();
 bestEl.textContent = "$" + best;
 renderRating();
