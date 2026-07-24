@@ -1042,7 +1042,7 @@ if (isDailyRun) {
   } else if (done) {
     if (sub) {
       sub.textContent =
-        "You've already played today: " + done.score + " points. Back tomorrow for a new run.";
+        "You've already played today: $" + done.score + ". Back tomorrow for a new run.";
     }
   } else {
     if (sub) sub.textContent = "Everyone gets this exact shift today. One attempt — make it count.";

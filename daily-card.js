@@ -19,7 +19,7 @@
       '<span class="dc-game">' + escapeHtml(c.game.label) + "</span>" +
       '<span class="dc-note">' +
       (done
-        ? "Played — " + done.score + " " + c.game.unit
+        ? "Played — " + (c.game.unit === "$" ? "$" + done.score : done.score + " " + c.game.unit)
         : "Same run for everyone. One attempt.") +
       "</span></div>" +
       (done
