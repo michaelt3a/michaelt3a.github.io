@@ -769,19 +769,13 @@ function sbHeaders(extra) {
   return Object.assign({ apikey: SB.anonKey, Authorization: "Bearer " + SB.anonKey }, extra || {});
 }
 
-// Leaderboard DOM
-const srLeaderboardEl = document.getElementById("sr-leaderboard");
-const srLbList = document.getElementById("sr-lb-list");
+// Leaderboard DOM (the board itself is viewed on the hub)
 const srLbEntry = document.getElementById("sr-lb-entry");
+const srLbDone = document.getElementById("sr-lb-done");
 const srLbNameInput = document.getElementById("sr-lb-name");
 const srLbSubmitBtn = document.getElementById("sr-lb-submit");
-const srLbOpenBtn = document.getElementById("sr-lb-open");
-const srLbBackBtn = document.getElementById("sr-lb-back");
-const srLbCloseBtn = document.getElementById("sr-lb-close");
-const resultsLbBtn = document.getElementById("results-leaderboard");
 
 let srPendingRun = null; // { perfect, ms } awaiting a name
-let srLbNewName = null; // highlight the row for this name after a submit
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) =>
@@ -856,48 +850,7 @@ async function submitSpeedrun(name, perfect, ms) {
   if (!res.ok) throw new Error("Supabase insert " + res.status);
 }
 
-async function renderSpeedrunBoard() {
-  srLbList.innerHTML = '<li class="sr-lb-empty">Loading…</li>';
-  let list;
-  try {
-    list = await fetchSpeedrunTop();
-  } catch (e) {
-    list = dedupeRuns(loadLocalRuns()).slice(0, SR_LB_MAX);
-  }
-  srLbList.innerHTML = "";
-  if (!list.length) {
-    const li = document.createElement("li");
-    li.className = "sr-lb-empty";
-    li.textContent = "No runs yet. Be the first!";
-    srLbList.appendChild(li);
-    return;
-  }
-  let highlighted = false;
-  list.forEach((e, i) => {
-    const li = document.createElement("li");
-    li.className = "sr-lb-row";
-    if (!highlighted && srLbNewName &&
-        String(srLbNewName).trim().toLowerCase() === String(e.name).trim().toLowerCase()) {
-      li.classList.add("sr-lb-me");
-      highlighted = true;
-    }
-    li.innerHTML =
-      `<span class="sr-lb-rank">${i + 1}</span>` +
-      `<span class="sr-lb-name">${escapeHtml(e.name)}</span>` +
-      `<span class="sr-lb-stat">${e.perfect}/${RECIPES.length} &middot; ${fmtTime(e.ms)}</span>`;
-    srLbList.appendChild(li);
-  });
-}
-
-function openSpeedrunBoard() {
-  srLeaderboardEl.classList.remove("hidden");
-  renderSpeedrunBoard();
-}
-function closeSpeedrunBoard() {
-  srLeaderboardEl.classList.add("hidden");
-}
-
-// Submit the just-finished run under the typed name, then show the board.
+// Submit the just-finished run under the typed name, then confirm.
 async function submitSpeedrunName() {
   if (!srPendingRun) return;
   const name = (srLbNameInput.value || "").trim().slice(0, 12) || "Anon";
@@ -905,7 +858,6 @@ async function submitSpeedrunName() {
   const perfect = srPendingRun.perfect;
   const ms = srPendingRun.ms;
   srPendingRun = null;
-  srLbEntry.classList.add("hidden");
   srLbSubmitBtn.disabled = true;
   try {
     await submitSpeedrun(name, perfect, ms);
@@ -913,8 +865,8 @@ async function submitSpeedrunName() {
     /* local mirror already saved */
   }
   srLbSubmitBtn.disabled = false;
-  srLbNewName = name;
-  openSpeedrunBoard();
+  srLbEntry.classList.add("hidden");
+  if (srLbDone) srLbDone.classList.remove("hidden");
 }
 
 // Fisher–Yates shuffle (a fresh order each run).
@@ -967,8 +919,8 @@ function startSpeedrun() {
   overlay.classList.add("hidden");
   resultsEl.classList.add("hidden");
   successEl.classList.add("hidden");
-  srLeaderboardEl.classList.add("hidden");
   srLbEntry.classList.add("hidden");
+  if (srLbDone) srLbDone.classList.add("hidden");
   srPendingRun = null;
   builder.hidden = false;
   loadRunBowl();
@@ -1033,10 +985,10 @@ function finishSpeedrun() {
     if (perfect === run.results.length) PokeAch.unlock("sw-perfectrun");
   }
 
-  // Offer to add this run to the global leaderboard. Round the time — the DB
-  // stores whole milliseconds (an int column).
+  // Offer to add this run to the leaderboard (viewed on the hub). Round the
+  // time — the DB stores whole milliseconds (an int column).
   srPendingRun = { perfect: perfect, ms: Math.round(totalMs) };
-  srLbNewName = null;
+  if (srLbDone) srLbDone.classList.add("hidden");
   if (srLbNameInput) srLbNameInput.value = loadLbName();
   if (srLbEntry) srLbEntry.classList.remove("hidden");
 
@@ -1173,11 +1125,7 @@ function renderResults(perfect, totalMs) {
 speedrunBtn.addEventListener("click", () => { SFX.start(); startSpeedrun(); });
 nextBowlBtn.addEventListener("click", () => { SFX.click(); nextRunBowl(); });
 
-// Speedrun leaderboard wiring
-srLbOpenBtn.addEventListener("click", () => { SFX.click(); srLbNewName = null; openSpeedrunBoard(); });
-resultsLbBtn.addEventListener("click", () => { SFX.click(); openSpeedrunBoard(); });
-srLbBackBtn.addEventListener("click", () => { SFX.click(); closeSpeedrunBoard(); });
-srLbCloseBtn.addEventListener("click", () => { SFX.click(); closeSpeedrunBoard(); });
+// Speedrun leaderboard submission wiring (board is viewed on the hub)
 srLbSubmitBtn.addEventListener("click", submitSpeedrunName);
 srLbNameInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); submitSpeedrunName(); }

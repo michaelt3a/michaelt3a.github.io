@@ -148,6 +148,121 @@ body {
   color: var(--muted);
 }
 
+/* Central leaderboard */
+.hlb {
+  margin-top: 2.5rem;
+}
+
+.hlb-title {
+  margin: 0 0 1rem;
+  color: var(--on-dark);
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
+}
+
+.hlb-games {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+
+.hlb-game {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid transparent;
+  color: var(--on-dark);
+  border-radius: 999px;
+  padding: 0.45rem 1.1rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.hlb-game:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.hlb-game.active {
+  background: var(--g, var(--accent));
+  border-color: var(--g, var(--accent));
+  color: #fff;
+}
+
+.hlb-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+
+.hlb-cats.single {
+  display: none;
+}
+
+.hlb-cat {
+  background: var(--panel);
+  border: 1.5px solid transparent;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.32rem 0.9rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hlb-cat.active {
+  border-color: var(--g, var(--accent));
+  box-shadow: inset 0 0 0 1px var(--g, var(--accent));
+}
+
+.hlb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 460px;
+}
+
+/* Leaderboard row styling (shared look with the games, on the dark hub) */
+.lb-list { list-style: none; margin: 0; padding: 0; }
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 0.5rem 0.8rem;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+.lb-rank {
+  width: 1.7rem;
+  text-align: center;
+  font-weight: 800;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lb-name {
+  flex: 1 1 auto;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-score {
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lb-empty {
+  list-style: none;
+  color: var(--on-dark-muted);
+  padding: 0.9rem 0.2rem;
+}
+
 /* Achievement wall */
 .ach {
   margin-top: 2.5rem;

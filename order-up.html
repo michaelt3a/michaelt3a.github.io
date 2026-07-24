@@ -6,7 +6,7 @@
   <title>Order Up - Pokeworks</title>
   <meta name="description" content="Pokeworks Order Up rush minigame." />
   <link rel="stylesheet" href="styles.css?v=10" />
-  <link rel="stylesheet" href="order-up.css?v=8" />
+  <link rel="stylesheet" href="order-up.css?v=9" />
 </head>
 <body>
   <a href="index.html" class="back-link">← Minigames</a>
@@ -65,12 +65,11 @@
             <button id="start-normal" class="btn" type="button">Recipes Shown</button>
             <button id="start-hard" class="btn btn-secondary" type="button">Hidden Recipes</button>
           </div>
-          <button id="ou-lb-open" class="control-btn ou-lb-open" type="button">🏆 Leaderboard</button>
         </div>
         <div class="ou-panel hidden" id="screen-over">
           <h1 class="overlay-title">Shift Over</h1>
           <p class="ou-final" id="final"></p>
-          <!-- Name entry for the global leaderboard -->
+          <!-- Name entry for the hub leaderboard -->
           <div id="ou-lb-entry" class="lb-entry hidden">
             <p class="lb-entry-msg">🏆 Add your score to the leaderboard!</p>
             <div class="lb-entry-row">
@@ -78,22 +77,11 @@
               <button id="ou-lb-save" class="btn" type="button">Save</button>
             </div>
           </div>
+          <p id="ou-lb-done" class="lb-entry-msg lb-done hidden">✓ Saved! See the leaderboard on the hub.</p>
           <div class="gameover-actions">
             <button id="again-btn" class="btn" type="button">Play Again</button>
-            <button id="ou-lb-view" class="btn btn-secondary" type="button">🏆 Leaderboard</button>
             <a href="index.html" class="btn btn-secondary">Quit</a>
           </div>
-        </div>
-        <!-- Leaderboard -->
-        <div class="ou-panel hidden" id="screen-lb">
-          <h1 class="overlay-title">🏆 Leaderboard</h1>
-          <div class="lb-tabs">
-            <button class="lb-tab" type="button" data-mode="baby">Baby</button>
-            <button class="lb-tab active" type="button" data-mode="normal">Normal</button>
-            <button class="lb-tab" type="button" data-mode="hard">Hard</button>
-          </div>
-          <ol class="lb-list" id="ou-lb-list"></ol>
-          <button id="ou-lb-back" class="btn" type="button">Back</button>
         </div>
       </div>
     </div>
@@ -103,6 +91,6 @@
   <script src="supabase-config.js?v=2"></script>
   <script src="achievements.js?v=1"></script>
   <script src="bowl-render.js?v=3"></script>
-  <script src="order-up.js?v=12"></script>
+  <script src="order-up.js?v=13"></script>
 </body>
 </html>

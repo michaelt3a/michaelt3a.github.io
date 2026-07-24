@@ -29,7 +29,6 @@ const screenDifficulty = document.getElementById("screen-difficulty");
 const screenReward = document.getElementById("screen-reward");
 const screenGameover = document.getElementById("screen-gameover");
 const screenPaused = document.getElementById("screen-paused");
-const screenLeaderboard = document.getElementById("screen-leaderboard");
 const rewardBtn = document.getElementById("reward-btn");
 const scrollHint = document.getElementById("scroll-hint");
 const orderBtn = document.getElementById("order-btn");
@@ -45,18 +44,14 @@ const comboCountEl = document.getElementById("combo-count");
 const pauseBtn = document.getElementById("pause-btn");
 const muteBtn = document.getElementById("mute-btn");
 
-// Leaderboard elements
-const lbStartBtn = document.getElementById("lb-start-btn");
-const lbViewBtn = document.getElementById("lb-view-btn");
-const lbBackBtn = document.getElementById("lb-back-btn");
+// Leaderboard entry elements (boards are viewed on the hub)
 const lbEntry = document.getElementById("lb-entry");
 const lbEntryMsg = lbEntry ? lbEntry.querySelector(".lb-entry-msg") : null;
+const lbDone = document.getElementById("lb-done");
 const lbNameInput = document.getElementById("lb-name");
 const lbSaveBtn = document.getElementById("lb-save-btn");
-const lbList = document.getElementById("lb-list");
-const lbTabs = document.querySelectorAll(".lb-tab");
 
-const overlayScreens = [screenStart, screenDifficulty, screenReward, screenGameover, screenPaused, screenLeaderboard];
+const overlayScreens = [screenStart, screenDifficulty, screenReward, screenGameover, screenPaused];
 
 // Show a single overlay panel and hide the rest.
 function showScreen(el) {
@@ -746,16 +741,11 @@ function showStartScreen() {
   showScreen(screenStart);
 }
 
-// --- Leaderboard (local, per browser) ----------------------------------
+// --- Leaderboard submission (boards are viewed on the hub) --------------
 
 const LEADERBOARD_KEY = "pokeworks-bowl-leaderboard";
 const LB_NAME_KEY = "pokeworks-bowl-lb-name";
 const LB_MAX = 10; // scores kept per difficulty
-const DIFF_LABEL = { easy: "Easy", medium: "Medium", impossible: "Impossible" };
-
-let lbReturnScreen = screenStart; // where "Back" goes
-let lbActiveTab = "easy";
-let lbNewEntry = null; // { diff, name, score } — the row to highlight after a save
 
 // Supabase makes the board global (shared across players). Without valid config
 // it stays local-only (per browser). The anon key is public by design.
@@ -768,34 +758,6 @@ function sbHeaders(extra) {
     { apikey: SB.anonKey, Authorization: "Bearer " + SB.anonKey },
     extra || {}
   );
-}
-
-// One row per player: keep each name's best score (case-insensitive), so a
-// player never appears on the board more than once.
-function dedupeByName(list) {
-  const sorted = list.slice().sort((a, b) => b.score - a.score);
-  const seen = new Set();
-  const out = [];
-  for (const e of sorted) {
-    const key = String(e.name).trim().toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(e);
-  }
-  return out;
-}
-
-// Top scores for a difficulty from Supabase (falls back to the local board).
-// Fetches extra rows and merges duplicate names down to their best.
-async function fetchTopScores(diff) {
-  if (!useSupabase) return dedupeByName(loadBoard()[diff] || []).slice(0, LB_MAX);
-  const url =
-    SB.url + "/rest/v1/bowl_scores?select=name,score&difficulty=eq." +
-    encodeURIComponent(diff) + "&order=score.desc&limit=500";
-  const res = await fetch(url, { headers: sbHeaders() });
-  if (!res.ok) throw new Error("Supabase fetch " + res.status);
-  const rows = await res.json();
-  return dedupeByName(rows).slice(0, LB_MAX);
 }
 
 // Insert a score to Supabase; always keep a local mirror as a fallback.
@@ -845,68 +807,6 @@ function addLeaderboardScore(diff, name, score) {
   list.sort((a, b) => b.score - a.score);
   board[diff] = list.slice(0, LB_MAX);
   saveBoard(board);
-}
-
-function setLbTab(diff) {
-  lbActiveTab = diff;
-  lbTabs.forEach((t) => t.classList.toggle("active", t.dataset.diff === diff));
-  renderLeaderboard();
-}
-
-async function renderLeaderboard() {
-  const diff = lbActiveTab;
-  lbList.innerHTML = '<li class="lb-empty">Loading…</li>';
-  let list;
-  try {
-    list = await fetchTopScores(diff);
-  } catch (e) {
-    list = loadBoard()[diff] || []; // offline / error → local mirror
-  }
-  if (diff !== lbActiveTab) return; // tab changed while awaiting
-
-  lbList.innerHTML = "";
-  if (!list.length) {
-    const li = document.createElement("li");
-    li.className = "lb-empty";
-    li.textContent = "No scores yet. Be the first!";
-    lbList.appendChild(li);
-    return;
-  }
-  let highlighted = false;
-  list.forEach((entry, i) => {
-    const li = document.createElement("li");
-    li.className = "lb-row";
-    if (!highlighted && lbNewEntry && lbNewEntry.diff === diff &&
-        String(lbNewEntry.name).trim().toLowerCase() === String(entry.name).trim().toLowerCase()) {
-      li.classList.add("lb-me");
-      highlighted = true;
-    }
-    li.innerHTML =
-      `<span class="lb-rank">${i + 1}</span>` +
-      `<span class="lb-name">${escapeHtml(entry.name)}</span>` +
-      `<span class="lb-score">${entry.score}</span>`;
-    lbList.appendChild(li);
-  });
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
-function openLeaderboard(fromScreen, diff) {
-  lbReturnScreen = fromScreen;
-  setLbTab(diff || lbActiveTab);
-  overlay.classList.remove("hidden");
-  showScreen(screenLeaderboard);
-}
-
-function closeLeaderboard() {
-  if (lbReturnScreen === screenStart) {
-    showStartScreen();
-  } else {
-    showScreen(lbReturnScreen);
-  }
 }
 
 // --- Combo counter, pause, mute ----------------------------------------
@@ -1085,9 +985,10 @@ function endGame() {
   if (gsCombo) gsCombo.textContent = state.stats.bestCombo;
   if (gsPower) gsPower.textContent = state.stats.powerups;
 
-  // Offer a leaderboard entry. Global (Supabase) boards accept any positive
-  // score; a local-only board only offers when the score cracks the top 10.
-  lbNewEntry = null;
+  // Offer a leaderboard entry (the board itself is viewed on the hub).
+  // Global (Supabase) boards accept any positive score; a local-only board
+  // only offers when the score cracks the top 10.
+  if (lbDone) lbDone.classList.add("hidden");
   const offer = state.score > 0 && (useSupabase || scoreQualifies(state.difficulty, state.score));
   if (offer) {
     pendingScore = { diff: state.difficulty, score: state.score };
@@ -1117,7 +1018,7 @@ function saveLbName(name) {
   try { localStorage.setItem(LB_NAME_KEY, name); } catch (e) { /* ignore */ }
 }
 
-// Save the pending score under the typed name, then show the board.
+// Save the pending score under the typed name, then confirm.
 async function submitLeaderboardName() {
   if (!pendingScore) return;
   const name = (lbNameInput.value || "").trim().slice(0, 12) || "Anon";
@@ -1125,7 +1026,6 @@ async function submitLeaderboardName() {
   const diff = pendingScore.diff;
   const score = pendingScore.score;
   pendingScore = null;
-  lbEntry.classList.add("hidden");
   lbSaveBtn.disabled = true;
   try {
     await submitScore(diff, name, score);
@@ -1133,8 +1033,8 @@ async function submitLeaderboardName() {
     /* local mirror already saved */
   }
   lbSaveBtn.disabled = false;
-  lbNewEntry = { diff: diff, name: name, score: score };
-  openLeaderboard(screenGameover, diff);
+  lbEntry.classList.add("hidden");
+  if (lbDone) lbDone.classList.remove("hidden");
 }
 
 // Drop the active ingredient, trimming it to its overlap with the surface below.
@@ -2163,18 +2063,11 @@ difficultyBtns.forEach((btn) => {
   btn.addEventListener("click", () => startGame(btn.dataset.difficulty));
 });
 
-// --- Leaderboard wiring ---
-lbStartBtn.addEventListener("click", () => openLeaderboard(screenStart, lbActiveTab));
-lbViewBtn.addEventListener("click", () => {
-  if (screenActionsLocked()) return;
-  openLeaderboard(screenGameover, state.difficulty || lbActiveTab);
-});
-lbBackBtn.addEventListener("click", closeLeaderboard);
+// --- Leaderboard submission wiring (boards are viewed on the hub) ---
 lbSaveBtn.addEventListener("click", submitLeaderboardName);
 lbNameInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); submitLeaderboardName(); }
 });
-lbTabs.forEach((t) => t.addEventListener("click", () => setLbTab(t.dataset.diff)));
 
 // Play Again restarts immediately at the same difficulty.
 playAgainBtn.addEventListener("click", () => {
