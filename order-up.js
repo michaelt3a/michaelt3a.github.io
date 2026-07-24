@@ -124,11 +124,18 @@ function recipeSize(r) {
   for (const c of CATS) n += r.items[c].length;
   return n;
 }
+// Is this page load a Daily Challenge run? (order-up.html?daily=1)
+const isDailyRun = !!(window.Daily && Daily.isRun());
+
 function activeCustomer() {
   return S.customers.find((c) => c.id === S.activeId) || null;
 }
+// Routed through a swappable generator so a Daily Challenge run can use the
+// day's seeded stream and every player gets the same queue of orders. The
+// customer's shirt colour stays truly random — it can't change an outcome.
+let rngRecipe = Math.random;
 function pickRecipe() {
-  return B.RECIPES[Math.floor(Math.random() * B.RECIPES.length)];
+  return B.RECIPES[Math.floor(rngRecipe() * B.RECIPES.length)];
 }
 
 // Difficulty ramps with how many bowls you've served. Baby mode is a flat,
@@ -494,6 +501,7 @@ function frame(t) {
 // --- Lifecycle ----------------------------------------------------------
 function startGame(mode) {
   if (window.PokeStreak) PokeStreak.mark();
+  rngRecipe = isDailyRun ? Daily.stream("ou:recipe") : Math.random;
   ensureAudio();
   S.customers.forEach((c) => c.el && c.el.remove());
   S.mode = mode || "normal";
@@ -530,7 +538,14 @@ function endGame() {
 
   // Offer a leaderboard entry for any scoring shift (boards live on the hub).
   ouLbDone.classList.add("hidden");
-  if (S.score > 0) {
+  if (isDailyRun) {
+    // A daily run posts to the day's board and locks until tomorrow.
+    Daily.complete(S.score);
+    lbPending = { daily: true, score: S.score };
+    ouLbName.value = loadLbNameSaved();
+    ouLbEntry.classList.remove("hidden");
+    if (againBtn) againBtn.classList.add("hidden"); // one attempt a day
+  } else if (S.score > 0) {
     lbPending = { mode: S.mode, score: S.score };
     ouLbName.value = loadLbNameSaved();
     ouLbEntry.classList.remove("hidden");
@@ -617,10 +632,12 @@ async function submitLbName() {
   saveLbNameSaved(name);
   const mode = lbPending.mode;
   const score = lbPending.score;
+  const daily = lbPending.daily;
   lbPending = null;
   ouLbSave.disabled = true;
   try {
-    await submitScore(mode, name, score);
+    if (daily) await Daily.submit(name, score);
+    else await submitScore(mode, name, score);
   } catch (e) {
     /* local mirror already saved */
   }
@@ -640,6 +657,43 @@ ouLbSave.addEventListener("click", submitLbName);
 ouLbName.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); submitLbName(); }
 });
+
+// Daily Challenge: launched as order-up.html?daily=1. The mode is fixed so the
+// run is the same for everyone, and there's one attempt a day.
+if (isDailyRun) {
+  const title = screenStart.querySelector(".overlay-title");
+  const sub = screenStart.querySelector(".overlay-subtitle");
+  const modes = screenStart.querySelector(".ou-modes");
+  const done = Daily.result();
+  if (title) title.textContent = "🗓 Daily Challenge";
+  if (modes) modes.innerHTML = "";
+  if (!Daily.isTodaysGame("ou")) {
+    // Stale link — today's challenge is a different game.
+    if (sub) {
+      sub.textContent =
+        "Today's challenge is " + Daily.challenge().game.label + ". Head back to the hub for it.";
+    }
+  } else if (done) {
+    if (sub) {
+      sub.textContent =
+        "You've already played today: " + done.score + " points. Back tomorrow for a new run.";
+    }
+  } else {
+    if (sub) sub.textContent = "Everyone gets this exact shift today. One attempt — make it count.";
+    if (modes) {
+      const go = document.createElement("button");
+      go.className = "btn";
+      go.type = "button";
+      go.textContent = "Start";
+      go.addEventListener("click", () => {
+        ensureAudio();
+        SFX.start();
+        startGame(Daily.challenge().game.setting);
+      });
+      modes.appendChild(go);
+    }
+  }
+}
 
 // Initial paint.
 best = loadBest();

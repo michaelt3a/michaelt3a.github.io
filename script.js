@@ -435,8 +435,20 @@ const TOPPINGS = [
   "chicken",
 ];
 
+// Is this page load a Daily Challenge run? (bowl-builder.html?daily=1)
+const isDailyRun = !!(window.Daily && Daily.isRun());
+
+// Gameplay randomness routes through these so a Daily Challenge run can swap in
+// the day's seeded streams. Two independent streams: which ingredient comes
+// next, and what the power-ups are — kept separate so that earning a power-up
+// early can't shift the ingredient sequence out from under another player.
+// Particles, confetti and screen-shake keep using Math.random directly; they're
+// cosmetic and can't change an outcome.
+let rngIngredient = Math.random;
+let rngPowerup = Math.random;
+
 function randomFrom(keys) {
-  return INGREDIENTS[keys[Math.floor(Math.random() * keys.length)]];
+  return INGREDIENTS[keys[Math.floor(rngIngredient() * keys.length)]];
 }
 
 // A random topping that isn't the one directly below (avoids two identical
@@ -929,6 +941,15 @@ function spawnActive() {
 
 function startGame(difficulty) {
   if (window.PokeStreak) PokeStreak.mark();
+  // A Daily Challenge run draws from the day's seeded streams instead, so
+  // everyone gets the same ingredients and power-ups.
+  if (isDailyRun) {
+    rngIngredient = Daily.stream("bowl:ingredient");
+    rngPowerup = Daily.stream("bowl:power");
+  } else {
+    rngIngredient = Math.random;
+    rngPowerup = Math.random;
+  }
   ensureAudio();
   state.running = true;
   state.paused = false;
@@ -1006,6 +1027,19 @@ function endGame() {
   // Global (Supabase) boards accept any positive score; a local-only board
   // only offers when the score cracks the top 10.
   if (lbDone) lbDone.classList.add("hidden");
+  // A daily run posts to the day's board instead, and locks once it ends.
+  if (isDailyRun) {
+    Daily.complete(state.score);
+    pendingScore = { daily: true, score: state.score };
+    lbNameInput.value = loadLbName();
+    if (lbEntryMsg) lbEntryMsg.textContent = "🗓 Post today's challenge score!";
+    lbEntry.classList.remove("hidden");
+    if (playAgainBtn) playAgainBtn.classList.add("hidden"); // one attempt a day
+    overlay.classList.remove("hidden");
+    showScreen(screenGameover);
+    lockScreenActions();
+    return;
+  }
   const offer = state.score > 0 && (useSupabase || scoreQualifies(state.difficulty, state.score));
   if (offer) {
     pendingScore = { diff: state.difficulty, score: state.score };
@@ -1051,10 +1085,12 @@ async function submitLeaderboardName() {
   saveLbName(name);
   const diff = pendingScore.diff;
   const score = pendingScore.score;
+  const daily = pendingScore.daily;
   pendingScore = null;
   lbSaveBtn.disabled = true;
   try {
-    await submitScore(diff, name, score);
+    if (daily) await Daily.submit(name, score);
+    else await submitScore(diff, name, score);
   } catch (e) {
     /* local mirror already saved */
   }
@@ -1762,7 +1798,7 @@ const magnetCount = document.getElementById("magnet-count");
 
 function spawnPowerup(type) {
   state.powerups.push({
-    x: 90 + Math.random() * (W - 180),
+    x: 90 + rngPowerup() * (W - 180),
     y: -POWERUP_R - 12,
     vy: POWERUP_FALL,
     age: 0,
@@ -1772,10 +1808,16 @@ function spawnPowerup(type) {
 
 // Which power-up a streak awards. Shield is a rare, once-per-game save; Sticky
 // Rice (combo saver) is uncommon; the rest split evenly between expand/magnet.
+// Always draws exactly three values, even when an early branch wins, so the
+// nth power-up of a seeded run is the same for everyone regardless of which
+// branches their run happened to take. Probabilities are unchanged.
 function pickPowerType() {
-  if (!state.shieldEarned && Math.random() < SHIELD_CHANCE) return "shield";
-  if (!state.hasSaver && Math.random() < 0.22) return "saver";
-  return Math.random() < 0.5 ? "expand" : "magnet";
+  const a = rngPowerup();
+  const b = rngPowerup();
+  const c = rngPowerup();
+  if (!state.shieldEarned && a < SHIELD_CHANCE) return "shield";
+  if (!state.hasSaver && b < 0.22) return "saver";
+  return c < 0.5 ? "expand" : "magnet";
 }
 
 // Called after each drop: reward a power-up whenever the perfect streak reaches
@@ -2083,7 +2125,11 @@ function frame(timestamp) {
 
 // --- Input --------------------------------------------------------------
 
-startBtn.addEventListener("click", showDifficulty);
+// A daily run skips the difficulty picker — the setting is fixed for the day.
+startBtn.addEventListener("click", () => {
+  if (isDailyRun) startGame(Daily.challenge().game.setting);
+  else showDifficulty();
+});
 
 difficultyBtns.forEach((btn) => {
   btn.addEventListener("click", () => startGame(btn.dataset.difficulty));
@@ -2167,4 +2213,31 @@ document.addEventListener("visibilitychange", () => {
 loadHighScore();
 loadMute();
 buildMenuRows();
+
+// Daily Challenge: launched as bowl-builder.html?daily=1. Fixed difficulty (the
+// run has to be identical for everyone) and one attempt a day.
+if (isDailyRun) {
+  const c = Daily.challenge();
+  const done = Daily.result();
+  const title = screenStart.querySelector(".overlay-title");
+  const sub = screenStart.querySelector(".overlay-subtitle");
+  if (title) title.textContent = "🗓 Daily Challenge";
+  if (!Daily.isTodaysGame("bowl")) {
+    // Stale link — today's challenge is a different game.
+    if (sub) sub.textContent = "Today's challenge is " + c.game.label + ". Head back to the hub for it.";
+    if (startBtn) startBtn.classList.add("hidden");
+  } else if (done) {
+    // Already used today's attempt — show the result rather than a Start button.
+    if (sub) {
+      sub.textContent =
+        "You've already played today: " + done.score + " blocks. Back tomorrow for a new run.";
+    }
+    if (startBtn) startBtn.classList.add("hidden");
+  } else if (sub) {
+    sub.textContent =
+      "Everyone gets this exact run today. One attempt — make it count.";
+  }
+  showStartScreen();
+}
+
 requestAnimationFrame(frame);

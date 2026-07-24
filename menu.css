@@ -148,6 +148,85 @@ body {
   color: var(--muted);
 }
 
+/* --------------------------------------------------------- daily challenge */
+.dc {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+  padding: 0.75rem 0.95rem;
+  border-radius: 14px;
+  background: var(--chip);
+  border: 1.5px solid var(--chip-line);
+  border-left: 5px solid var(--g, var(--accent));
+  color: var(--on-dark);
+}
+
+.dc-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+
+.dc-tag {
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+  white-space: nowrap;
+}
+
+.dc-streak {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.dc-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dc-game {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--g, var(--accent));
+}
+
+.dc-note,
+.dc-rank {
+  font-size: 0.76rem;
+  color: var(--on-dark-muted);
+}
+
+.dc-rank {
+  flex: none;
+  font-weight: 800;
+}
+
+.dc-play {
+  flex: none;
+  background: var(--g, var(--accent));
+  color: #fff;
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 0.88rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.dc-play:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
 /* ------------------------------------------------------------ player card */
 /* The strip above the game cards: who you are, at a glance. */
 .pc-strip {

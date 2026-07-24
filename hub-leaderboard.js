@@ -92,8 +92,20 @@
     BOARDS[k]._score = scoreFetch;
   }
 
+  // Today's Daily Challenge board, served through the same plumbing.
+  if (window.Daily) {
+    const c = Daily.challenge();
+    BOARDS["daily-today"] = {
+      stat: (e) => e.score,
+      fetch: () => Daily.board(c.date, c.game.id),
+    };
+  }
+
   // Game → its category buttons (value = board key).
   const GAMES = [
+    { id: "daily", label: "🗓 Today", color: "#ffd15a", cats: [
+      { label: window.Daily ? Daily.challenge().game.label : "Today", key: "daily-today" },
+    ] },
     { id: "bowl", label: "Bowl Builder", color: "#ee435b", cats: [
       { label: "Easy", key: "bowl-easy" },
       { label: "Medium", key: "bowl-medium" },
