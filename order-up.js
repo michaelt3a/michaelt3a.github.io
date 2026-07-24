@@ -1432,6 +1432,7 @@ function endGame(reason) {
   }
   screenStart.classList.add("hidden");
   screenVariant.classList.add("hidden"); // may still be up if the run started from the popup
+  if (screenSaves) screenSaves.classList.add("hidden");
   screenOver.classList.remove("hidden");
   overlay.classList.remove("hidden");
 }
@@ -1725,8 +1726,16 @@ function readSlot(n) {
   try { const d = JSON.parse(localStorage.getItem(slotKey(n))); return d && Array.isArray(d.stores) ? d : null; }
   catch (e) { return null; }
 }
+// Human label for a saved mode, e.g. "Recipes Shown · Rush".
+function modeLabel(mode) {
+  mode = mode || "normal";
+  const hard = mode.indexOf("hard") === 0;
+  const rush = mode.indexOf("-rush") !== -1;
+  return (hard ? "Hidden Recipes" : "Recipes Shown") + " · " + (rush ? "Rush" : "Full Shift");
+}
 function saveToSlot(n) {
-  const snap = Object.assign({}, T, { savedAt: Date.now() });
+  // Remember the mode so Load can drop straight back into that game.
+  const snap = Object.assign({}, T, { savedAt: Date.now(), mode: S.mode });
   try { localStorage.setItem(slotKey(n), JSON.stringify(snap)); } catch (e) { /* ignore */ }
   SFX.bell();
   renderSlots();
@@ -1746,7 +1755,7 @@ function renderSlots() {
       const stars = d.stores.length;
       info.innerHTML = "<strong>Slot " + (n + 1) + "</strong><small>$" +
         Math.floor(d.bank || 0).toLocaleString() + " · " + stars + " store" + (stars === 1 ? "" : "s") +
-        (when ? " · " + when : "") + "</small>";
+        " · " + modeLabel(d.mode) + (when ? " · " + when : "") + "</small>";
     } else {
       info.innerHTML = "<strong>Slot " + (n + 1) + "</strong><small>Empty</small>";
     }
@@ -1755,8 +1764,16 @@ function renderSlots() {
       const load = document.createElement("button");
       load.type = "button"; load.className = "ou-slot-btn"; load.textContent = "Load";
       load.addEventListener("click", () => {
+        // Load the save and drop straight into a shift in its saved mode.
         localStorage.setItem(TYCOON_KEY, JSON.stringify(d));
-        location.reload();
+        T = loadTycoon();
+        T.lastSeen = Date.now(); // loading isn't "returning from away" — no idle payout
+        bankrupted = false;
+        saveTycoon();
+        screenSaves.classList.add("hidden");
+        ensureAudio();
+        SFX.start();
+        startGame(d.mode || "normal");
       });
       const over = document.createElement("button");
       over.type = "button"; over.className = "ou-slot-btn ghost"; over.textContent = "Overwrite";
