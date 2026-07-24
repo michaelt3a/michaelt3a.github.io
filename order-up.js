@@ -1583,8 +1583,9 @@ function renderShop() {
   if (note) {
     note.textContent =
       "Rent is $" + RENT_PER_SHIFT + " per location, charged once each shift. " +
-      "Staffed, well-rated stores earn on their own — even while you're away. " +
-      "Fall too far in the red and a location goes under.";
+      "Staffed, well-rated stores earn on their own, even while you're away. " +
+      "Bankruptcy: if your bank drops below -$" + Math.abs(BANKRUPT_LINE) + " at the end of a shift, " +
+      "your weakest location closes and the debt is cleared — your other stores, lifetime, and save all stay.";
   }
 
   // Store tabs: each location is its own build. Switching is a between-shifts
@@ -1912,6 +1913,7 @@ let savesReturn = "start"; // "start" | "over"
 function openSaves(from) {
   savesReturn = from || "start";
   renderSlots();
+  resetEraseBtn();
   if (saveMsgEl) saveMsgEl.textContent = "";
   if (saveCodeEl) saveCodeEl.classList.add("hidden");
   screenStart.classList.add("hidden");
@@ -1928,6 +1930,36 @@ const savesDoneBtn = document.getElementById("saves-done");
 if (openSavesBtn) openSavesBtn.addEventListener("click", () => { SFX.pick(); openSaves("start"); });
 if (overSavesBtn) overSavesBtn.addEventListener("click", () => { SFX.pick(); openSaves("over"); });
 if (savesDoneBtn) savesDoneBtn.addEventListener("click", () => { SFX.pick(); closeSaves(); });
+
+// Erase everything (current game + all slots). Two taps so it can't happen by
+// accident: the first arms it, the second wipes and reloads to a fresh game.
+const eraseBtn = document.getElementById("erase-saves");
+let eraseArmT = null;
+function resetEraseBtn() {
+  if (!eraseBtn) return;
+  clearTimeout(eraseArmT);
+  eraseBtn.classList.remove("armed");
+  eraseBtn.textContent = "🗑 Erase all saves";
+}
+if (eraseBtn) {
+  eraseBtn.addEventListener("click", () => {
+    if (!eraseBtn.classList.contains("armed")) {
+      eraseBtn.classList.add("armed");
+      eraseBtn.textContent = "Tap again to erase everything";
+      SFX.pick();
+      clearTimeout(eraseArmT);
+      eraseArmT = setTimeout(resetEraseBtn, 3000);
+      return;
+    }
+    clearTimeout(eraseArmT);
+    try {
+      localStorage.removeItem(TYCOON_KEY);
+      for (let n = 0; n < SLOTS; n++) localStorage.removeItem(slotKey(n));
+    } catch (e) { /* ignore */ }
+    SFX.over();
+    location.reload();
+  });
+}
 
 // Tutorial wiring
 const tutStartBtn = document.getElementById("tut-start");

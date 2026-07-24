@@ -1306,3 +1306,20 @@
 }
 .ou-seattable svg { display: block; width: 100%; height: auto; }
 .ou-seattable.occupied { visibility: hidden; }
+
+/* Erase-all-saves button on the Saved Games panel (two-tap, destructive). */
+.ou-erase {
+  display: block;
+  margin: 0 auto 0.6rem;
+  background: none;
+  border: 1.5px solid #e2574c;
+  color: #c74438;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+.ou-erase:hover { background: #fdecec; }
+.ou-erase.armed { background: #e2574c; color: #fff; border-color: #e2574c; }
