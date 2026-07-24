@@ -6,7 +6,7 @@
   <title>Order Up - Pokeworks</title>
   <meta name="description" content="Pokeworks Order Up rush minigame." />
   <link rel="stylesheet" href="styles.css?v=14" />
-  <link rel="stylesheet" href="order-up.css?v=17" />
+  <link rel="stylesheet" href="order-up.css?v=18" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -57,6 +57,9 @@
           <div class="ou-workers hidden" id="worker"></div>
           <div class="ou-kcounter"></div>
         </div>
+        <!-- The entrance: waiting guests queue on the doormat until seated -->
+        <div class="ou-entrance" aria-hidden="true"></div>
+        <div class="ou-waiters hidden" id="waiters"></div>
         <div class="ou-tables" id="tables"></div>
         <div class="ou-customers" id="customers"></div>
         <div class="ou-event hidden" id="ou-event"></div>
@@ -156,7 +159,7 @@
   <script src="achievements.js?v=6"></script>
   <script src="bowl-render.js?v=3"></script>
   <script src="daily.js?v=3"></script>
-  <script src="order-up.js?v=25"></script>
+  <script src="order-up.js?v=26"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

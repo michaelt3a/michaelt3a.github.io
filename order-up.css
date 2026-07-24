@@ -1057,3 +1057,92 @@
   .ou-menuboard { height: 38px; }
   .ou-shopbtn { font-size: 0.64rem; padding: 0.35rem 0.7rem; bottom: 40px; }
 }
+
+/* -------- Seating: entrance, waiting guests, waiters ---------------------- */
+/* Guests walk from the door to their table when seated. */
+.ou-cust { transition: transform 0.15s ease, opacity 0.3s ease, left 0.45s ease; }
+
+/* The doormat at the entrance (left of the dining floor). */
+.ou-entrance {
+  position: absolute;
+  left: 1%;
+  bottom: 10px;
+  width: 26%;
+  height: 20px;
+  z-index: 0;
+  border-radius: 40% 40% 8px 8px;
+  background: radial-gradient(ellipse at 50% 20%, #c8703a 0 60%, #a85a2c 61% 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25);
+  opacity: 0.85;
+}
+.ou-entrance::before {
+  content: "WELCOME";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: rgba(255, 244, 232, 0.9);
+}
+
+/* Unseated guests: show a "seat me" prompt instead of their order, and give a
+   little impatient idle bob. */
+.ou-seatme {
+  display: none;
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 3px 9px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+.ou-cust.unseated .ou-bubble { display: none; }
+.ou-cust.unseated .ou-seatme { display: block; }
+.ou-cust.seated .ou-seatme { display: none; }
+.ou-cust.unseated .ou-stick { animation: ou-idlebob 1.4s ease-in-out infinite; }
+@keyframes ou-idlebob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+/* Tapping a full room: a quick "no table" shake. */
+.ou-cust.noroom { animation: ou-noroom 0.3s ease; }
+@keyframes ou-noroom {
+  0%, 100% { transform: translateX(-50%); }
+  25% { transform: translateX(calc(-50% - 4px)); }
+  75% { transform: translateX(calc(-50% + 4px)); }
+}
+
+/* Waiters idle at the host stand, bottom-left. */
+.ou-waiters {
+  position: absolute;
+  left: 2%;
+  bottom: 6px;
+  z-index: 3;
+  display: flex;
+  gap: 2px;
+  pointer-events: none;
+}
+.ou-waiters.hidden { display: none; }
+.ou-waiter {
+  width: 34px;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.ou-waiter .ou-stick { width: 30px; height: 54px; }
+.ou-waiter.seating .ou-stick { animation: ou-seat-hop 0.4s ease; }
+@keyframes ou-seat-hop {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px) rotate(-6deg); }
+}
+@media (max-width: 640px) {
+  .ou-waiter { width: 26px; height: 50px; }
+  .ou-waiter .ou-stick { width: 24px; height: 44px; }
+  .ou-entrance { height: 16px; }
+}

@@ -29,6 +29,7 @@ const bestEl = document.getElementById("best");
 const serveBtn = document.getElementById("serve-btn");
 const endShiftBtn = document.getElementById("end-shift-btn");
 const workerEl = document.getElementById("worker");
+const waitersEl = document.getElementById("waiters");
 const toastsEl = document.getElementById("ou-toasts");
 const bowlWrapEl = document.querySelector(".ou-bowl-wrap");
 const bankEl = document.getElementById("ou-bank");
@@ -74,15 +75,27 @@ const TIERS = {
 // Upgrades bought with banked money between shifts.
 const WORKER_NAMES = ["Eli", "CJ", "Moe"];
 const WORKER_SCOOP = 6; // base seconds per scoop, per worker
+const WAITER_NAMES = ["Tess", "Nia", "Gus"];
+const WAITER_SEAT = 4.5; // base seconds per auto-seat, per waiter
+const DOOR_CAP = 3; // how many guests can wait at the door to be seated
 const UPGRADES = {
   worker: {
-    icon: "🧑‍🍳", name: "Hire staff",
+    icon: "🧑‍🍳", name: "Hire cooks",
     desc: [
       "Eli joins the kitchen — he preps other customers' bowls",
       "CJ makes it a crew of two",
       "Moe completes the kitchen brigade",
     ],
     costs: [250, 700, 1600],
+  },
+  waiter: {
+    icon: "🧍", name: "Hire waiters",
+    desc: [
+      "Tess seats waiting guests for you",
+      "Nia makes it two on the floor",
+      "Gus rounds out the front-of-house",
+    ],
+    costs: [220, 600, 1400],
   },
   tables: {
     icon: "🪑", name: "More tables",
@@ -183,8 +196,11 @@ function rating() {
 // Upgrade effects. All of them sit out Daily Challenge runs so the day's board
 // compares raw skill, not who's richest.
 function upgradeLvl(k) { return isDailyRun ? 0 : store().upgrades[k] || 0; }
-function workerCount() { return upgradeLvl("worker"); } // 0-3 hires
+function workerCount() { return upgradeLvl("worker"); } // 0-3 cooks
+function waiterCount() { return upgradeLvl("waiter"); } // 0-3 waiters
 function tableCount() { return BASE_TABLES + upgradeLvl("tables"); }
+// A waiter seats faster per level.
+function waiterSeatTime() { return WAITER_SEAT * (1 - 0.18 * (waiterCount() - 1)); }
 function priceMult() { return 1 + 0.2 * upgradeLvl("prices"); }
 function lobbyMult() { return 1 - 0.1 * upgradeLvl("lobby"); }
 function adsMult() { return 1 - 0.15 * upgradeLvl("ads"); }
@@ -216,6 +232,7 @@ const S = {
   combo: 0,
   timeLeft: SHIFT_LEN,
   workerT: [],
+  waiterT: [],
   shift: { tips: 0, perfects: 0, bestCombo: 0 },
   ratingStart: 3,
   customers: [],
@@ -315,12 +332,13 @@ function pickRecipe() {
   return B.RECIPES[Math.floor(rngRecipe() * B.RECIPES.length)];
 }
 
-// Difficulty ramps with how many bowls you've served. Baby mode is a flat,
-// forgiving minute per customer with no ramp. Richer tiers are less patient.
+// A visit's patience now covers the whole stay: waiting at the door to be
+// seated, then waiting at the table for the bowl. Generous, since it spans two
+// stages, and the ramp is gentle so late-shift customers stay reasonable.
 function maxPatienceFor(recipe, tier) {
   const t = (tier && tier.pat) || 1;
-  const ramp = Math.max(0.75, 1 - S.served * 0.02);
-  return Math.round((recipeSize(recipe) * 2.2 + 12) * ramp * t);
+  const ramp = Math.max(0.82, 1 - S.served * 0.012);
+  return Math.round((recipeSize(recipe) * 3 + 34) * ramp * t);
 }
 function spawnInterval() {
   const base = Math.max(4.5, 10.5 - S.served * 0.22);
@@ -441,14 +459,14 @@ function tableSVG() {
   );
 }
 
-// Each table is a seat for one customer; the tables upgrade adds more. Spots
-// spread evenly, alternating depth so the room reads as a floor, not a row.
+// The dining tables live in the right ~66% of the floor; the left is the
+// entrance where unseated guests wait. Tables spread evenly across their band.
 function tableSpotPct(i, n) {
-  return ((i + 0.5) / n) * 100;
+  return 34 + ((i + 0.5) / n) * 64;
 }
 function buildTables(n) {
   tablesEl.innerHTML = "";
-  const w = Math.min(100, Math.round(340 / n) + 30);
+  const w = Math.min(92, Math.round(300 / n) + 24);
   for (let i = 0; i < n; i++) {
     const t = document.createElement("div");
     t.className = "ou-table";
@@ -461,19 +479,53 @@ function buildTables(n) {
   // Customers scale down a notch when the room is packed.
   document.querySelector(".ou-scene").dataset.tables = n;
 }
-// First open table, or -1 when the room is full.
+// --- Seating -------------------------------------------------------------
+// Guests now arrive at the door and wait to be seated. You (or a waiter) sit
+// them at an open table; only then can their bowl be built. A guest whose
+// patience runs out at the door leaves just like one who waited too long for
+// food.
+function seatedList() { return S.customers.filter((c) => c.seated); }
+function unseatedList() { return S.customers.filter((c) => !c.seated); }
+
+// First open table (only seated guests occupy one), or -1 when full.
 function freeTable() {
   for (let i = 0; i < tableCount(); i++) {
-    if (!S.customers.some((c) => c.tableIdx === i)) return i;
+    if (!seatedList().some((c) => c.tableIdx === i)) return i;
   }
   return -1;
+}
+// Where an unseated guest stands at the entrance (a short queue on the left).
+function doorSpotPct(i) {
+  return 2 + i * 10;
+}
+// Sit a waiting guest at the first free table. Returns false if the room's full.
+function seatCustomer(c) {
+  if (!c || c.seated) return false;
+  const table = freeTable();
+  if (table < 0) {
+    // No room — a little "not yet" nudge.
+    if (c.el) { c.el.classList.remove("noroom"); void c.el.offsetWidth; c.el.classList.add("noroom"); }
+    return false;
+  }
+  c.seated = true;
+  c.tableIdx = table;
+  c.el.classList.remove("unseated");
+  c.el.classList.add("seated");
+  c.el.style.left = tableSpotPct(table, tableCount()) + "%";
+  SFX.pick();
+  reflowDoor();
+  if (S.activeId == null) setActive(c.id);
+  return true;
+}
+// Keep the door queue tidy after someone is seated or leaves.
+function reflowDoor() {
+  unseatedList().forEach((c, i) => { c.el.style.left = doorSpotPct(i) + "%"; });
 }
 
 // --- Customers ----------------------------------------------------------
 function addCustomer() {
-  if (S.customers.length >= tableCount()) return;
-  const table = freeTable();
-  if (table < 0) return;
+  // Arrivals wait at the door; spawning stops once the entrance is backed up.
+  if (unseatedList().length >= DOOR_CAP) return;
   const recipe = pickRecipe();
   // A pending critic/inspector claims this walk-in (plain tier — their whole
   // point is the review, not the check).
@@ -487,7 +539,8 @@ function addCustomer() {
     name: recipe.name,
     custName: special === "critic" ? "The Critic" : special === "inspector" ? "Inspector" : CUST_NAMES[Math.floor(Math.random() * CUST_NAMES.length)],
     tier,
-    tableIdx: table,
+    seated: false,
+    tableIdx: null,
     special,
     sel: emptySel(),
     patience: maxP,
@@ -495,10 +548,9 @@ function addCustomer() {
     shirt: special === "critic" ? "#2a2f31" : special === "inspector" ? "#5a7d8c" : tier.shirt || SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
     mood: "ok",
   };
-  // New arrivals join the back (left); everyone already in line shifts right.
-  S.customers.unshift(c);
+  S.customers.push(c);
   buildCustomer(c);
-  if (S.activeId == null) setActive(c.id);
+  reflowDoor();
   SFX.bell();
 }
 
@@ -510,12 +562,18 @@ function buildCustomer(c) {
   const tagIcon = c.special === "critic" ? "🎩" : c.special === "inspector" ? "📋" : c.tier.icon;
   el.innerHTML =
     `<span class="ou-bubble">${c.name}</span>` +
+    `<span class="ou-seatme">Seat me!</span>` +
     `<span class="ou-stick">${stickmanSVG(c.shirt, c.mood)}</span>` +
     `<span class="ou-nametag ${tagClass}">${tagIcon ? tagIcon + " " : ""}${c.custName}</span>` +
     `<span class="ou-pat"><i data-role="bar"></i></span>`;
-  el.addEventListener("click", () => { SFX.pick(); setActive(c.id); });
-  // Stand at the assigned table.
-  el.style.left = tableSpotPct(c.tableIdx, tableCount()) + "%";
+  // Tap a waiting guest to seat them; tap a seated guest to serve them.
+  el.addEventListener("click", () => {
+    if (!S.running) return;
+    if (c.seated) { SFX.pick(); setActive(c.id); }
+    else seatCustomer(c);
+  });
+  el.classList.add(c.seated ? "seated" : "unseated");
+  el.style.left = (c.seated ? tableSpotPct(c.tableIdx, tableCount()) : doorSpotPct(unseatedList().indexOf(c))) + "%";
   c.el = el;
   c.barEl = el.querySelector('[data-role="bar"]');
   c.stickEl = el.querySelector(".ou-stick");
@@ -546,8 +604,10 @@ function updateCustomer(c) {
 }
 
 function setActive(id) {
+  const c = S.customers.find((x) => x.id === id);
+  if (c && !c.seated) return; // can't work an order for someone still at the door
   S.activeId = id;
-  for (const c of S.customers) c.el.classList.toggle("active", c.id === id);
+  for (const o of S.customers) o.el.classList.toggle("active", o.id === id);
   renderTicket();
   updatePans();
 }
@@ -557,9 +617,11 @@ function removeCustomer(c, cls) {
   el.classList.add(cls);
   setTimeout(() => el.remove(), 300);
   S.customers = S.customers.filter((x) => x.id !== c.id);
+  reflowDoor();
   if (S.activeId === c.id) {
-    // Fall back to the front of the line (oldest waiting = rightmost).
-    S.activeId = S.customers.length ? S.customers[S.customers.length - 1].id : null;
+    // Fall back to another seated guest (the earliest still waiting on food).
+    const next = seatedList()[0];
+    S.activeId = next ? next.id : null;
     for (const o of S.customers) o.el.classList.toggle("active", o.id === S.activeId);
     renderTicket();
     updatePans();
@@ -773,7 +835,9 @@ function updateCombo() {
 function renderTicket() {
   const c = activeCustomer();
   if (!c) {
-    orderNameEl.textContent = "Waiting for the next customer…";
+    orderNameEl.textContent = unseatedList().length
+      ? "Tap a guest at the door to seat them"
+      : "Waiting for the next customer…";
     checklistEl.innerHTML = "";
     B.draw(bctx, BW, BH, emptySel());
     return;
@@ -930,8 +994,9 @@ function renderWorkers() {
 // only when there's no one else to help.
 function workerAct(i) {
   if (!S.running) return;
-  const others = S.customers.filter((c) => c.id !== S.activeId && !isComplete(c));
-  const c = others.length ? others[i % others.length] : activeCustomer();
+  const seated = seatedList();
+  const others = seated.filter((c) => c.id !== S.activeId && !isComplete(c));
+  const c = others.length ? others[i % others.length] : (activeCustomer() && activeCustomer().seated ? activeCustomer() : null);
   if (!c) return;
   for (const cat of CATS) {
     for (const name of c.recipe.items[cat]) {
@@ -951,6 +1016,35 @@ function workerAct(i) {
         return;
       }
     }
+  }
+}
+
+const WAITER_SHIRTS = ["#e8709b", "#39a85b", "#f0a52c"];
+// Waiters wait by the host stand at the entrance, one figure per hire.
+function renderWaiters() {
+  const n = waiterCount();
+  waitersEl.classList.toggle("hidden", n === 0);
+  waitersEl.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const w = document.createElement("span");
+    w.className = "ou-waiter";
+    w.innerHTML =
+      `<span class="ou-worker-tag">🧍 ${WAITER_NAMES[i]}</span>` +
+      `<span class="ou-stick">${stickmanSVG(WAITER_SHIRTS[i], "ok")}</span>`;
+    waitersEl.appendChild(w);
+  }
+}
+
+// A waiter seats the guest who's been waiting longest, if a table's open.
+function waiterAct() {
+  if (!S.running) return;
+  if (freeTable() < 0) return;
+  const next = unseatedList()[0];
+  if (next) {
+    seatCustomer(next);
+    // A quick "on it" hop from a waiter.
+    const fig = waitersEl.children[0];
+    if (fig) { fig.classList.remove("seating"); void fig.offsetWidth; fig.classList.add("seating"); }
   }
 }
 
@@ -1002,8 +1096,17 @@ function frame(t) {
           if (S.workerT[i] >= scoopT) { S.workerT[i] = 0; workerAct(i); }
         }
       }
-      // The crew visibly works whenever there's anyone to cook for.
-      workerEl.classList.toggle("working", S.customers.length > 0);
+      // The crew visibly works whenever there's a seated guest to cook for.
+      workerEl.classList.toggle("working", seatedList().length > 0);
+      // Waiters seat waiting guests on their own timers.
+      const waiters = waiterCount();
+      if (waiters) {
+        const seatT = waiterSeatTime();
+        for (let i = 0; i < waiters; i++) {
+          S.waiterT[i] = (S.waiterT[i] || 0) + dt;
+          if (S.waiterT[i] >= seatT) { S.waiterT[i] = 0; waiterAct(); }
+        }
+      }
       for (const c of S.customers.slice()) {
         // The customer you're serving loses patience at full speed; everyone
         // waiting drains slower. A comfy lobby slows the whole room down.
@@ -1020,7 +1123,7 @@ function frame(t) {
       }
       if (S.running) {
         S.spawnTimer -= dt;
-        if (S.spawnTimer <= 0 && S.customers.length < tableCount()) {
+        if (S.spawnTimer <= 0 && unseatedList().length < DOOR_CAP) {
           addCustomer();
           S.spawnTimer = spawnInterval();
         }
@@ -1045,6 +1148,7 @@ function startGame(mode) {
   S.combo = 0;
   S.timeLeft = SHIFT_LEN;
   S.workerT = WORKER_NAMES.map((_, i) => i * 2); // stagger the crew
+  S.waiterT = WAITER_NAMES.map((_, i) => i * 1.5); // stagger the floor
   S.shift = { tips: 0, perfects: 0, bestCombo: 0 };
   S.paused = false;
   S.ratingStart = rating();
@@ -1070,6 +1174,7 @@ function startGame(mode) {
   resetEndShiftBtn();
   renderPace();
   renderWorkers();
+  renderWaiters();
   updateCombo();
   overlay.classList.add("hidden");
   addCustomer(); // first customer right away
@@ -1166,10 +1271,12 @@ const overShopBtn = document.getElementById("over-shop-btn");
 // Purchases apply immediately — mid-shift buys reshape the running room.
 function applyLive() {
   renderWorkers();
+  renderWaiters();
   buildTables(tableCount());
-  for (const c of S.customers) {
+  for (const c of seatedList()) {
     c.el.style.left = tableSpotPct(c.tableIdx, tableCount()) + "%";
   }
+  reflowDoor();
   renderRating();
 }
 
