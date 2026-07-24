@@ -61,9 +61,11 @@ body {
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
+/* Mid-run the back link stays faintly visible in place — a clear hint you can
+   leave — but it can't be tapped. Tap anywhere outside the play area (or press
+   Escape) and it fades back to full strength so you can click it. */
 .back-link.tucked {
-  opacity: 0;
-  transform: translateY(-14px) scale(0.9);
+  opacity: 0.32;
   pointer-events: none;
 }
 
