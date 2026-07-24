@@ -148,6 +148,194 @@ body {
   color: var(--muted);
 }
 
+/* ------------------------------------------------------------ player card */
+/* The strip above the game cards: who you are, at a glance. */
+.pc-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin-bottom: 1.1rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--chip);
+  border: 1.5px solid var(--chip-line);
+  border-radius: 14px;
+  color: var(--on-dark);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.pc-strip:hover {
+  background: var(--chip-hover);
+  border-color: var(--accent);
+}
+
+.pc-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.pc-avatar-lg {
+  width: 52px;
+  height: 52px;
+  font-size: 1.5rem;
+}
+
+.pc-id {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pc-name {
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-sub {
+  font-size: 0.76rem;
+  color: var(--on-dark-muted);
+}
+
+.pc-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--chip-line);
+  overflow: hidden;
+}
+
+.pc-strip .pc-bar {
+  flex: 0 1 130px;
+}
+
+.pc-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gold);
+  transition: width 0.4s ease;
+}
+
+.pc-go {
+  flex: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--on-dark-muted);
+}
+
+/* Inside the sheet */
+.pc-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 1.1rem;
+}
+
+.pc-label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+}
+
+.pc-input {
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text);
+  width: min(220px, 100%);
+}
+
+.pc-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.pc-hint {
+  font-size: 0.72rem;
+  color: var(--on-dark-muted);
+}
+
+.pc-ach {
+  margin-bottom: 1.1rem;
+}
+
+.pc-ach-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+  color: var(--on-dark);
+}
+
+.pc-ach-top em {
+  font-style: normal;
+  font-weight: 800;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.pc-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem;
+}
+
+.pc-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  background: var(--chip);
+  border-left: 4px solid var(--g, var(--accent));
+}
+
+.pc-stat-game {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+}
+
+.pc-stat-val {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--on-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.pc-stat-rank {
+  font-size: 0.74rem;
+  color: var(--on-dark-muted);
+  min-height: 1em;
+}
+
+.pc-stat-rank.ranked {
+  color: var(--g, var(--accent));
+  font-weight: 800;
+}
+
 /* Hub buttons that open the leaderboard / achievement panels */
 .hub-actions {
   display: flex;
@@ -495,8 +683,41 @@ body.sheet-lock {
     font-size: 0.62rem;
     padding: 0.22rem 0.5rem;
   }
+  /* Reclaim the strip's height elsewhere so all four games still fit. */
+  .hub-subtitle {
+    display: none;
+  }
+  .hub-logo {
+    height: 46px;
+  }
+  .pc-strip {
+    gap: 0.55rem;
+    margin-bottom: 0.7rem;
+    padding: 0.42rem 0.7rem;
+    border-radius: 12px;
+  }
+  .pc-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 0.92rem;
+  }
+  .pc-name {
+    font-size: 0.88rem;
+  }
+  .pc-sub {
+    font-size: 0.68rem;
+  }
+  .pc-strip .pc-bar {
+    display: none;
+  }
+  .pc-go {
+    font-size: 0.7rem;
+  }
+  .pc-stats {
+    grid-template-columns: 1fr 1fr;
+  }
   .hub-actions {
-    margin-top: 1rem;
+    margin-top: 0.8rem;
     gap: 0.5rem;
   }
   .hub-btn {

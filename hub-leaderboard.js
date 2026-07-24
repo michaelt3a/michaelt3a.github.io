@@ -74,7 +74,7 @@
           try { rows = await sbGet("sigworks_speedruns?select=name,perfect,ms&order=perfect.desc,ms.asc&limit=500"); }
           catch { rows = local("sigworks_speedrun_lb", []); }
         } else rows = local("sigworks_speedrun_lb", []);
-        return dedupe(rows, byRun).slice(0, 10);
+        return dedupe(rows, byRun);
       },
     },
   };
@@ -85,7 +85,7 @@
       try { rows = await sbGet(`${table}?select=name,score&${filter}&order=score.desc&limit=500`); }
       catch { rows = localGetter(); }
     } else rows = localGetter();
-    return dedupe(rows, byScore).slice(0, 10);
+    return dedupe(rows, byScore);
   };
   for (const k of Object.keys(BOARDS)) {
     if (!BOARDS[k].stat) BOARDS[k].stat = (e) => e.score;
@@ -108,6 +108,19 @@
       { label: "Hard", key: "ou-hard" },
     ] },
   ];
+
+  // One fetch per board per page load — the board view and the player card
+  // both read from here.
+  const cache = {};
+  function fetchBoard(key) {
+    if (!cache[key]) {
+      cache[key] = BOARDS[key].fetch().catch(function (e) {
+        delete cache[key]; // let a later view retry
+        throw e;
+      });
+    }
+    return cache[key];
+  }
 
   let gamesEl, catsEl, listEl, curGame, curKey, reqId = 0;
 
@@ -136,7 +149,7 @@
     const my = ++reqId;
     listEl.innerHTML = '<li class="lb-empty">Loading…</li>';
     let list = [];
-    try { list = await BOARDS[key].fetch(); } catch { list = []; }
+    try { list = (await fetchBoard(key)).slice(0, 10); } catch { list = []; }
     if (my !== reqId) return; // superseded
     listEl.innerHTML = "";
     if (!list.length) {
@@ -176,5 +189,5 @@
     selectGame(GAMES[0]);
   }
 
-  window.HubLeaderboard = { init };
+  window.HubLeaderboard = { init, GAMES, fetchBoard, fmtTime };
 })();

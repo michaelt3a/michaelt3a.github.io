@@ -1011,11 +1011,20 @@ function endGame() {
 
 let pendingScore = null; // { diff, score } awaiting a name
 
+// "pokeworks-lb-name" is the arcade-wide name the hub's player card edits;
+// Bowl Builder's own older key is read as a fallback and kept in sync.
+const SHARED_NAME_KEY = "pokeworks-lb-name";
+
 function loadLbName() {
-  try { return localStorage.getItem(LB_NAME_KEY) || ""; } catch (e) { return ""; }
+  try {
+    return localStorage.getItem(SHARED_NAME_KEY) || localStorage.getItem(LB_NAME_KEY) || "";
+  } catch (e) { return ""; }
 }
 function saveLbName(name) {
-  try { localStorage.setItem(LB_NAME_KEY, name); } catch (e) { /* ignore */ }
+  try {
+    localStorage.setItem(SHARED_NAME_KEY, name);
+    localStorage.setItem(LB_NAME_KEY, name);
+  } catch (e) { /* ignore */ }
 }
 
 // Save the pending score under the typed name, then confirm.

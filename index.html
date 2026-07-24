@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=13" />
+  <link rel="stylesheet" href="menu.css?v=14" />
   <link rel="stylesheet" href="theme.css?v=2" />
   <meta name="theme-color" content="#0a1010" />
   <script src="theme.js?v=2"></script>
@@ -17,6 +17,8 @@
       <h1 class="hub-title">Minigames</h1>
       <p class="hub-subtitle">Pick a game to play.</p>
     </header>
+
+    <button class="pc-strip" type="button" id="pc-strip" data-open="sheet-you"></button>
 
     <div class="cards">
       <a class="card" href="bowl-builder.html">
@@ -62,6 +64,17 @@
     </div>
   </main>
 
+  <!-- Player card (opens from the strip above the game cards) -->
+  <div class="sheet" id="sheet-you" hidden>
+    <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Your stats">
+      <div class="sheet-head">
+        <h2 class="sheet-title">👤 Your stats</h2>
+        <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="sheet-body" id="pc-body"></div>
+    </div>
+  </div>
+
   <!-- Leaderboards (opens from the hub button) -->
   <div class="sheet" id="sheet-lb" hidden>
     <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Leaderboards">
@@ -94,9 +107,12 @@
   <script src="transitions.js?v=3"></script>
   <script src="supabase-config.js?v=2"></script>
   <script src="achievements.js?v=2"></script>
-  <script src="hub-leaderboard.js?v=1"></script>
+  <script src="hub-leaderboard.js?v=2"></script>
+  <script src="player-card.js?v=1"></script>
   <script>
-    // Both panels build their contents the first time they're opened.
+    PlayerCard.init(document.getElementById("pc-strip"));
+
+    // Panels build their contents the first time they're opened.
     const built = {};
     const build = {
       "sheet-ach": () =>
@@ -107,11 +123,14 @@
           document.getElementById("hlb-cats"),
           document.getElementById("hlb-list")
         ),
+      "sheet-you": () => PlayerCard.renderSheet(document.getElementById("pc-body")),
     };
+    // Your bests change as you play, so the stats panel is rebuilt every open.
+    const alwaysRebuild = { "sheet-you": true };
 
     function openSheet(id) {
       const el = document.getElementById(id);
-      if (!built[id]) { built[id] = true; build[id](); }
+      if (!built[id] || alwaysRebuild[id]) { built[id] = true; build[id](); }
       el.hidden = false;
       void el.offsetWidth; // flush the un-hidden state so the transition runs
       el.classList.add("open");
