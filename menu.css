@@ -188,6 +188,12 @@ body {
   transition: opacity 0.2s ease;
 }
 
+/* `display: flex` above beats the hidden attribute's UA display:none — without
+   this the closed sheets sit invisible over the page and eat every click. */
+.sheet[hidden] {
+  display: none;
+}
+
 .sheet.open {
   opacity: 1;
 }
