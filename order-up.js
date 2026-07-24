@@ -590,6 +590,14 @@ function stickmanSVG(shirt, mood, sitting) {
     : // standing
       '<line x1="32" y1="78" x2="20" y2="112" ' + L + "/>" +
       '<line x1="32" y1="78" x2="44" y2="112" ' + L + "/>";
+  // A small table drawn IN FRONT of the seated guest (last, so it's on top) —
+  // they sit at it, hands resting on the top.
+  const table = sitting
+    ? '<ellipse cx="32" cy="86" rx="25" ry="5" fill="#c9a063" stroke="#9c7743" stroke-width="1.5"/>' +
+      '<path d="M7 86 Q32 92 57 86 L57 89 Q32 95 7 89 Z" fill="#a67e46"/>' +
+      '<rect x="30" y="90" width="4" height="18" fill="#b98f57"/>' +
+      '<ellipse cx="32" cy="108" rx="10" ry="2.5" fill="#9c7743"/>'
+    : "";
   return (
     '<svg viewBox="0 0 64 120" width="100%" height="100%" aria-hidden="true">' +
     chair +
@@ -604,6 +612,19 @@ function stickmanSVG(shirt, mood, sitting) {
     // eyes
     '<circle cx="27" cy="24" r="2" fill="#333"/><circle cx="37" cy="24" r="2" fill="#333"/>' +
     brow + mouth +
+    table +
+    "</svg>"
+  );
+}
+// A faint empty table for an unoccupied seat, so the room shows every table
+// the tables upgrade has bought.
+function emptyTableSVG() {
+  return (
+    '<svg viewBox="0 0 80 54" width="100%" height="100%" aria-hidden="true">' +
+    '<ellipse cx="40" cy="46" rx="26" ry="4" fill="rgba(0,0,0,0.08)"/>' +
+    '<ellipse cx="40" cy="22" rx="28" ry="8" fill="#d9b07a" stroke="#a97f4a" stroke-width="2"/>' +
+    '<rect x="37" y="24" width="6" height="22" fill="#b98f57"/>' +
+    '<ellipse cx="40" cy="46" rx="12" ry="3" fill="#9c7743"/>' +
     "</svg>"
   );
 }
@@ -638,18 +659,27 @@ function tableSpotPct(i, n) {
   return 34 + ((i + 0.5) / n) * 64;
 }
 function buildTables(n) {
-  // Seated guests now bring their own chair (drawn into the figure), so the
-  // old background café tables are gone — they read as "sitting on the table."
-  // A faint floor spot per seat marks where a guest will sit.
+  // One café table per seat (matching the tables upgrade). An empty table shows
+  // for an open seat; when a guest sits, they sit AT their own table (drawn into
+  // the figure, in front) and this empty one is hidden to avoid doubling.
   tablesEl.innerHTML = "";
+  const w = Math.min(84, Math.round(280 / n) + 24);
   for (let i = 0; i < n; i++) {
-    const spot = document.createElement("div");
-    spot.className = "ou-seatspot";
-    spot.style.cssText = "left:" + tableSpotPct(i, n) + "%";
-    tablesEl.appendChild(spot);
+    const t = document.createElement("div");
+    t.className = "ou-seattable";
+    t.style.cssText = "left:" + tableSpotPct(i, n) + "%;width:" + w + "px";
+    t.innerHTML = emptyTableSVG();
+    tablesEl.appendChild(t);
   }
-  // Customers scale down a notch when the room is packed.
   document.querySelector(".ou-scene").dataset.tables = n;
+  updateSeatTables();
+}
+// Hide the empty table under any occupied seat.
+function updateSeatTables() {
+  const kids = tablesEl.children;
+  for (let i = 0; i < kids.length; i++) {
+    kids[i].classList.toggle("occupied", seatedList().some((c) => c.tableIdx === i));
+  }
 }
 // --- Seating -------------------------------------------------------------
 // Guests now arrive at the door and wait to be seated. You (or a waiter) sit
@@ -688,6 +718,7 @@ function seatCustomer(c) {
   SFX.pick();
   reflowDoor();
   if (S.activeId == null) setActive(c.id);
+  updateSeatTables(); // hide the empty table under this seat
   if (S.tutorial && S.tutStep === 0) setTut(1); // tutorial: seated the first guest
   return true;
 }
@@ -792,6 +823,7 @@ function removeCustomer(c, cls) {
   setTimeout(() => el.remove(), 300);
   S.customers = S.customers.filter((x) => x.id !== c.id);
   reflowDoor();
+  updateSeatTables(); // a freed seat shows its empty table again
   if (S.activeId === c.id) {
     // Fall back to another seated guest (the earliest still waiting on food).
     const next = seatedList()[0];
