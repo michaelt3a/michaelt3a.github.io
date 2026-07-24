@@ -372,6 +372,9 @@
 .ou-overlay {
   position: absolute;
   inset: 0;
+  /* Above the whole scene — the kitchen counter and menu board carry their own
+     z-index and would otherwise poke through the blur. */
+  z-index: 40;
   background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(2px);
   display: flex;

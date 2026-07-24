@@ -6,7 +6,7 @@
   <title>Order Up - Pokeworks</title>
   <meta name="description" content="Pokeworks Order Up rush minigame." />
   <link rel="stylesheet" href="styles.css?v=14" />
-  <link rel="stylesheet" href="order-up.css?v=18" />
+  <link rel="stylesheet" href="order-up.css?v=19" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -72,7 +72,7 @@
         <div class="ou-pans" id="pans"></div>
       </div>
 
-      <!-- Prep counter: the worker's side — order ticket + the bowl -->
+      <!-- Prep counter: the worker's side, with the order ticket and the bowl -->
       <div class="ou-counter">
         <div class="ou-ticket">
           <div class="ou-ticket-name" id="order-name">…</div>
@@ -91,7 +91,7 @@
       <div class="ou-overlay" id="overlay">
         <div class="ou-panel" id="screen-start">
           <h1 class="overlay-title">Order Up</h1>
-          <p class="overlay-subtitle">Serve bowls for money — mistakes pay less and cost you stars. Bank it, buy upgrades, build a 5★ shop. Choose a mode:</p>
+          <p class="overlay-subtitle">Serve bowls for money. Mistakes pay less and cost you stars. Bank it, buy upgrades, build a 5★ shop. Choose a mode:</p>
           <div class="ou-modes">
             <button id="start-normal" class="btn" type="button">Recipes Shown</button>
             <button id="start-hard" class="btn btn-secondary" type="button">Hidden Recipes</button>
@@ -104,13 +104,13 @@
           <div class="ou-variants">
             <button class="ou-var" id="var-endless" type="button">
               <span class="ou-var-icon">🥢</span>
-              <strong>Endless</strong>
-              <small>No clock. Keep the line moving — three walkouts ends your shift.</small>
+              <strong>Full Shift</strong>
+              <small>A relaxed 6:00 service. Serve the room, but three walkouts still closes you early.</small>
             </button>
             <button class="ou-var ou-var-rush" id="var-rush" type="button">
               <span class="ou-var-icon">⏱️</span>
               <strong>Rush</strong>
-              <small>4:00 on the clock and nobody walks out — bank everything you can before it runs out.</small>
+              <small>4:00 on the clock and nobody walks out, so bank everything you can before it runs out.</small>
             </button>
           </div>
           <button class="ou-var-back" id="var-back" type="button">‹ Back</button>
@@ -159,7 +159,7 @@
   <script src="achievements.js?v=6"></script>
   <script src="bowl-render.js?v=3"></script>
   <script src="daily.js?v=3"></script>
-  <script src="order-up.js?v=26"></script>
+  <script src="order-up.js?v=27"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

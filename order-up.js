@@ -51,7 +51,9 @@ const finalEl = document.getElementById("final");
 // --- Constants ----------------------------------------------------------
 const BASE_TABLES = 3; // more via the tables upgrade
 const SHIFT_LEN = 240; // seconds per Rush shift (4:00)
-const MAX_WALKOUTS = 3; // an Endless shift survives until this many storm out
+const ENDLESS_LEN = 360; // seconds per Endless shift (6:00) — closes on its own
+const MAX_WALKOUTS = 3; // an Endless shift also ends early if this many storm out
+function shiftLen() { return isRush() ? SHIFT_LEN : ENDLESS_LEN; }
 const WAIT_DRAIN = 0.5; // patience rate for customers you're NOT serving
 // "-v2": bests are dollars now, so point-era records start over.
 const BEST_KEY = "pokeworks-orderup-best-v2";
@@ -82,7 +84,7 @@ const UPGRADES = {
   worker: {
     icon: "🧑‍🍳", name: "Hire cooks",
     desc: [
-      "Eli joins the kitchen — he preps other customers' bowls",
+      "Eli joins the kitchen and preps other customers' bowls",
       "CJ makes it a crew of two",
       "Moe completes the kitchen brigade",
     ],
@@ -99,7 +101,7 @@ const UPGRADES = {
   },
   tables: {
     icon: "🪑", name: "More tables",
-    desc: ["A 4th table — one more customer at a time", "A 5th table — a truly packed house"],
+    desc: ["A 4th table for one more customer at a time", "A 5th table for a truly packed house"],
     costs: [300, 800],
   },
   prices: {
@@ -129,7 +131,7 @@ const UPGRADES = {
   },
   loyalty: {
     icon: "💳", name: "Loyalty program",
-    desc: ["Regulars talk you up — richer customers sooner", "The word is out — VIPs seek you out"],
+    desc: ["Regulars talk you up, so richer customers arrive sooner", "The word is out, and VIPs seek you out"],
     costs: [400, 900],
   },
 };
@@ -368,15 +370,15 @@ function fireEvent() {
   const pick = pool[Math.floor(Math.random() * pool.length)];
   if (pick === "rush") {
     S.rushUntil = S.elapsed + 25;
-    showEventBanner("🍜 LUNCH RUSH — double pay for 25 seconds!", 6000);
+    showEventBanner("🍜 LUNCH RUSH: double pay for 25 seconds!", 6000);
     SFX.bell();
   } else if (pick === "critic") {
     S.pendingSpecial = "critic";
-    showEventBanner("🎩 A food critic is on their way — their review counts triple.", 6000);
+    showEventBanner("🎩 A food critic is on their way. Their review counts triple.", 6000);
     SFX.bell();
   } else {
     S.pendingSpecial = "inspector";
-    showEventBanner("📋 Health inspector incoming — a perfect bowl or it goes on the record.", 6000);
+    showEventBanner("📋 Health inspector incoming: a perfect bowl, or it goes on the record.", 6000);
     SFX.bell();
   }
 }
@@ -730,7 +732,7 @@ function loseCustomer(c) {
 }
 
 // --- Reviews & the star rating (the Secret Shopper toast, behind a counter) --
-const REVIEW_5 = ["Absolute perfection!", "Best bowl in town — take my money!", "Five stars, no notes.", "Exactly right, and fast."];
+const REVIEW_5 = ["Absolute perfection!", "Best bowl in town. Take my money!", "Five stars, no notes.", "Exactly right, and fast."];
 const REVIEW_4 = ["Great bowl, just a bit of a wait.", "Worth it. Would return.", "Solid. Kai's got competition."];
 const REVIEW_3 = ["Decent, but they missed a couple things.", "Almost what I ordered... almost.", "Fine. Just fine."];
 const REVIEW_2 = ["Half my order was missing.", "Not really what I asked for.", "The ticket was more of a suggestion, apparently."];
@@ -797,16 +799,17 @@ function renderRating() {
 function renderMoney() {
   scoreEl.textContent = "$" + S.score;
 }
-// The pace tile: the countdown in Rush, the walkout count in Endless.
+// The pace tile shows the closing clock in both modes. Endless also carries
+// its walkout count in the tile's label.
 function renderPace() {
+  const t = Math.max(0, Math.ceil(S.timeLeft));
+  const str = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+  if (timeEl.textContent !== str) timeEl.textContent = str;
   if (isRush()) {
-    const t = Math.max(0, Math.ceil(S.timeLeft));
-    const str = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
-    if (timeEl.textContent !== str) timeEl.textContent = str;
     timeEl.classList.toggle("urgent", t <= 15);
   } else {
-    timeEl.textContent = "🚶 " + S.lost + "/" + MAX_WALKOUTS;
-    timeEl.classList.toggle("urgent", S.lost >= MAX_WALKOUTS - 1);
+    if (timeLabelEl) timeLabelEl.textContent = "🚶 " + S.lost + "/" + MAX_WALKOUTS;
+    timeEl.classList.toggle("urgent", t <= 15 || S.lost >= MAX_WALKOUTS - 1);
   }
 }
 // A little "+$12" that floats up off the bowl when a serve pays out, with the
@@ -1072,18 +1075,17 @@ function frame(t) {
   S.lastTime = t;
 
   if (S.running && !S.paused) {
-    // Rush races the clock; Endless has no clock and ends on walkouts.
-    if (isRush()) {
-      S.timeLeft -= dt;
-      renderPace();
-    }
+    // Both modes run a closing clock so the shift always ends naturally;
+    // Endless also ends early if too many guests storm out.
+    S.timeLeft -= dt;
+    renderPace();
     S.elapsed += dt;
     // Shift events fire on a loose timer (never during daily runs).
     if (S.elapsed >= S.nextEventAt) {
       fireEvent();
       S.nextEventAt = S.elapsed + 45 + Math.random() * 25;
     }
-    if (isRush() && S.timeLeft <= 0) {
+    if (S.timeLeft <= 0) {
       endGame();
     } else {
       // Kai, the auto-worker: every few seconds he scoops one correct
@@ -1146,7 +1148,7 @@ function startGame(mode) {
   S.served = 0;
   S.lost = 0;
   S.combo = 0;
-  S.timeLeft = SHIFT_LEN;
+  S.timeLeft = shiftLen();
   S.workerT = WORKER_NAMES.map((_, i) => i * 2); // stagger the crew
   S.waiterT = WAITER_NAMES.map((_, i) => i * 1.5); // stagger the floor
   S.shift = { tips: 0, perfects: 0, bestCombo: 0 };
@@ -1164,8 +1166,8 @@ function startGame(mode) {
   renderMoney();
   bestEl.textContent = "$" + best;
   renderRating();
-  timeLabelEl.textContent = isRush() ? "Time" : "Walkouts";
-  // Rush hides the per-customer patience bars — the shift clock is the only
+  timeLabelEl.textContent = "Time"; // Endless swaps this for its walkout count
+  // Rush hides the per-customer patience bars; the shift clock is the only
   // visible timer there.
   customersEl.classList.toggle("rush", isRush());
   buildTables(tableCount()); // the tables upgrade may have changed the room
@@ -1220,7 +1222,7 @@ function endGame() {
   const arrow = rNow > S.ratingStart + 0.01 ? "📈" : rNow < S.ratingStart - 0.01 ? "📉" : "";
   finalEl.innerHTML =
     `<strong>${S.score}</strong> banked ` +
-    `<span class="ou-mode-tag">${isHard() ? "Hard" : "Normal"}${isRush() ? " · Rush" : " · Endless"}</span>` +
+    `<span class="ou-mode-tag">${isHard() ? "Hard" : "Normal"}${isRush() ? " · Rush" : " · Full Shift"}</span>` +
     (isBest && S.score > 0 ? ` <span class="ou-best">★ New best shift!</span>` : "");
   const sumEl = document.getElementById("ou-summary");
   if (sumEl) {
@@ -1501,7 +1503,7 @@ let pendingBase = "normal"; // which ticket style the popup starts
 function openVariant(base) {
   pendingBase = base;
   variantTitleEl.textContent =
-    (base === "hard" ? "Hidden Recipes" : "Recipes Shown") + " — pick your pace";
+    (base === "hard" ? "Hidden Recipes" : "Recipes Shown") + ": pick your pace";
   screenStart.classList.add("hidden");
   screenVariant.classList.remove("hidden");
 }
@@ -1582,7 +1584,7 @@ if (isDailyRun) {
         "You've already played today: $" + done.score + ". Back tomorrow for a new run.";
     }
   } else {
-    if (sub) sub.textContent = "Everyone gets this exact shift today. One attempt — make it count.";
+    if (sub) sub.textContent = "Everyone gets this exact shift today. One attempt, so make it count.";
     if (modes) {
       const go = document.createElement("button");
       go.className = "btn";

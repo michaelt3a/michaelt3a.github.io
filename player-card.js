@@ -223,7 +223,7 @@
       return (
         '<div class="pc-stat" style="--g:' + s.color + '">' +
         '<span class="pc-stat-game">' + s.label + "</span>" +
-        '<span class="pc-stat-val">' + (b ? escapeHtml(b.value) : "—") + "</span>" +
+        '<span class="pc-stat-val">' + (b ? escapeHtml(b.value) : "None") + "</span>" +
         '<span class="pc-stat-rank" data-rank="' + s.id + '">' +
         (s.noRank || !b ? "" : name ? "Checking rank…" : "Add a name to rank") +
         "</span></div>"

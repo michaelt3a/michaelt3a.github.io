@@ -118,8 +118,8 @@
       { label: "Speedrun", key: "sw-speedrun" },
     ] },
     { id: "ou", label: "Order Up", color: "#fd9f27", cats: [
-      { label: "Endless", key: "ou-normal" },
-      { label: "Endless Hard", key: "ou-hard" },
+      { label: "Full Shift", key: "ou-normal" },
+      { label: "Full Shift Hard", key: "ou-hard" },
       { label: "Rush", key: "ou-normal-rush" },
       { label: "Rush Hard", key: "ou-hard-rush" },
     ] },

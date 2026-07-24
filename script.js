@@ -2235,7 +2235,7 @@ if (isDailyRun) {
     if (startBtn) startBtn.classList.add("hidden");
   } else if (sub) {
     sub.textContent =
-      "Everyone gets this exact run today. One attempt — make it count.";
+      "Everyone gets this exact run today. One attempt, so make it count.";
   }
   showStartScreen();
 }
