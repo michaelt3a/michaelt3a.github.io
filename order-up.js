@@ -245,9 +245,11 @@ function workerScoopTime() {
 }
 
 // --- Economy: rent, idle income, and bankruptcy --------------------------
-// A store you're not standing in still runs on its own once it has staff, and
-// pays rent whether it's earning or not — so you can't just sit and do nothing.
-const RENT_PER_MIN = 9; // per store, per real minute, while the game is open
+// Rent is a single charge at the end of each shift, one per location. Idle
+// income is always positive — automated stores earn on their own while open
+// and while you're away — so a shift can end in the red, but nothing ever
+// drains your bank between shifts.
+const RENT_PER_SHIFT = 60; // per location, charged once when a shift ends
 const AUTO_PER_MIN = 22; // a fully-automated 5-star store's gross idle income/min
 const IDLE_CAP_H = 8; // offline idle income is capped at this many hours
 const BANKRUPT_LINE = -600; // bank below this and a location goes under
@@ -288,29 +290,26 @@ function creditOffline() {
   return { gain, mins: Math.round(secs / 60) };
 }
 
-// Ticks every second the page is open: other stores earn, every store pays
-// rent. Bankruptcy is only resolved between shifts, never mid-service.
+// Ticks every second the page is open: automated stores you aren't standing in
+// keep earning. Positive only — nothing is ever charged here.
 let ecoSaveT = 0;
 function economyTick() {
   if (isDailyRun || S.tutorial) return; // dailies and the tutorial sit out the economy
-  let net = 0;
+  let gain = 0;
   T.stores.forEach((st, i) => {
     const playingHere = S.running && i === T.current;
-    if (!playingHere) net += storeIdlePerMin(st) / 60; // idle income/sec
-    net -= RENT_PER_MIN / 60; // rent/sec, every store
+    if (!playingHere) gain += storeIdlePerMin(st) / 60; // idle income/sec
   });
-  T.bank += net;
+  if (gain > 0) T.bank += gain;
   T.lastSeen = Date.now();
   updateBankDisplays();
   if (++ecoSaveT >= 5) { ecoSaveT = 0; saveTycoon(); }
-  if (!S.running && !bankrupted && T.bank < BANKRUPT_LINE) triggerBankruptcy();
 }
 
-// Bankruptcy closes the store that's dragging you down (the least self-
-// sufficient one), wipes its build, and clears the debt with a bailout. Your
-// other stores, your lifetime totals, and your saved progress all remain.
-function triggerBankruptcy() {
-  bankrupted = true;
+// Close the store dragging you down (the least self-sufficient one), wipe its
+// build, and clear the debt with a bailout. Other stores, lifetime totals, and
+// the save all remain. Returns the closed store's number.
+function doBankruptcy() {
   let idx = 0, worst = Infinity;
   T.stores.forEach((st, i) => { const a = storeAuto(st); if (a < worst) { worst = a; idx = i; } });
   const lost = idx + 1;
@@ -323,29 +322,24 @@ function triggerBankruptcy() {
   }
   T.bank = 0; // the bailout clears the red
   saveTycoon();
-  bankrupted = false;
-  showEventBanner("💸 Bankrupt! Location #" + lost + " closed. The books are back to zero.", 7000);
-  renderRating();
-  updateBankDisplays();
-  if (!screenShop.classList.contains("hidden")) renderShop();
+  return lost;
 }
 
-// Chain-wide net cash flow per real minute (idle income minus rent).
+// Chain-wide passive income per real minute (idle income only — rent is now a
+// per-shift charge, not a drip).
 function netPerMin() {
-  let net = 0;
+  let gain = 0;
   T.stores.forEach((st, i) => {
     const playing = S.running && i === T.current;
-    if (!playing) net += storeIdlePerMin(st);
-    net -= RENT_PER_MIN;
+    if (!playing) gain += storeIdlePerMin(st);
   });
-  return net;
+  return gain;
 }
 function bankLineHTML() {
   const npm = Math.round(netPerMin());
   return (
     "💰 Bank: <strong>$" + Math.floor(T.bank).toLocaleString() + "</strong> " +
-    "<span class='ou-net " + (npm >= 0 ? "up" : "down") + "'>" +
-    (npm >= 0 ? "📈 +$" + npm : "📉 -$" + Math.abs(npm)) + "/min</span>" +
+    (npm > 0 ? "<span class='ou-net up'>📈 +$" + npm + "/min idle</span>" : "") +
     (T.stores.length > 1 ? " <span class='ou-fr-badge'>🏪 +" + (T.stores.length - 1) * 10 + "% chain</span>" : "")
   );
 }
@@ -1487,10 +1481,23 @@ function endGame(reason) {
   const isBest = S.score > best;
   if (isBest) { best = S.score; saveBest(best); }
   bestEl.textContent = "$" + best;
-  // Shift earnings go into the bank that buys upgrades.
+  // The rating for this shift's store (captured before any bankruptcy reshuffle).
+  const rNow = rating();
+  const arrow = rNow > S.ratingStart + 0.01 ? "📈" : rNow < S.ratingStart - 0.01 ? "📉" : "";
+
+  // Shift earnings go into the bank, then rent is charged once — one per store.
   T.bank += S.score;
+  const rentStores = isDailyRun ? 0 : T.stores.length;
+  const rent = rentStores * RENT_PER_SHIFT;
+  if (rent) T.bank -= rent;
+  // A shift that couldn't cover rent can tip your weakest location under.
+  let bankruptStore = 0;
+  if (!isDailyRun && T.bank < BANKRUPT_LINE) bankruptStore = doBankruptcy();
   T.life.shifts++;
   saveTycoon();
+  renderRating();
+  updateBankDisplays();
+
   const lifeEl = document.getElementById("ou-life");
   if (lifeEl) {
     lifeEl.textContent =
@@ -1498,15 +1505,14 @@ function endGame(reason) {
       T.life.served + " served · " + T.life.shifts + " shift" + (T.life.shifts === 1 ? "" : "s") +
       (T.stores.length > 1 ? " · 🏪 ×" + T.stores.length : "");
   }
-  const rNow = rating();
-  const arrow = rNow > S.ratingStart + 0.01 ? "📈" : rNow < S.ratingStart - 0.01 ? "📉" : "";
   const headline =
-    reason === "close" ? "🔔 Closing time! " :
-    reason === "walkouts" ? "🚪 Too many walkouts. " :
-    reason === "early" ? "🔚 Clocked out early. " : "";
+    (bankruptStore ? "💸 Bankrupt! Location #" + bankruptStore + " closed. " : "") +
+    (reason === "close" ? "🔔 Closing time! " :
+     reason === "walkouts" ? "🚪 Too many walkouts. " :
+     reason === "early" ? "🔚 Clocked out early. " : "");
   finalEl.innerHTML =
     headline +
-    `<strong>${S.score}</strong> banked ` +
+    `<strong>$${S.score}</strong> banked ` +
     `<span class="ou-mode-tag">${isHard() ? "Hard" : "Normal"}${isRush() ? " · Rush" : " · Full Shift"}</span>` +
     (isBest && S.score > 0 ? ` <span class="ou-best">★ New best shift!</span>` : "");
   const sumEl = document.getElementById("ou-summary");
@@ -1519,7 +1525,9 @@ function endGame(reason) {
     ];
     if (!isRush()) rows.push(["🚶", "Walkouts", S.lost]);
     if (bonus) rows.push(["⭐", "Closing bonus (★" + rNow.toFixed(1) + ")", "+$" + bonus]);
+    if (rent) rows.push(["🏦", "Rent (" + rentStores + "× $" + RENT_PER_SHIFT + ")", "-$" + rent]);
     rows.push(["📊", "Rating", "★ " + S.ratingStart.toFixed(1) + " → ★ " + rNow.toFixed(1) + " " + arrow]);
+    rows.push(["💰", "Bank now", "$" + Math.floor(T.bank).toLocaleString()]);
     sumEl.innerHTML = rows
       .map((r) => `<div class="ou-sum-row"><span>${r[0]} ${r[1]}</span><strong>${r[2]}</strong></div>`)
       .join("");
@@ -1574,7 +1582,7 @@ function renderShop() {
   const note = document.getElementById("ou-econ-note");
   if (note) {
     note.textContent =
-      "Rent runs $" + RENT_PER_MIN + "/min per location while you're open. " +
+      "Rent is $" + RENT_PER_SHIFT + " per location, charged once each shift. " +
       "Staffed, well-rated stores earn on their own — even while you're away. " +
       "Fall too far in the red and a location goes under.";
   }
@@ -1900,20 +1908,25 @@ function renderSlots() {
     el.appendChild(row);
   }
 }
-function openSaves() {
+let savesReturn = "start"; // "start" | "over"
+function openSaves(from) {
+  savesReturn = from || "start";
   renderSlots();
   if (saveMsgEl) saveMsgEl.textContent = "";
   if (saveCodeEl) saveCodeEl.classList.add("hidden");
   screenStart.classList.add("hidden");
+  screenOver.classList.add("hidden");
   screenSaves.classList.remove("hidden");
 }
 function closeSaves() {
   screenSaves.classList.add("hidden");
-  screenStart.classList.remove("hidden");
+  (savesReturn === "over" ? screenOver : screenStart).classList.remove("hidden");
 }
 const openSavesBtn = document.getElementById("open-saves");
+const overSavesBtn = document.getElementById("over-saves-btn");
 const savesDoneBtn = document.getElementById("saves-done");
-if (openSavesBtn) openSavesBtn.addEventListener("click", () => { SFX.pick(); openSaves(); });
+if (openSavesBtn) openSavesBtn.addEventListener("click", () => { SFX.pick(); openSaves("start"); });
+if (overSavesBtn) overSavesBtn.addEventListener("click", () => { SFX.pick(); openSaves("over"); });
 if (savesDoneBtn) savesDoneBtn.addEventListener("click", () => { SFX.pick(); closeSaves(); });
 
 // Tutorial wiring
