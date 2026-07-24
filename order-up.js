@@ -1,7 +1,9 @@
-// Order Up (Rush Hour) — you're behind the Pokeworks line. Stick-figure
-// customers step up across the counter wanting a signature bowl; scoop the
-// ingredients from their bins before the customer loses patience. Serve fast
-// for tips; lose three customers and the shift is over.
+// Order Up (Rush Hour) — you run the Pokeworks line, and now the register.
+// Stick-figure customers order signature bowls; every serve pays money based
+// on how right the bowl is (mistakes still pay, just less), and every visit
+// ends in a star review that moves your restaurant's rating. Money banks
+// between shifts and buys upgrades — including a visible auto-worker — and a
+// higher rating pulls in richer customers with fatter checks.
 
 const B = window.Bowl;
 const CATS = B.CATEGORIES;
@@ -18,9 +20,16 @@ const bctx = bowlCanvas.getContext("2d");
 const BW = bowlCanvas.width;
 const BH = bowlCanvas.height;
 const comboEl = document.getElementById("combo");
-const livesEl = document.getElementById("lives");
+const starsEl = document.getElementById("ou-stars");
+const timeEl = document.getElementById("ou-time");
 const scoreEl = document.getElementById("score");
 const bestEl = document.getElementById("best");
+const serveBtn = document.getElementById("serve-btn");
+const workerEl = document.getElementById("worker");
+const toastsEl = document.getElementById("ou-toasts");
+const bowlWrapEl = document.querySelector(".ou-bowl-wrap");
+const bankEl = document.getElementById("ou-bank");
+const shopEl = document.getElementById("ou-shop");
 const overlay = document.getElementById("overlay");
 const screenStart = document.getElementById("screen-start");
 const screenOver = document.getElementById("screen-over");
@@ -32,21 +41,92 @@ const finalEl = document.getElementById("final");
 
 // --- Constants ----------------------------------------------------------
 const MAX_CUSTOMERS = 3;
-const START_LIVES = 3;
+const SHIFT_LEN = 150; // seconds per shift; the clock is the end condition now
 const WAIT_DRAIN = 0.5; // patience rate for customers you're NOT serving
-const BEST_KEY = "pokeworks-orderup-best";
+// "-v2": bests are dollars now, so point-era records start over.
+const BEST_KEY = "pokeworks-orderup-best-v2";
+const TYCOON_KEY = "pokeworks-orderup-tycoon";
 // Shirt colors to vary the stick figures.
 const SHIRTS = ["#ee435b", "#22b2b4", "#f0a52c", "#7c5cff", "#39a85b", "#e8709b"];
+const CUST_NAMES = [
+  "Alex", "Sam", "Jordan", "Riley", "Casey", "Morgan", "Quinn", "Avery",
+  "Jamie", "Drew", "Skyler", "Reese", "Parker", "Rowan", "Emerson", "Finley",
+  "Harper", "Kendall", "Logan", "Peyton", "Sage", "Tatum", "Blake", "Marlow",
+];
+// Wealth tiers. A better-rated restaurant pulls in richer customers: they pay
+// more (and tip more), but they're a little less patient. The nametag and
+// shirt make the tier obvious at a glance.
+const TIERS = {
+  regular: { key: "regular", icon: "", pay: 1, pat: 1 },
+  foodie: { key: "foodie", icon: "⭐", pay: 1.5, pat: 0.95, shirt: "#22b2b4" },
+  vip: { key: "vip", icon: "💎", pay: 2.5, pat: 0.8, shirt: "#f5c542" },
+};
+
+// Upgrades bought with banked money between shifts.
+const UPGRADES = {
+  worker: {
+    icon: "🧑‍🍳", name: "Hire Kai",
+    desc: ["Auto-worker scoops an ingredient every 8s", "Kai speeds up: every 5.5s", "Turbo Kai: every 3.5s"],
+    costs: [250, 600, 1400],
+  },
+  prices: {
+    icon: "💎", name: "Premium ingredients",
+    desc: ["+20% money per bowl", "+40% money per bowl", "+60% money per bowl"],
+    costs: [200, 500, 1200],
+  },
+  lobby: {
+    icon: "🛋️", name: "Comfy lobby",
+    desc: ["Customers wait 10% longer", "Customers wait 20% longer"],
+    costs: [150, 400],
+  },
+  ads: {
+    icon: "📣", name: "Local ads",
+    desc: ["Customers arrive 15% sooner", "Customers arrive 30% sooner"],
+    costs: [180, 450],
+  },
+};
+
+// --- Persistent restaurant (bank, upgrades, reviews) --------------------
+function freshTycoon() {
+  return { bank: 0, upgrades: { worker: 0, prices: 0, lobby: 0, ads: 0 }, reviews: [] };
+}
+let T = freshTycoon();
+function loadTycoon() {
+  try {
+    const t = JSON.parse(localStorage.getItem(TYCOON_KEY));
+    if (t && t.upgrades) return Object.assign(freshTycoon(), t, { upgrades: Object.assign(freshTycoon().upgrades, t.upgrades) });
+  } catch { /* fall through */ }
+  return freshTycoon();
+}
+function saveTycoon() {
+  try { localStorage.setItem(TYCOON_KEY, JSON.stringify(T)); } catch { /* ignore */ }
+}
+// Rating = average of the last 20 reviews; a new restaurant starts at 3.0.
+function rating() {
+  const r = T.reviews;
+  if (!r.length) return 3;
+  return r.reduce((a, b) => a + b, 0) / r.length;
+}
+// Upgrade effects. All of them sit out Daily Challenge runs so the day's board
+// compares raw skill, not who's richest.
+function upgradeLvl(k) { return isDailyRun ? 0 : T.upgrades[k] || 0; }
+function workerInterval() { return [0, 8, 5.5, 3.5][upgradeLvl("worker")] || 0; }
+function priceMult() { return 1 + 0.2 * upgradeLvl("prices"); }
+function lobbyMult() { return 1 - 0.1 * upgradeLvl("lobby"); }
+function adsMult() { return 1 - 0.15 * upgradeLvl("ads"); }
 
 // --- State --------------------------------------------------------------
 let best = 0; // best for the current mode (set once S exists)
 const S = {
   running: false,
   mode: "normal", // "baby" | "normal" | "hard"
-  score: 0,
-  lives: START_LIVES,
+  score: 0, // money earned this shift (the leaderboard number)
   served: 0,
+  lost: 0,
   combo: 0,
+  timeLeft: SHIFT_LEN,
+  workerT: 0,
+  ratingStart: 3,
   customers: [],
   activeId: null,
   spawnTimer: 0,
@@ -139,15 +219,35 @@ function pickRecipe() {
 }
 
 // Difficulty ramps with how many bowls you've served. Baby mode is a flat,
-// forgiving minute per customer with no ramp.
-function maxPatienceFor(recipe) {
-  if (S.mode === "baby") return 60;
+// forgiving minute per customer with no ramp. Richer tiers are less patient.
+function maxPatienceFor(recipe, tier) {
+  const t = (tier && tier.pat) || 1;
+  if (S.mode === "baby") return Math.round(60 * t);
   const ramp = Math.max(0.75, 1 - S.served * 0.02);
-  return Math.round((recipeSize(recipe) * 2.2 + 12) * ramp);
+  return Math.round((recipeSize(recipe) * 2.2 + 12) * ramp * t);
 }
 function spawnInterval() {
-  if (S.mode === "baby") return 9; // relaxed, steady arrivals
-  return Math.max(4.5, 10.5 - S.served * 0.22);
+  const base = S.mode === "baby" ? 9 : Math.max(4.5, 10.5 - S.served * 0.22);
+  return base * adsMult();
+}
+
+// Which tier walks in. Odds scale with the restaurant's star rating — the
+// richer clientele only shows up once the reviews say you're worth it. Daily
+// runs are all regulars so the shared board stays fair.
+function pickTier() {
+  if (isDailyRun) return TIERS.regular;
+  const r = rating();
+  const roll = Math.random();
+  if (r >= 4.6) {
+    if (roll < 0.2) return TIERS.vip;
+    if (roll < 0.6) return TIERS.foodie;
+  } else if (r >= 4.2) {
+    if (roll < 0.1) return TIERS.vip;
+    if (roll < 0.45) return TIERS.foodie;
+  } else if (r >= 3.5) {
+    if (roll < 0.25) return TIERS.foodie;
+  }
+  return TIERS.regular;
 }
 
 // --- Stick figures ------------------------------------------------------
@@ -228,15 +328,18 @@ function buildTables() {
 function addCustomer() {
   if (S.customers.length >= MAX_CUSTOMERS) return;
   const recipe = pickRecipe();
-  const maxP = maxPatienceFor(recipe);
+  const tier = pickTier();
+  const maxP = maxPatienceFor(recipe, tier);
   const c = {
     id: nextId++,
     recipe,
     name: recipe.name,
+    custName: CUST_NAMES[Math.floor(Math.random() * CUST_NAMES.length)],
+    tier,
     sel: emptySel(),
     patience: maxP,
     maxPatience: maxP,
-    shirt: SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
+    shirt: tier.shirt || SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
     mood: "ok",
   };
   // New arrivals join the back (left); everyone already in line shifts right.
@@ -253,6 +356,7 @@ function buildCustomer(c) {
   el.innerHTML =
     `<span class="ou-bubble">${c.name}</span>` +
     `<span class="ou-stick">${stickmanSVG(c.shirt, c.mood)}</span>` +
+    `<span class="ou-nametag t-${c.tier.key}">${c.tier.icon ? c.tier.icon + " " : ""}${c.custName}</span>` +
     `<span class="ou-pat"><i data-role="bar"></i></span>`;
   el.addEventListener("click", () => { SFX.pick(); setActive(c.id); });
   c.el = el;
@@ -309,40 +413,139 @@ function isComplete(c) {
   return true;
 }
 
+// What's actually in the bowl vs the ticket. Wrong scoops half-cancel a
+// correct one — sloppy still pays, careless doesn't.
+function bowlAccuracy(c) {
+  const size = recipeSize(c.recipe);
+  let correct = 0, wrong = 0, picked = 0;
+  for (const cat of CATS) {
+    for (const name of c.sel[cat]) {
+      picked++;
+      if (c.recipe.items[cat].includes(name)) correct++;
+      else wrong++;
+    }
+  }
+  const frac = Math.max(0, Math.min(1, (correct - wrong * 0.5) / size));
+  return { size, correct, wrong, picked, frac, perfect: correct === size && wrong === 0 };
+}
+
+function payoutFor(c, a) {
+  let m = (10 + a.size * 1.5) * a.frac;
+  if (a.perfect) {
+    const speedFrac = Math.max(0, c.patience / c.maxPatience);
+    m += 8 * speedFrac + S.combo * 2; // tip for speed + combo bonus
+  }
+  m *= c.tier.pay * priceMult();
+  if (S.mode === "hard") m *= 1.5; // memory bonus
+  else if (S.mode === "baby") m *= 0.6;
+  return a.frac > 0 ? Math.max(1, Math.round(m)) : 0;
+}
+
 function serve(c) {
-  const speedFrac = Math.max(0, c.patience / c.maxPatience);
-  const tip = Math.round(40 * speedFrac);
-  let pts = 50 + tip + S.combo * 5;
-  if (S.mode === "hard") pts = Math.round(pts * 1.5); // memory bonus
-  else if (S.mode === "baby") pts = Math.round(pts * 0.6); // easy mode, fewer points
-  S.score += pts;
+  const a = bowlAccuracy(c);
+  const money = payoutFor(c, a);
+  S.score += money;
   S.served++;
   if (window.PokeAch) {
     if (S.served === 1) PokeAch.unlock("ou-first");
     if (S.served === 10) PokeAch.unlock("ou-10");
     if (S.mode === "hard" && S.served === 5) PokeAch.unlock("ou-hard");
+    if (c.tier.key === "vip" && a.perfect) PokeAch.unlock("ou-vip");
   }
-  S.combo++;
-  scoreEl.textContent = S.score;
+  // Only a perfect bowl keeps the combo alive.
+  S.combo = a.perfect ? S.combo + 1 : 0;
+  renderMoney();
   updateCombo();
-  SFX.serve();
+  if (a.perfect) SFX.serve();
+  else { SFX.serve(); SFX.remove(); } // a slightly sour note under the ring
+  cashFloater(money, a.perfect);
+  postReview(c, reviewForServe(c, a));
   removeCustomer(c, "served");
 }
 
 function loseCustomer(c) {
-  S.lives--;
+  S.lost++;
   S.combo = 0;
   updateCombo();
-  renderLives();
   SFX.angry();
+  postReview(c, { stars: Math.random() < 0.5 ? 0 : 1, comment: pickFrom(REVIEW_LEFT) });
   removeCustomer(c, "leaving");
-  if (S.lives <= 0) endGame();
+}
+
+// --- Reviews & the star rating (the Secret Shopper toast, behind a counter) --
+const REVIEW_5 = ["Absolute perfection!", "Best bowl in town — take my money!", "Five stars, no notes.", "Exactly right, and fast."];
+const REVIEW_4 = ["Great bowl, just a bit of a wait.", "Worth it. Would return.", "Solid. Kai's got competition."];
+const REVIEW_3 = ["Decent, but they missed a couple things.", "Almost what I ordered... almost.", "Fine. Just fine."];
+const REVIEW_2 = ["Half my order was missing.", "Not really what I asked for.", "The ticket was more of a suggestion, apparently."];
+const REVIEW_1 = ["Wrong bowl entirely. Yikes.", "Did they even read the ticket?", "I've had better bowls from a vending machine."];
+const REVIEW_LEFT = ["Waited forever and left hungry. Avoid.", "Line didn't move. I'm done.", "Gave up and walked out."];
+
+function pickFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function reviewForServe(c, a) {
+  let stars, pool;
+  if (a.perfect) {
+    const speedFrac = Math.max(0, c.patience / c.maxPatience);
+    stars = speedFrac > 0.45 ? 5 : 4;
+    pool = stars === 5 ? REVIEW_5 : REVIEW_4;
+  } else if (a.frac >= 0.75) { stars = 3; pool = REVIEW_3; }
+  else if (a.frac >= 0.4) { stars = 2; pool = REVIEW_2; }
+  else { stars = 1; pool = REVIEW_1; }
+  return { stars, comment: pickFrom(pool) };
+}
+
+function starRow(n) {
+  let s = "";
+  for (let i = 1; i <= 5; i++) s += `<span class="${i <= n ? "on" : "off"}">★</span>`;
+  return s;
+}
+
+// Show the toast and fold the stars into the restaurant's rating. Daily runs
+// show toasts for flavour but don't move the persistent rating — a bad daily
+// shouldn't tank the restaurant you're building.
+function postReview(c, r) {
+  if (!isDailyRun) {
+    T.reviews.push(r.stars);
+    if (T.reviews.length > 20) T.reviews = T.reviews.slice(-20);
+    saveTycoon();
+    renderRating();
+    if (window.PokeAch && T.reviews.length >= 10 && rating() >= 4.8) PokeAch.unlock("ou-5star");
+  }
+  const toast = document.createElement("div");
+  toast.className = "ou-toast";
+  toast.innerHTML =
+    `<div class="ou-toast-head"><span>${c.tier.icon ? c.tier.icon + " " : ""}${c.custName} left a review</span>` +
+    `<span class="ou-toast-stars">${starRow(r.stars)}</span></div>` +
+    `<div class="ou-toast-body">“${r.comment}”</div>`;
+  toastsEl.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.add("hide");
+    setTimeout(() => toast.remove(), 400);
+  }, 5200);
 }
 
 // --- Rendering ----------------------------------------------------------
-function renderLives() {
-  const full = Math.max(0, S.lives);
-  livesEl.textContent = "❤️".repeat(full) + "🤍".repeat(Math.max(0, START_LIVES - full));
+function renderRating() {
+  starsEl.textContent = "★ " + rating().toFixed(1);
+}
+function renderMoney() {
+  scoreEl.textContent = "$" + S.score;
+}
+function renderTime() {
+  const t = Math.max(0, Math.ceil(S.timeLeft));
+  const str = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+  if (timeEl.textContent !== str) timeEl.textContent = str;
+  timeEl.classList.toggle("urgent", t <= 15);
+}
+// A little "+$12" that floats up off the bowl when a serve pays out.
+function cashFloater(money, perfect) {
+  if (!bowlWrapEl || money <= 0) return;
+  const f = document.createElement("span");
+  f.className = "ou-cash" + (perfect ? " perfect" : "");
+  f.textContent = "+$" + money;
+  bowlWrapEl.appendChild(f);
+  setTimeout(() => f.remove(), 950);
 }
 
 function updateCombo() {
@@ -455,6 +658,66 @@ function updatePans() {
   }
 }
 
+// --- Kai, the visible auto-worker ---------------------------------------
+// A teal stick figure in whites who stands at the end of the line and scoops
+// for you. He's drawn in the scene so hiring him visibly changes the store.
+function workerSVG() {
+  const L = 'stroke="#1b9092" stroke-width="5" stroke-linecap="round"';
+  return (
+    '<svg viewBox="0 0 64 130" width="100%" height="100%" aria-hidden="true">' +
+    '<line x1="32" y1="88" x2="20" y2="122" ' + L + "/>" +
+    '<line x1="32" y1="88" x2="44" y2="122" ' + L + "/>" +
+    '<line x1="32" y1="50" x2="32" y2="89" ' + L + "/>" +
+    // one arm out toward the pans, one down
+    '<line x1="32" y1="60" x2="52" y2="52" ' + L + "/>" +
+    '<line x1="32" y1="60" x2="18" y2="76" ' + L + "/>" +
+    // spoon in the outstretched hand
+    '<line x1="52" y1="52" x2="60" y2="46" stroke="#8b96a0" stroke-width="3" stroke-linecap="round"/>' +
+    '<ellipse cx="61" cy="44" rx="4" ry="3" fill="#c6ced4"/>' +
+    // apron over the spine
+    '<rect x="24" y="58" width="16" height="26" rx="5" fill="#ffffff" opacity="0.92"/>' +
+    // head + chef hat
+    '<circle cx="32" cy="34" r="15" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5"/>' +
+    '<circle cx="27" cy="34" r="2" fill="#333"/><circle cx="37" cy="34" r="2" fill="#333"/>' +
+    '<path d="M26 41 Q32 46 38 41" fill="none" stroke="#7a4a2a" stroke-width="2" stroke-linecap="round"/>' +
+    '<rect x="20" y="12" width="24" height="9" rx="3" fill="#fff" stroke="#dfe5e8"/>' +
+    '<circle cx="24" cy="10" r="6" fill="#fff"/><circle cx="32" cy="8" r="7" fill="#fff"/><circle cx="40" cy="10" r="6" fill="#fff"/>' +
+    "</svg>"
+  );
+}
+
+function renderWorker() {
+  const hired = workerInterval() > 0;
+  workerEl.classList.toggle("hidden", !hired);
+  if (hired && !workerEl.innerHTML) {
+    workerEl.innerHTML =
+      `<span class="ou-worker-tag">🧑‍🍳 Kai</span>` +
+      `<span class="ou-worker-stick">${workerSVG()}</span>`;
+  }
+}
+
+// One scoop: add a missing correct ingredient to the active customer's bowl.
+function workerAct() {
+  const c = activeCustomer();
+  if (!c || !S.running) return;
+  for (const cat of CATS) {
+    for (const name of c.recipe.items[cat]) {
+      if (!c.sel[cat].has(name)) {
+        c.sel[cat].add(name);
+        SFX.add();
+        workerEl.classList.remove("scooping");
+        void workerEl.offsetWidth; // restart the animation
+        workerEl.classList.add("scooping");
+        renderTicket();
+        updatePans();
+        updateCustomer(c);
+        if (isComplete(c)) serve(c);
+        return;
+      }
+    }
+  }
+}
+
 // --- Interaction --------------------------------------------------------
 function toggle(cat, name) {
   const c = activeCustomer();
@@ -479,19 +742,34 @@ function frame(t) {
   S.lastTime = t;
 
   if (S.running) {
-    for (const c of S.customers.slice()) {
-      // The customer you're serving loses patience at full speed; everyone
-      // waiting drains slower since you can only build one order at a time.
-      const rate = c.id === S.activeId ? 1 : WAIT_DRAIN;
-      c.patience -= dt * rate;
-      if (c.patience <= 0) { loseCustomer(c); continue; }
-      updateCustomer(c);
-    }
-    if (S.running) {
-      S.spawnTimer -= dt;
-      if (S.spawnTimer <= 0 && S.customers.length < MAX_CUSTOMERS) {
-        addCustomer();
-        S.spawnTimer = spawnInterval();
+    // The shift clock is the end condition now — walkouts cost money and
+    // stars, not the run.
+    S.timeLeft -= dt;
+    renderTime();
+    if (S.timeLeft <= 0) {
+      endGame();
+    } else {
+      // Kai, the auto-worker: every few seconds he scoops one correct
+      // ingredient into the active customer's bowl.
+      const wi = workerInterval();
+      if (wi) {
+        S.workerT += dt;
+        if (S.workerT >= wi) { S.workerT = 0; workerAct(); }
+      }
+      for (const c of S.customers.slice()) {
+        // The customer you're serving loses patience at full speed; everyone
+        // waiting drains slower. A comfy lobby slows the whole room down.
+        const rate = (c.id === S.activeId ? 1 : WAIT_DRAIN) * lobbyMult();
+        c.patience -= dt * rate;
+        if (c.patience <= 0) { loseCustomer(c); continue; }
+        updateCustomer(c);
+      }
+      if (S.running) {
+        S.spawnTimer -= dt;
+        if (S.spawnTimer <= 0 && S.customers.length < MAX_CUSTOMERS) {
+          addCustomer();
+          S.spawnTimer = spawnInterval();
+        }
       }
     }
   }
@@ -508,15 +786,20 @@ function startGame(mode) {
   best = loadBest(); // best is tracked per mode
   S.running = true;
   S.score = 0;
-  S.lives = START_LIVES;
   S.served = 0;
+  S.lost = 0;
   S.combo = 0;
+  S.timeLeft = SHIFT_LEN;
+  S.workerT = 0;
+  S.ratingStart = rating();
   S.customers = [];
   S.activeId = null;
   customersEl.innerHTML = "";
-  scoreEl.textContent = "0";
-  bestEl.textContent = best;
-  renderLives();
+  renderMoney();
+  bestEl.textContent = "$" + best;
+  renderRating();
+  renderTime();
+  renderWorker();
   updateCombo();
   overlay.classList.add("hidden");
   addCustomer(); // first customer right away
@@ -528,13 +811,22 @@ function startGame(mode) {
 function endGame() {
   S.running = false;
   SFX.over();
+  // Whoever's still in line just heads home — the shift is over, no penalty.
+  for (const c of S.customers.slice()) removeCustomer(c, "leaving");
   const isBest = S.score > best;
   if (isBest) { best = S.score; saveBest(best); }
-  bestEl.textContent = best;
+  bestEl.textContent = "$" + best;
+  // Shift earnings go into the bank that buys upgrades.
+  T.bank += S.score;
+  saveTycoon();
+  const rNow = rating();
+  const arrow = rNow > S.ratingStart + 0.01 ? "📈" : rNow < S.ratingStart - 0.01 ? "📉" : "";
   finalEl.innerHTML =
-    `You served <strong>${S.served}</strong> bowl${S.served === 1 ? "" : "s"} for <strong>${S.score}</strong> points` +
+    `You made <strong>$${S.score}</strong> — served ${S.served}, lost ${S.lost}` +
     ` <span class="ou-mode-tag">${S.mode === "hard" ? "Hard" : S.mode === "baby" ? "Baby" : "Normal"}</span>.` +
-    (isBest && S.score > 0 ? `<br><span class="ou-best">★ New best!</span>` : "");
+    `<br>★ ${S.ratingStart.toFixed(1)} → <strong>${rNow.toFixed(1)}</strong> ${arrow}` +
+    (isBest && S.score > 0 ? `<br><span class="ou-best">★ New best shift!</span>` : "");
+  renderShop();
 
   // Offer a leaderboard entry for any scoring shift (boards live on the hub).
   ouLbDone.classList.add("hidden");
@@ -556,6 +848,57 @@ function endGame() {
   screenStart.classList.add("hidden");
   screenOver.classList.remove("hidden");
   overlay.classList.remove("hidden");
+}
+
+// --- The upgrade shop (on the Shift Over screen) --------------------------
+function renderShop() {
+  if (!shopEl) return;
+  // Daily runs are stock-restaurant; no shopping between attempts.
+  if (isDailyRun) {
+    bankEl.classList.add("hidden");
+    shopEl.classList.add("hidden");
+    return;
+  }
+  bankEl.classList.remove("hidden");
+  shopEl.classList.remove("hidden");
+  bankEl.innerHTML = `💰 Bank: <strong>$${T.bank}</strong>`;
+  shopEl.innerHTML = "";
+  for (const key of Object.keys(UPGRADES)) {
+    const u = UPGRADES[key];
+    const lvl = T.upgrades[key] || 0;
+    const maxed = lvl >= u.costs.length;
+    const cost = maxed ? 0 : u.costs[lvl];
+    const card = document.createElement("div");
+    card.className = "ou-up" + (maxed ? " maxed" : "");
+    const pips = u.costs.map((_, i) => `<i class="${i < lvl ? "on" : ""}"></i>`).join("");
+    card.innerHTML =
+      `<span class="ou-up-icon">${u.icon}</span>` +
+      `<span class="ou-up-body"><strong>${u.name}</strong>` +
+      `<small>${maxed ? "Fully upgraded" : u.desc[lvl]}</small>` +
+      `<span class="ou-up-pips">${pips}</span></span>`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ou-up-buy";
+    if (maxed) {
+      btn.textContent = "MAX";
+      btn.disabled = true;
+    } else {
+      btn.textContent = "$" + cost;
+      btn.disabled = T.bank < cost;
+      btn.addEventListener("click", () => {
+        if (T.bank < cost) return;
+        T.bank -= cost;
+        T.upgrades[key] = lvl + 1;
+        saveTycoon();
+        SFX.bell();
+        if (window.PokeAch) PokeAch.unlock("ou-upgrade");
+        renderShop();
+        renderWorker(); // hiring Kai shows him immediately
+      });
+    }
+    card.appendChild(btn);
+    shopEl.appendChild(card);
+  }
 }
 
 // --- Leaderboard submission (viewed on the hub) ---------------------------
@@ -652,6 +995,15 @@ startNormalBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); sta
 startHardBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("hard"); });
 againBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame(S.mode); });
 
+// Serve whatever's in the bowl — mistakes and all. Less money, worse review,
+// but it beats letting them walk.
+serveBtn.addEventListener("click", () => {
+  const c = activeCustomer();
+  if (!c || !S.running) return;
+  if (bowlAccuracy(c).picked === 0) return; // no serving an empty bowl
+  serve(c);
+});
+
 // Leaderboard submission wiring (boards are viewed on the hub)
 ouLbSave.addEventListener("click", submitLbName);
 ouLbName.addEventListener("keydown", (e) => {
@@ -696,9 +1048,12 @@ if (isDailyRun) {
 }
 
 // Initial paint.
+T = loadTycoon();
 best = loadBest();
-bestEl.textContent = best;
-renderLives();
+bestEl.textContent = "$" + best;
+renderRating();
+renderTime();
+renderWorker();
 buildTables();
 buildStations();
 renderPans();

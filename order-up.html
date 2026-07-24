@@ -6,7 +6,7 @@
   <title>Order Up - Pokeworks</title>
   <meta name="description" content="Pokeworks Order Up rush minigame." />
   <link rel="stylesheet" href="styles.css?v=14" />
-  <link rel="stylesheet" href="order-up.css?v=9" />
+  <link rel="stylesheet" href="order-up.css?v=10" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -25,14 +25,18 @@
         <img src="pokeworks-logo-circle-1.png" alt="Pokeworks" class="logo" />
       </div>
       <div class="hud-right">
-        <div class="lives" id="lives" aria-label="Lives"></div>
+        <div class="ou-stars" id="ou-stars" aria-label="Restaurant rating">★ 3.0</div>
         <div class="score">
-          <span class="score-label">Score</span>
-          <span id="score" class="score-value">0</span>
+          <span class="score-label">Time</span>
+          <span id="ou-time" class="score-value ou-time">2:30</span>
+        </div>
+        <div class="score">
+          <span class="score-label">Shift</span>
+          <span id="score" class="score-value">$0</span>
         </div>
         <div class="score">
           <span class="score-label">Best</span>
-          <span id="best" class="score-value">0</span>
+          <span id="best" class="score-value">$0</span>
         </div>
       </div>
     </header>
@@ -42,6 +46,7 @@
       <div class="ou-scene">
         <div class="ou-tables" id="tables"></div>
         <div class="ou-customers" id="customers"></div>
+        <div class="ou-worker hidden" id="worker"></div>
         <div class="ou-guard"></div>
       </div>
 
@@ -60,6 +65,7 @@
         <div class="ou-bowl-wrap">
           <canvas id="bowl" width="560" height="320" class="ou-bowl"></canvas>
           <div class="ou-combo hidden" id="combo">🔥 x2</div>
+          <button id="serve-btn" class="ou-serve" type="button">🛎 Serve</button>
         </div>
       </div>
 
@@ -67,7 +73,7 @@
       <div class="ou-overlay" id="overlay">
         <div class="ou-panel" id="screen-start">
           <h1 class="overlay-title">Order Up</h1>
-          <p class="overlay-subtitle">Build each customer's bowl before they leave. Choose a mode:</p>
+          <p class="overlay-subtitle">Serve bowls for money — mistakes pay less and cost you stars. Bank it, buy upgrades, build a 5★ shop. Choose a mode:</p>
           <div class="ou-modes">
             <button id="start-baby" class="btn btn-secondary" type="button">Baby Mode</button>
             <button id="start-normal" class="btn" type="button">Recipes Shown</button>
@@ -77,6 +83,8 @@
         <div class="ou-panel hidden" id="screen-over">
           <h1 class="overlay-title">Shift Over</h1>
           <p class="ou-final" id="final"></p>
+          <p class="ou-bank hidden" id="ou-bank"></p>
+          <div class="ou-shop hidden" id="ou-shop"></div>
           <!-- Name entry for the hub leaderboard -->
           <div id="ou-lb-entry" class="lb-entry hidden">
             <p class="lb-entry-msg">🏆 Add your score to the leaderboard!</p>
@@ -87,20 +95,23 @@
           </div>
           <p id="ou-lb-done" class="lb-entry-msg lb-done hidden">✓ Saved! See the leaderboard on the hub.</p>
           <div class="gameover-actions">
-            <button id="again-btn" class="btn" type="button">Play Again</button>
+            <button id="again-btn" class="btn" type="button">Next Shift ▸</button>
             <a href="index.html" class="btn btn-secondary">Quit</a>
           </div>
         </div>
       </div>
+
+      <!-- Guest review notifications (top-right, like Secret Shopper's) -->
+      <div class="ou-toasts" id="ou-toasts"></div>
     </div>
   </div>
 
   <script src="transitions.js?v=3"></script>
   <script src="supabase-config.js?v=2"></script>
-  <script src="achievements.js?v=3"></script>
+  <script src="achievements.js?v=4"></script>
   <script src="bowl-render.js?v=3"></script>
-  <script src="daily.js?v=1"></script>
-  <script src="order-up.js?v=15"></script>
+  <script src="daily.js?v=2"></script>
+  <script src="order-up.js?v=16"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

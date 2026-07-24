@@ -31,6 +31,9 @@
     { id: "ou-first", game: "Order Up", icon: "🔔", title: "Open for Business", how: "Serve 1 customer." },
     { id: "ou-10", game: "Order Up", icon: "🌊", title: "Rush Survivor", how: "Serve 10 customers in one shift." },
     { id: "ou-hard", game: "Order Up", icon: "🤫", title: "From Memory", how: "Serve 5 customers in Hidden Recipes mode." },
+    { id: "ou-upgrade", game: "Order Up", icon: "🛠️", title: "Reinvested", how: "Buy your first restaurant upgrade." },
+    { id: "ou-vip", game: "Order Up", icon: "💎", title: "High Roller Service", how: "Serve a VIP customer a perfect bowl." },
+    { id: "ou-5star", game: "Order Up", icon: "🌟", title: "Five-Star Kitchen", how: "Reach a 4.8★ rating with 10+ reviews." },
     // Secret Shopper
     { id: "ss-first", game: "Secret Shopper", icon: "🕵️", title: "Clocked In", how: "Finish a shift." },
     { id: "ss-pass", game: "Secret Shopper", icon: "📋", title: "Passing Grade", how: "Finish a shift with a score of 80% or higher." },

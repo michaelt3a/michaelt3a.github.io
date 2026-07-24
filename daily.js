@@ -16,7 +16,7 @@
   // run" wouldn't mean anything.
   const GAMES = [
     { id: "bowl", label: "Bowl Builder", file: "bowl-builder.html", color: "#ee435b", unit: "blocks", setting: "medium" },
-    { id: "ou", label: "Order Up", file: "order-up.html", color: "#fd9f27", unit: "pts", setting: "normal" },
+    { id: "ou", label: "Order Up", file: "order-up.html", color: "#fd9f27", unit: "$", setting: "normal" },
   ];
 
   function dayString(d) {

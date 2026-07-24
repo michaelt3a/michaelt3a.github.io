@@ -441,3 +441,214 @@
 @media (prefers-reduced-motion: reduce) {
   .ou-cust.urgent { animation: none; }
 }
+
+/* ---------------- Tycoon update: money, stars, tiers, Kai, shop ----------- */
+
+/* Restaurant rating in the HUD */
+.ou-stars {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f5a623;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.ou-time.urgent { color: #e2574c; }
+
+/* Customer nametags — the wealth tier at a glance */
+.ou-nametag {
+  font-size: 0.6rem;
+  font-weight: 800;
+  background: #fff;
+  border-radius: 999px;
+  padding: 1px 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  color: #2a2f31;
+  white-space: nowrap;
+}
+.ou-nametag.t-foodie { background: #d9f4f4; color: #116a6c; }
+.ou-nametag.t-vip {
+  background: linear-gradient(180deg, #ffe9a8, #f5c542);
+  color: #6a4c00;
+  box-shadow: 0 0 10px rgba(245, 197, 66, 0.7);
+}
+
+/* Kai, the auto-worker, at the right end of the line */
+.ou-worker {
+  position: absolute;
+  right: 8px;
+  bottom: 16px;
+  z-index: 2;
+  width: 58px;
+  height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+.ou-worker.hidden { display: none; }
+.ou-worker-tag {
+  font-size: 0.58rem;
+  font-weight: 800;
+  background: #d9f4f4;
+  color: #116a6c;
+  border-radius: 999px;
+  padding: 1px 7px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+.ou-worker-stick { flex: 1 1 auto; width: 100%; }
+.ou-worker.scooping .ou-worker-stick { animation: ou-scoop 0.45s ease; }
+@keyframes ou-scoop {
+  0%, 100% { transform: rotate(0); }
+  35% { transform: rotate(-10deg) translateY(-4px); }
+  70% { transform: rotate(4deg); }
+}
+
+/* Serve button: hand over the bowl, mistakes and all */
+.ou-serve {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 5;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(238, 67, 91, 0.45);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+.ou-serve:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.ou-serve:active { transform: scale(0.94); }
+
+/* Cash floater off the bowl on a serve */
+.ou-cash {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  z-index: 6;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #2e9e5b;
+  text-shadow: 0 1px 0 #fff;
+  pointer-events: none;
+  animation: ou-cash-rise 0.9s ease-out forwards;
+}
+.ou-cash.perfect { color: #f5a623; font-size: 1.2rem; }
+@keyframes ou-cash-rise {
+  from { transform: translate(-50%, 0); opacity: 1; }
+  to { transform: translate(-50%, -42px); opacity: 0; }
+}
+
+/* Review toasts (borrowed from Secret Shopper, below the corner buttons) */
+.ou-toasts {
+  position: fixed;
+  top: 66px;
+  right: 14px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(300px, 86vw);
+  pointer-events: none;
+}
+.ou-toast {
+  background: #fff;
+  border-radius: 12px;
+  border-left: 5px solid #fd9f27;
+  padding: 10px 12px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transform: translateX(120%);
+  transition: transform 0.35s ease, opacity 0.3s ease;
+}
+.ou-toast.show { transform: none; }
+.ou-toast.hide { opacity: 0; transform: translateX(40%); }
+.ou-toast-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 800;
+  font-size: 0.78rem;
+  color: #2a2f31;
+}
+.ou-toast-stars { font-size: 0.95rem; letter-spacing: 2px; white-space: nowrap; }
+.ou-toast-stars .on { color: #fd9f27; }
+.ou-toast-stars .off { color: #d5d9dc; }
+.ou-toast-body {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #45585a;
+}
+
+/* The upgrade shop on the Shift Over screen */
+#screen-over { max-width: 560px; max-height: 86vh; overflow-y: auto; }
+.ou-bank {
+  margin: 0.1rem 0 0.6rem;
+  font-size: 1rem;
+  color: var(--text);
+}
+.ou-bank strong { color: #2e9e5b; }
+.ou-bank.hidden, .ou-shop.hidden { display: none; }
+.ou-shop {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+  text-align: left;
+}
+.ou-up {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: #f2f8f8;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 0.5rem 0.6rem;
+}
+.ou-up.maxed { opacity: 0.75; }
+.ou-up-icon { font-size: 1.3rem; }
+.ou-up-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ou-up-body strong { font-size: 0.8rem; color: var(--text); }
+.ou-up-body small { font-size: 0.66rem; color: var(--muted); line-height: 1.25; }
+.ou-up-pips { display: flex; gap: 3px; margin-top: 2px; }
+.ou-up-pips i {
+  width: 14px; height: 5px; border-radius: 3px;
+  background: #d5e2e2;
+}
+.ou-up-pips i.on { background: #22b2b4; }
+.ou-up-buy {
+  flex: none;
+  background: #2e9e5b;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+.ou-up-buy:disabled { background: #b9c6c6; cursor: default; }
+
+@media (max-width: 640px) {
+  .ou-shop { grid-template-columns: 1fr; }
+  .ou-stars { font-size: 0.9rem; }
+  .ou-worker { width: 46px; height: 92px; right: 4px; }
+  .ou-serve { font-size: 0.74rem; padding: 0.4rem 0.85rem; }
+}
+
+/* Phone HUD: tighter, and the Best tile yields its space mid-game (the
+   shift-over screen announces new bests anyway). */
+@media (max-width: 640px) {
+  .hud-right { gap: 0.7rem; }
+  .hud-right .score-label { font-size: 0.6rem; }
+  .hud-right .score-value { font-size: 1.02rem; }
+  .hud-right .score:last-child { display: none; }
+}
