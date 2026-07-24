@@ -146,6 +146,15 @@ const UPGRADES = {
     desc: ["Regulars talk you up, so richer customers arrive sooner", "The word is out, and VIPs seek you out"],
     costs: [400, 900],
   },
+  proficiency: {
+    icon: "🎓", name: "Staff training",
+    desc: [
+      "A trained crew works faster and starts earning while you are away",
+      "Seasoned pros keep the doors open on their own",
+      "A flawless team runs the whole place hands-off",
+    ],
+    costs: [500, 1100, 2200],
+  },
 };
 
 // --- Persistent restaurant chain (bank, stores, lifetime) ----------------
@@ -162,6 +171,8 @@ function freshTycoon() {
     stores: [freshStore()],
     current: 0,
     life: { served: 0, perfect: 0, walkouts: 0, earned: 0, shifts: 0 },
+    lastSeen: Date.now(), // for idle income while you're away
+    save: 3, // schema version
   };
 }
 let T = freshTycoon();
@@ -177,6 +188,7 @@ function loadTycoon() {
       });
       out.current = Math.min(out.current || 0, out.stores.length - 1);
       out.life = Object.assign(freshTycoon().life, t.life || {});
+      out.lastSeen = t.lastSeen || Date.now();
       return out;
     }
     if (t && t.upgrades) {
@@ -225,9 +237,136 @@ const FRANCHISE_COST = 1500;
 function franchiseReady() {
   return Object.keys(UPGRADES).every((k) => (store().upgrades[k] || 0) >= UPGRADES[k].costs.length);
 }
-// New upgrade effects
+// New upgrade effects. Staff training speeds the crew on top of Sharper knives.
 function tipMult() { return 1 + 0.3 * upgradeLvl("tipjar"); }
-function workerScoopTime() { return WORKER_SCOOP * (1 - 0.25 * upgradeLvl("speed")); }
+function workerScoopTime() {
+  return WORKER_SCOOP * (1 - 0.25 * upgradeLvl("speed")) * (1 - 0.1 * upgradeLvl("proficiency"));
+}
+
+// --- Economy: rent, idle income, and bankruptcy --------------------------
+// A store you're not standing in still runs on its own once it has staff, and
+// pays rent whether it's earning or not — so you can't just sit and do nothing.
+const RENT_PER_MIN = 9; // per store, per real minute, while the game is open
+const AUTO_PER_MIN = 22; // a fully-automated 5-star store's gross idle income/min
+const IDLE_CAP_H = 8; // offline idle income is capped at this many hours
+const BANKRUPT_LINE = -600; // bank below this and a location goes under
+let bankrupted = false; // guards against re-firing mid-resolution
+
+// How self-sufficient a store is (0..1): cooks + waiters + training. A store
+// with no staff earns nothing on its own and just bleeds rent.
+function storeAuto(st) {
+  const c = (st.upgrades.worker || 0) / 3;
+  const w = (st.upgrades.waiter || 0) / 3;
+  const p = (st.upgrades.proficiency || 0) / 3;
+  return Math.min(1, c * 0.4 + w * 0.4 + p * 0.2);
+}
+function storeRatingOf(st) {
+  const r = st.reviews;
+  if (!r || !r.length) return 3;
+  return r.reduce((a, b) => a + b, 0) / r.length;
+}
+function storeIdlePerMin(st) {
+  return AUTO_PER_MIN * storeAuto(st) * (storeRatingOf(st) / 5);
+}
+
+// Offline earnings: automated stores keep earning while you're away (capped,
+// and no rent is charged offline so leaving can never bankrupt you).
+function creditOffline() {
+  const now = Date.now();
+  if (!T.lastSeen) { T.lastSeen = now; return null; }
+  let secs = Math.max(0, (now - T.lastSeen) / 1000);
+  secs = Math.min(secs, IDLE_CAP_H * 3600);
+  T.lastSeen = now;
+  if (secs < 30) return null; // ignore trivial gaps
+  let gain = 0;
+  for (const st of T.stores) gain += storeIdlePerMin(st) * (secs / 60);
+  gain = Math.round(gain);
+  if (gain <= 0) return null;
+  T.bank += gain;
+  saveTycoon();
+  return { gain, mins: Math.round(secs / 60) };
+}
+
+// Ticks every second the page is open: other stores earn, every store pays
+// rent. Bankruptcy is only resolved between shifts, never mid-service.
+let ecoSaveT = 0;
+function economyTick() {
+  if (isDailyRun) return; // dailies are stock, no chain economy
+  let net = 0;
+  T.stores.forEach((st, i) => {
+    const playingHere = S.running && i === T.current;
+    if (!playingHere) net += storeIdlePerMin(st) / 60; // idle income/sec
+    net -= RENT_PER_MIN / 60; // rent/sec, every store
+  });
+  T.bank += net;
+  T.lastSeen = Date.now();
+  updateBankDisplays();
+  if (++ecoSaveT >= 5) { ecoSaveT = 0; saveTycoon(); }
+  if (!S.running && !bankrupted && T.bank < BANKRUPT_LINE) triggerBankruptcy();
+}
+
+// Bankruptcy closes the store that's dragging you down (the least self-
+// sufficient one), wipes its build, and clears the debt with a bailout. Your
+// other stores, your lifetime totals, and your saved progress all remain.
+function triggerBankruptcy() {
+  bankrupted = true;
+  let idx = 0, worst = Infinity;
+  T.stores.forEach((st, i) => { const a = storeAuto(st); if (a < worst) { worst = a; idx = i; } });
+  const lost = idx + 1;
+  if (T.stores.length > 1) {
+    T.stores.splice(idx, 1);
+    T.current = Math.min(T.current, T.stores.length - 1);
+  } else {
+    T.stores = [freshStore()]; // your last store reopens fresh
+    T.current = 0;
+  }
+  T.bank = 0; // the bailout clears the red
+  saveTycoon();
+  bankrupted = false;
+  showEventBanner("💸 Bankrupt! Location #" + lost + " closed. The books are back to zero.", 7000);
+  renderRating();
+  updateBankDisplays();
+  if (!screenShop.classList.contains("hidden")) renderShop();
+}
+
+// Chain-wide net cash flow per real minute (idle income minus rent).
+function netPerMin() {
+  let net = 0;
+  T.stores.forEach((st, i) => {
+    const playing = S.running && i === T.current;
+    if (!playing) net += storeIdlePerMin(st);
+    net -= RENT_PER_MIN;
+  });
+  return net;
+}
+function bankLineHTML() {
+  const npm = Math.round(netPerMin());
+  return (
+    "💰 Bank: <strong>$" + Math.floor(T.bank).toLocaleString() + "</strong> " +
+    "<span class='ou-net " + (npm >= 0 ? "up" : "down") + "'>" +
+    (npm >= 0 ? "📈 +$" + npm : "📉 -$" + Math.abs(npm)) + "/min</span>" +
+    (T.stores.length > 1 ? " <span class='ou-fr-badge'>🏪 +" + (T.stores.length - 1) * 10 + "% chain</span>" : "")
+  );
+}
+function updateBankDisplays() {
+  const bl = document.getElementById("ou-bankline");
+  if (bl) bl.innerHTML = bankLineHTML();
+  if (bankEl && screenShop && !screenShop.classList.contains("hidden")) bankEl.innerHTML = bankLineHTML();
+}
+
+// --- Backup codes (so hard work survives a cleared browser or a new device) --
+function exportSave() {
+  try { return btoa(unescape(encodeURIComponent(JSON.stringify(T)))); } catch (e) { return ""; }
+}
+function importSave(code) {
+  try {
+    const obj = JSON.parse(decodeURIComponent(escape(atob(String(code).trim()))));
+    if (!obj || !Array.isArray(obj.stores)) return false;
+    localStorage.setItem(TYCOON_KEY, JSON.stringify(obj));
+    T = loadTycoon(); // re-normalize and migrate the imported save
+    return true;
+  } catch (e) { return false; }
+}
 
 // --- State --------------------------------------------------------------
 let best = 0; // best for the current mode (set once S exists)
@@ -351,8 +490,8 @@ function pickRecipe() {
 // stages, and the ramp is gentle so late-shift customers stay reasonable.
 function maxPatienceFor(recipe, tier) {
   const t = (tier && tier.pat) || 1;
-  const ramp = Math.max(0.85, 1 - S.served * 0.009);
-  return Math.round((recipeSize(recipe) * 4 + 46) * ramp * t);
+  const ramp = Math.max(0.9, 1 - S.served * 0.007);
+  return Math.round((recipeSize(recipe) * 5 + 62) * ramp * t);
 }
 function spawnInterval() {
   const base = Math.max(4.5, 10.5 - S.served * 0.22);
@@ -1309,11 +1448,14 @@ function applyLive() {
 
 function renderShop() {
   if (!shopEl) return;
-  bankEl.innerHTML =
-    `💰 Bank: <strong>$${T.bank}</strong>` +
-    (T.stores.length > 1
-      ? ` <span class="ou-fr-badge">🏪 +${(T.stores.length - 1) * 10}% chain bonus</span>`
-      : "");
+  bankEl.innerHTML = bankLineHTML();
+  const note = document.getElementById("ou-econ-note");
+  if (note) {
+    note.textContent =
+      "Rent runs $" + RENT_PER_MIN + "/min per location while you're open. " +
+      "Staffed, well-rated stores earn on their own — even while you're away. " +
+      "Fall too far in the red and a location goes under.";
+  }
 
   // Store tabs: each location is its own build. Switching is a between-shifts
   // decision, so the tabs lock while a shift is running.
@@ -1522,6 +1664,50 @@ async function submitLbName() {
   ouLbDone.classList.remove("hidden");
 }
 
+// --- Save backup / restore wiring ---------------------------------------
+const saveBackupBtn = document.getElementById("save-backup");
+const saveRestoreBtn = document.getElementById("save-restore");
+const saveCodeEl = document.getElementById("save-code");
+const saveMsgEl = document.getElementById("save-msg");
+if (saveBackupBtn) {
+  saveBackupBtn.addEventListener("click", () => {
+    const code = exportSave();
+    saveCodeEl.readOnly = true;
+    saveCodeEl.classList.remove("hidden");
+    saveCodeEl.value = code;
+    saveCodeEl.focus();
+    saveCodeEl.select();
+    const done = () => { saveMsgEl.textContent = "✓ Backup code copied. Keep it somewhere safe."; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(done, () => {
+        saveMsgEl.textContent = "Select the code above and copy it (Ctrl/Cmd+C).";
+      });
+    } else {
+      try { document.execCommand("copy"); done(); }
+      catch (e) { saveMsgEl.textContent = "Select the code above and copy it."; }
+    }
+  });
+}
+if (saveRestoreBtn) {
+  saveRestoreBtn.addEventListener("click", () => {
+    // First tap reveals an empty box; second tap (with a code) restores.
+    if (saveCodeEl.classList.contains("hidden") || saveCodeEl.readOnly || !saveCodeEl.value.trim()) {
+      saveCodeEl.readOnly = false;
+      saveCodeEl.value = "";
+      saveCodeEl.classList.remove("hidden");
+      saveCodeEl.focus();
+      saveMsgEl.textContent = "Paste your backup code above, then tap Restore again.";
+      return;
+    }
+    if (importSave(saveCodeEl.value)) {
+      saveMsgEl.textContent = "✓ Restored! Reloading…";
+      setTimeout(() => location.reload(), 700);
+    } else {
+      saveMsgEl.textContent = "That code didn't work. Check you copied all of it.";
+    }
+  });
+}
+
 // --- Wiring -------------------------------------------------------------
 // Picking a ticket style opens the pace popup: Endless or Rush.
 let pendingBase = "normal"; // which ticket style the popup starts
@@ -1644,4 +1830,19 @@ buildTables(tableCount());
 buildStations();
 renderPans();
 B.draw(bctx, BW, BH, emptySel());
+
+// Economy: credit offline earnings, show a welcome-back note, then run the
+// live rent/idle clock while the page is open. (Dailies stay out of all this.)
+if (!isDailyRun) {
+  const back = creditOffline();
+  const w = document.getElementById("ou-welcome");
+  if (w && back) {
+    w.textContent = "👋 Welcome back! Your stores earned $" + back.gain.toLocaleString() +
+      " over " + (back.mins >= 60 ? Math.round(back.mins / 60) + "h" : back.mins + " min") + " away.";
+    w.classList.remove("hidden");
+  }
+  updateBankDisplays();
+  setInterval(economyTick, 1000);
+}
+
 requestAnimationFrame(frame);

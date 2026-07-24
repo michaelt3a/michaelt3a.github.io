@@ -6,7 +6,7 @@
   <title>Order Up - Pokeworks</title>
   <meta name="description" content="Pokeworks Order Up rush minigame." />
   <link rel="stylesheet" href="styles.css?v=14" />
-  <link rel="stylesheet" href="order-up.css?v=20" />
+  <link rel="stylesheet" href="order-up.css?v=21" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -92,10 +92,12 @@
         <div class="ou-panel" id="screen-start">
           <h1 class="overlay-title">Order Up</h1>
           <p class="overlay-subtitle">Serve bowls for money. Mistakes pay less and cost you stars. Bank it, buy upgrades, build a 5★ shop. Choose a mode:</p>
+          <p class="ou-welcome hidden" id="ou-welcome"></p>
           <div class="ou-modes">
             <button id="start-normal" class="btn" type="button">Recipes Shown</button>
             <button id="start-hard" class="btn btn-secondary" type="button">Hidden Recipes</button>
           </div>
+          <p class="ou-bankline" id="ou-bankline"></p>
         </div>
 
         <!-- After picking a mode: play it relaxed or against the clock -->
@@ -143,6 +145,16 @@
           <p class="ou-bank" id="ou-bank"></p>
           <div class="ou-stores" id="ou-stores"></div>
           <div class="ou-shop" id="ou-shop"></div>
+          <p class="ou-econ-note" id="ou-econ-note"></p>
+          <div class="ou-save">
+            <p class="ou-save-head">💾 Your progress saves to this browser automatically.</p>
+            <div class="ou-save-row">
+              <button id="save-backup" class="btn btn-secondary" type="button">Back up</button>
+              <button id="save-restore" class="btn btn-secondary" type="button">Restore</button>
+            </div>
+            <textarea id="save-code" class="ou-save-code hidden" rows="2" placeholder="Paste a backup code, then tap Restore again"></textarea>
+            <p id="save-msg" class="ou-save-msg"></p>
+          </div>
           <div class="gameover-actions">
             <button id="shop-done" class="btn" type="button">Done</button>
           </div>
@@ -159,7 +171,7 @@
   <script src="achievements.js?v=6"></script>
   <script src="bowl-render.js?v=3"></script>
   <script src="daily.js?v=3"></script>
-  <script src="order-up.js?v=28"></script>
+  <script src="order-up.js?v=29"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

@@ -1160,3 +1160,48 @@
   .ou-waiter .ou-stick { width: 24px; height: 44px; }
   .ou-entrance { height: 16px; }
 }
+
+/* -------- Economy: bank line, welcome-back, rent note, save backup -------- */
+.ou-bankline {
+  margin: 0.7rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ou-net { font-size: 0.8rem; font-weight: 800; }
+.ou-net.up { color: #2e9e5b; }
+.ou-net.down { color: #e2574c; }
+.ou-welcome {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2e9e5b;
+}
+.ou-welcome.hidden { display: none; }
+.ou-econ-note {
+  margin: 0.2rem auto 0.8rem;
+  max-width: 420px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.ou-save {
+  border-top: 1px solid var(--border);
+  padding-top: 0.7rem;
+  margin-bottom: 0.6rem;
+}
+.ou-save-head { margin: 0 0 0.5rem; font-size: 0.76rem; color: var(--muted); }
+.ou-save-row { display: flex; gap: 0.5rem; justify-content: center; }
+.ou-save-code {
+  width: 100%;
+  margin-top: 0.5rem;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.66rem;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  resize: vertical;
+  word-break: break-all;
+}
+.ou-save-code.hidden { display: none; }
+.ou-save-msg { margin: 0.4rem 0 0; font-size: 0.72rem; font-weight: 700; color: var(--teal-dark); min-height: 1em; }
