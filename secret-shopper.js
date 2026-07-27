@@ -26,6 +26,16 @@ const timerEl = document.getElementById("timer");
 const timerFill = document.getElementById("timer-fill");
 const overlay = document.getElementById("overlay");
 const startBtn = document.getElementById("start-btn");
+const examBtn = document.getElementById("exam-btn");
+const overlaySub = document.getElementById("overlay-sub");
+const rankBadgeEl = document.getElementById("rank-badge");
+const rankNameEl = document.getElementById("rank-name");
+const repFillEl = document.getElementById("rep-fill");
+const repLabelEl = document.getElementById("rep-label");
+const careerStatsEl = document.getElementById("career-stats");
+const repGainEl = document.getElementById("rep-gain");
+const repLineFill = document.getElementById("rep-line-fill");
+const repNextEl = document.getElementById("rep-next");
 const scorecardEl = document.getElementById("scorecard");
 const auditHeader = document.getElementById("audit-header");
 const auditRows = document.getElementById("audit-rows");
@@ -34,13 +44,25 @@ const againBtn = document.getElementById("again-btn");
 const bestEl = document.getElementById("best");
 
 // --- Config ---------------------------------------------------------------
-const GUESTS_PER_SHIFT = 3;
 const BEST_KEY = "pokeworks-shopper-best";
-const QUESTION_SECS = 7; // thinking time on regular prompts
-const MENU_SECS = 9; // menu quizzes get a little longer to read
-const WALKIN_SECS = 3; // a waiting guest wants acknowledging FAST
+const CAREER_KEY = "pokeworks-shopper-career";
 const STRIKES_TO_LEAVE = 3; // wrong answers before a normal guest storms out
 const SILENCE_TO_LEAVE = 2; // consecutive timeouts before they give up on you
+const EXAM_PASS_PCT = 80; // audit score needed to pass a promotion exam
+
+// Career ladder. Each rank tunes the whole shift: guest count, timer windows
+// (qSecs = regular prompts, menuSecs = menu quizzes, walkinSecs = the walk-in
+// event), where the menu-question difficulty ramp starts, and how many of the
+// guests are secretly shoppers. `repNeed` is the lifetime reputation required
+// to unlock the promotion exam INTO this rank.
+const RANKS = [
+  { name: "Trainee",         badge: "🧢", repNeed: 0,    guests: 3, qSecs: 7,   menuSecs: 9,   walkinSecs: 3,   qLevelBase: 1, shoppers: 1 },
+  { name: "Team Member",     badge: "🥄", repNeed: 100,  guests: 4, qSecs: 7,   menuSecs: 9,   walkinSecs: 3,   qLevelBase: 1, shoppers: 1 },
+  { name: "Shift Lead",      badge: "⭐", repNeed: 300,  guests: 4, qSecs: 6.5, menuSecs: 8.5, walkinSecs: 2.7, qLevelBase: 2, shoppers: 1 },
+  { name: "Asst. Manager",   badge: "📋", repNeed: 600,  guests: 5, qSecs: 6.5, menuSecs: 8,   walkinSecs: 2.7, qLevelBase: 2, shoppers: 1 },
+  { name: "Store Manager",   badge: "🏬", repNeed: 1000, guests: 5, qSecs: 6,   menuSecs: 7.5, walkinSecs: 2.4, qLevelBase: 2, shoppers: 2 },
+  { name: "District Legend", badge: "👑", repNeed: 1500, guests: 6, qSecs: 6,   menuSecs: 7,   walkinSecs: 2.4, qLevelBase: 3, shoppers: 2 },
+];
 const SPOT = { door: 2, greet: 24, counter: 46, table: 10, tableTalk: 26, wait: 32 };
 const CUST_SHIRTS = ["#22b2b4", "#fd9f27", "#7c5cff", "#39a85b", "#e8709b", "#4c7dd1"];
 
@@ -181,13 +203,44 @@ const REPLY_TABLE = ["Delicious, thank you!", "So good. I'm telling everyone.", 
 const REPLY_SLOW = ["That took a while...", "I was about to send a search party.", "Finally..."];
 const LEAVE_LINES = ["That's it. I'm leaving!", "Forget it, I'll go somewhere else.", "Unbelievable. I'm out."];
 
+// --- Career (persistent) --------------------------------------------------
+function defaultCareer() {
+  return { v: 1, rank: 0, rep: 0, shifts: 0, stats: { shoppersImpressed: 0, stormOuts: 0, perfectGuests: 0 } };
+}
+function loadCareer() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CAREER_KEY));
+    if (c && c.v === 1 && RANKS[c.rank]) {
+      return { ...defaultCareer(), ...c, stats: { ...defaultCareer().stats, ...(c.stats || {}) } };
+    }
+  } catch { /* fall through to a fresh career */ }
+  return defaultCareer();
+}
+function saveCareer() {
+  try { localStorage.setItem(CAREER_KEY, JSON.stringify(career)); } catch { /* ignore */ }
+}
+let career = loadCareer();
+function nextRank() { return career.rank < RANKS.length - 1 ? RANKS[career.rank + 1] : null; }
+function examReady() { const n = nextRank(); return !!n && career.rep >= n.repNeed; }
+
 // --- State ------------------------------------------------------------------
 let running = false;
 let audit = []; // { guest, key, label, pts, got }
 let guestMeta = []; // { label, dine, shopper, leftEarly } per guest
-let shopperIdx = 0; // which guest is secretly the shopper
+let shopperSet = new Set(); // which guest(s) are secretly shoppers
+let shiftRank = 0; // rank config in effect for the current shift
+let shiftGuests = 3; // guest count of the current shift (kept for the scorecard)
+let examMode = false; // promotion exam shift: next rank's difficulty, pass/fail
 let custShirt = CUST_SHIRTS[0];
 let custSitting = false;
+
+// Rank config in effect right now (exam shifts run at the NEXT rank).
+const cfg = () => RANKS[shiftRank];
+// Menu questions ramp from the rank's base level up to 3 across the shift.
+function qLevel(idx) {
+  const R = cfg();
+  return Math.min(3, R.qLevelBase + Math.floor((idx * 3) / R.guests));
+}
 
 // --- Sound --------------------------------------------------------------
 let audioCtx = null;
@@ -592,7 +645,7 @@ const EVENTS = {
         { t: "(Someone else will get it)", good: false, r: "So the puddle just... lives here now?" },
         { t: "Toss one napkin at it from here", good: false, r: "One napkin is not going to cut it." },
         { t: "“Careful, everyone!” and keep working", good: false, r: "Warning us is not the same as mopping..." },
-      ], QUESTION_SECS);
+      ], cfg().qSecs);
       if (r.good) await say(empBubble, "All cleaned up. Sorry about that!", 1200);
       await say(custBubble, r.timedOut ? "Someone is going to slip on that..." : r.reply, 1200);
       return r;
@@ -609,7 +662,7 @@ const EVENTS = {
         { t: "(Let it ring forever)", good: false, r: "Are you... going to get that?" },
         { t: "Answer it and chat for five minutes", good: false, r: "...I'm still standing right here." },
         { t: "(Unplug the phone)", good: false, r: "Did you just unplug the phone?!" },
-      ], QUESTION_SECS);
+      ], cfg().qSecs);
       if (!r.good) moodDown();
       await say(custBubble, r.timedOut ? "That ringing is driving me crazy." : r.reply, 1100);
       return r;
@@ -628,7 +681,7 @@ const EVENTS = {
         { t: "(Don't look up)", good: false, r: "Um... hello? Anyone?" },
         { t: "“There's a line. Wait.”", good: false, r: "...There are only two of us here." },
         { t: "(Groan audibly)", good: false, r: "Wow. Charming place." },
-      ], WALKIN_SECS);
+      ], cfg().walkinSecs);
       doorEl.classList.remove("open");
       // The reaction comes from the guest who just walked in.
       await say(extraBubble, r.timedOut ? "Guess I'll just... stand here, then." : r.reply, 1200);
@@ -647,7 +700,7 @@ const EVENTS = {
         { t: "“No refunds.”", good: false, r: "It's YOUR mistake and there are no refunds?!" },
         { t: "(Shrug)", good: false, r: "Did you seriously just shrug at me?" },
         { t: "“Are you sure you ordered that?”", good: false, r: "YES, I know what I ordered!" },
-      ], QUESTION_SECS);
+      ], cfg().qSecs);
       if (r.good) moodUp();
       else custMood("mad");
       await say(custBubble, r.timedOut ? "Hello?! My bowl is wrong!" : r.reply, 1200);
@@ -667,7 +720,7 @@ const EVENTS = {
         { t: "(Walk away mid-sentence)", good: false, r: "...And they just walked off. Nice." },
         { t: "“Is this going anywhere?”", good: false, r: "Well, EXCUSE me for sharing." },
         { t: "“Cool cool cool.” (Look at the door)", good: false, r: "You're not even listening, are you?" },
-      ], QUESTION_SECS);
+      ], cfg().qSecs);
       if (r.good) {
         await say(empBubble, pick(["No way. Through the child lock?!", "Stop, that's incredible."]), 1300);
         await say(custBubble, "Right?! You get it.", 1000);
@@ -684,7 +737,7 @@ const EVENTS = {
 // --- One guest's visit ------------------------------------------------------
 async function runGuest(idx, personaKey) {
   const P = PERSONALITIES[personaKey];
-  const isShopper = idx === shopperIdx;
+  const isShopper = shopperSet.has(idx);
   const dine = Math.random() < P.dineChance;
   const meta = { label: P.label, dine, shopper: isShopper, leftEarly: false };
   guestMeta.push(meta);
@@ -745,7 +798,7 @@ async function runGuest(idx, personaKey) {
     hush();
   };
 
-  note(`Guest ${idx + 1} of ${GUESTS_PER_SHIFT} is arriving…`);
+  note(`Guest ${idx + 1} of ${shiftGuests} is arriving…`);
   await wait(500);
 
   // 1-2. They come in through the door, then greet fast + warm.
@@ -775,7 +828,7 @@ async function runGuest(idx, personaKey) {
 
   // 3. Pleasant greeting before the order.
   await say(custBubble, personaKey === "rush" ? "Hi, I'd like to order. Fast!" : "Hi, I'd like to order.", 1200);
-  const pre = track(await ask("Take their order. How do you start?", mix(PREORDER, 3), QUESTION_SECS));
+  const pre = track(await ask("Take their order. How do you start?", mix(PREORDER, 3), cfg().qSecs));
   put("preOrder", pre.good);
   if (pre.good) {
     if (pre.reply) await say(custBubble, pre.reply, 1000);
@@ -786,17 +839,17 @@ async function runGuest(idx, personaKey) {
   if (fedUp()) return stormOut();
 
   // 4. First time visiting?
-  const ft = track(await ask("Anything to ask before the order?", mix(FIRSTTIME, 3), QUESTION_SECS));
+  const ft = track(await ask("Anything to ask before the order?", mix(FIRSTTIME, 3), cfg().qSecs));
   put("firstTime", ft.good);
   if (ft.good) await say(custBubble, pick(FIRSTTIME_REPLIES), 1200);
   else if (ft.timedOut) { moodDown(); await say(custBubble, TIMEOUT_LINE.firstTime, 1000); }
   else if (ft.reply) { moodDown(); await say(custBubble, ft.reply, 1000); }
   if (fedUp()) return stormOut();
 
-  // 5. Menu knowledge, harder with each guest.
-  const q = menuQuestion(idx + 1);
+  // 5. Menu knowledge, ramping toward level 3 across the shift.
+  const q = menuQuestion(qLevel(idx));
   await say(custBubble, q.text, 1600);
-  const mk = track(await ask(q.text, q.options, MENU_SECS));
+  const mk = track(await ask(q.text, q.options, cfg().menuSecs));
   put("menuKnow", mk.good);
   if (mk.good) {
     moodUp();
@@ -814,14 +867,14 @@ async function runGuest(idx, personaKey) {
   if (fedUp()) return stormOut();
 
   // 6. Upsell.
-  const up = track(await ask("They've picked their bowl. Anything else?", mix(UPSELL, 3), QUESTION_SECS));
+  const up = track(await ask("They've picked their bowl. Anything else?", mix(UPSELL, 3), cfg().qSecs));
   put("upsell", up.good);
   if (up.timedOut) { moodDown(); await say(custBubble, TIMEOUT_LINE.upsell, 1000); }
   else if (up.reply) { if (!up.good) moodDown(); await say(custBubble, up.reply, 1100); }
   if (fedUp()) return stormOut();
 
   // 7. Rewards / app.
-  const rw = track(await ask("Before ringing them up…", mix(REWARDS, 3), QUESTION_SECS));
+  const rw = track(await ask("Before ringing them up…", mix(REWARDS, 3), cfg().qSecs));
   put("rewards", rw.good);
   if (rw.timedOut) { moodDown(); await say(custBubble, TIMEOUT_LINE.rewards, 1000); }
   else if (rw.reply) { if (!rw.good) moodDown(); await say(custBubble, rw.reply, 1100); }
@@ -861,7 +914,7 @@ async function runGuest(idx, personaKey) {
   }
 
   // 9. Parting comment.
-  const part = track(await ask("Hand it over and say goodbye:", mix(PARTING, 3), QUESTION_SECS));
+  const part = track(await ask("Hand it over and say goodbye:", mix(PARTING, 3), cfg().qSecs));
   put("parting", part.good);
   if (part.good) {
     moodUp();
@@ -877,7 +930,7 @@ async function runGuest(idx, personaKey) {
     await walkTo(custWrap, SPOT.table, 1700);
     setSitting(true);
     await wait(350);
-    const dr = await ask("They're dining in. What do you do?", mix(DINING, 3), QUESTION_SECS);
+    const dr = await ask("They're dining in. What do you do?", mix(DINING, 3), cfg().qSecs);
     put("dining", dr.good);
     if (!dr.good && dr.reply) await say(custBubble, dr.reply, 1100);
     if (dr.good) {
@@ -963,13 +1016,20 @@ function scoopStage(recipe, secs) {
 }
 
 // --- The shift ----------------------------------------------------------
-async function runShift() {
-  if (window.PokeStreak) PokeStreak.mark();
+async function runShift(exam) {
   if (running) return;
+  if (window.PokeStreak) PokeStreak.mark();
   running = true;
   audit = [];
   guestMeta = [];
-  shopperIdx = Math.floor(Math.random() * GUESTS_PER_SHIFT);
+  examMode = !!exam && examReady();
+  shiftRank = Math.min(career.rank + (examMode ? 1 : 0), RANKS.length - 1);
+  const R = cfg();
+  shiftGuests = R.guests;
+  shopperSet = new Set();
+  while (shopperSet.size < Math.min(R.shoppers, shiftGuests)) {
+    shopperSet.add(Math.floor(Math.random() * shiftGuests));
+  }
 
   empStick.innerHTML = stickmanSVG("#ee435b", "ok");
   placeAt(empWrap, 74);
@@ -980,10 +1040,17 @@ async function runShift() {
   scorecardEl.classList.add("hidden");
   hush();
 
-  const cast = pickN(Object.keys(PERSONALITIES), GUESTS_PER_SHIFT);
-  for (let i = 0; i < GUESTS_PER_SHIFT; i++) {
-    await runGuest(i, cast[i]);
-    if (i < GUESTS_PER_SHIFT - 1) {
+  if (examMode) {
+    note(`📋 PROMOTION EXAM — impress corporate at ${EXAM_PASS_PCT}%+ to make ${R.name}!`);
+    await wait(2000);
+  }
+
+  // Shifts can outnumber the personality pool, so repeats are allowed —
+  // shuffle the pool and cycle through it.
+  const pool = shuffle(Object.keys(PERSONALITIES));
+  for (let i = 0; i < shiftGuests; i++) {
+    await runGuest(i, pool[i % pool.length]);
+    if (i < shiftGuests - 1) {
       note("Next guest incoming…");
       await wait(1000);
     }
@@ -998,7 +1065,7 @@ function finishShift() {
   let total = 0;
   auditRows.innerHTML = "";
 
-  for (let g = 0; g < GUESTS_PER_SHIFT; g++) {
+  for (let g = 0; g < shiftGuests; g++) {
     const rows = audit.filter((a) => a.guest === g);
     let gEarned = 0;
     let gTotal = 0;
@@ -1010,6 +1077,10 @@ function finishShift() {
     total += gTotal;
 
     const meta = guestMeta[g] || { label: "?", dine: false };
+    // Lifetime career stats, per guest.
+    if (meta.leftEarly) career.stats.stormOuts++;
+    if (gTotal > 0 && gEarned === gTotal) career.stats.perfectGuests++;
+    if (meta.shopper && !meta.leftEarly && gTotal > 0 && gEarned / gTotal >= 0.8) career.stats.shoppersImpressed++;
     const bits = [`Guest ${g + 1} · ${meta.label} · ${meta.dine ? "Dine-in" : "Takeout"}`];
     if (meta.shopper) bits.push("🕵️ the secret shopper!");
     if (meta.leftEarly) bits.push("stormed out");
@@ -1030,15 +1101,49 @@ function finishShift() {
   }
 
   const pct = total ? Math.round((earned / total) * 100) : 0;
-  auditHeader.textContent = `HOSPITALITY ${pct}% (${earned}/${total})`;
+  auditHeader.textContent = `${examMode ? "PROMOTION EXAM · " : ""}HOSPITALITY ${pct}% (${earned}/${total})`;
+
+  // Reputation: pct scaled by shift size, so bigger shifts pay more. A perfect
+  // 3-guest shift = 100 rep; a perfect 6-guest shift = 200.
+  const gain = Math.round((pct * shiftGuests) / 3);
+  career.rep += gain;
+  career.shifts += 1;
+  let promoted = false;
+  if (examMode) {
+    if (pct >= EXAM_PASS_PCT) { career.rank++; promoted = true; }
+    examMode = false;
+  }
+  saveCareer();
 
   gradeEl.textContent =
+    promoted ? `🎉 Exam passed at ${pct}%! Corporate promoted you to ${RANKS[career.rank].name}.` :
+    shiftRank > career.rank ? `Exam failed — ${pct}%, and corporate wanted ${EXAM_PASS_PCT}%. Your rep is safe; retake anytime.` :
     pct === 100 ? "Perfect audit! The secret shopper is telling everyone about you." :
     pct >= 90 ? "Outstanding! Corporate is framing this one." :
     pct >= 80 ? "Great shift. The secret shopper left smiling." :
     pct >= 60 ? "Decent, but the audit found some gaps." :
     pct >= 40 ? "Rough shift. Time to reread the training binder." :
     "Yikes. Corporate wants a word…";
+
+  // Rep line: +gain, then the bar animates from where you were to where you
+  // are within the current promotion window.
+  const n = nextRank();
+  const cur = RANKS[career.rank];
+  const frac = (rep) => {
+    if (!n) return 1;
+    return Math.max(0, Math.min(1, (rep - cur.repNeed) / (n.repNeed - cur.repNeed)));
+  };
+  repGainEl.textContent = `+${gain} ★`;
+  repNextEl.textContent =
+    promoted ? `Now ${cur.badge} ${cur.name} — ${career.rep} ★` :
+    !n ? `${career.rep} ★ · top of the ladder` :
+    career.rep >= n.repNeed ? `Promotion exam unlocked: ${n.name}!` :
+    `${career.rep}/${n.repNeed} ★ to ${n.name}`;
+  repLineFill.style.transition = "none";
+  repLineFill.style.width = frac(career.rep - gain) * 100 + "%";
+  void repLineFill.offsetWidth;
+  repLineFill.style.transition = "width 1.1s ease";
+  repLineFill.style.width = frac(career.rep) * 100 + "%";
 
   const prevBest = loadBestPct();
   if (pct > prevBest) saveBestPct(pct);
@@ -1056,9 +1161,47 @@ function finishShift() {
   scorecardEl.scrollTop = 0;
 }
 
+// --- Career card (start overlay) ----------------------------------------
+function renderCareer() {
+  const cur = RANKS[career.rank];
+  const n = nextRank();
+  rankBadgeEl.textContent = cur.badge;
+  rankNameEl.textContent = cur.name;
+
+  let fill = 1;
+  if (n) fill = Math.max(0, Math.min(1, (career.rep - cur.repNeed) / (n.repNeed - cur.repNeed)));
+  repFillEl.style.width = fill * 100 + "%";
+  repLabelEl.textContent =
+    !n ? `${career.rep} ★ · top of the ladder` :
+    examReady() ? `Promotion exam unlocked — ${n.name} awaits!` :
+    `${career.rep}/${n.repNeed} ★ to ${n.name}`;
+
+  const s = career.stats;
+  careerStatsEl.textContent = career.shifts === 0
+    ? "Your career starts with the first shift."
+    : `${career.shifts} shift${career.shifts === 1 ? "" : "s"} · best ${loadBestPct()}% · ` +
+      `${s.shoppersImpressed} shopper${s.shoppersImpressed === 1 ? "" : "s"} impressed · ${s.perfectGuests} perfect guests`;
+
+  overlaySub.textContent =
+    `${cur.guests} guests are coming, and ` +
+    (cur.shoppers > 1 ? `${cur.shoppers} of them are secret shoppers` : "one of them is the secret shopper") +
+    " — you won't know which. Ace the hospitality audit.";
+
+  examBtn.classList.toggle("hidden", !examReady());
+  if (n && examReady()) examBtn.textContent = `📋 Promotion Exam: ${n.name}`;
+}
+
 // --- Wiring -------------------------------------------------------------
-startBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); runShift(); });
-againBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); runShift(); });
+startBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); runShift(false); });
+examBtn.addEventListener("click", () => { ensureAudio(); SFX.fanfare(); runShift(true); });
+// The scorecard hands you back to the career card, where the next shift (or
+// a promotion exam) begins.
+againBtn.addEventListener("click", () => {
+  ensureAudio();
+  scorecardEl.classList.add("hidden");
+  renderCareer();
+  overlay.classList.remove("hidden");
+});
 
 // Initial paint
 tableEl.innerHTML = tableSVG();
@@ -1068,3 +1211,4 @@ custWrap.classList.add("offstage");
 placeAt(custWrap, SPOT.door);
 placeAt(empWrap, 74);
 showBest();
+renderCareer();
