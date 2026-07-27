@@ -66,12 +66,19 @@ const RANKS = [
 const SPOT = { door: 2, greet: 24, counter: 46, table: 10, tableTalk: 26, wait: 32 };
 const CUST_SHIRTS = ["#22b2b4", "#fd9f27", "#7c5cff", "#39a85b", "#e8709b", "#4c7dd1"];
 
-// Personalities change pacing, dialogue, and whether they dine in.
+// Personalities change pacing, dialogue, and whether they dine in. `minRank`
+// gates the newer faces behind career progress (index into RANKS).
 const PERSONALITIES = {
-  friendly: { label: "Friendly", greetSecs: 5, scoopSecs: 8, dineChance: 0.65 },
-  rush: { label: "In a rush", greetSecs: 3.5, scoopSecs: 6.5, dineChance: 0 },
-  chatty: { label: "Chatty", greetSecs: 5, scoopSecs: 8, dineChance: 0.75 },
-  grumpy: { label: "Grumpy", greetSecs: 4.5, scoopSecs: 7.5, dineChance: 0.5 },
+  friendly: { label: "Friendly", greetSecs: 5, scoopSecs: 8, dineChance: 0.65, minRank: 0 },
+  rush: { label: "In a rush", greetSecs: 3.5, scoopSecs: 6.5, dineChance: 0, minRank: 0 },
+  chatty: { label: "Chatty", greetSecs: 5, scoopSecs: 8, dineChance: 0.75, minRank: 0 },
+  grumpy: { label: "Grumpy", greetSecs: 4.5, scoopSecs: 7.5, dineChance: 0.5, minRank: 0 },
+  // The Regular knows YOU — they order "the usual" and expect you to remember
+  // the first bowl you made this shift. Never the first guest of the day.
+  regular: { label: "The Regular", greetSecs: 5, scoopSecs: 8, dineChance: 0.5, minRank: 1 },
+  // The Critic always dines in, always gets a level-3 menu question, and every
+  // audit line on their visit counts DOUBLE.
+  critic: { label: "The Critic", greetSecs: 4.5, scoopSecs: 7, dineChance: 1, minRank: 3 },
 };
 
 // Audit line definitions (label may embed the greet window at runtime).
@@ -231,6 +238,8 @@ let shopperSet = new Set(); // which guest(s) are secretly shoppers
 let shiftRank = 0; // rank config in effect for the current shift
 let shiftGuests = 3; // guest count of the current shift (kept for the scorecard)
 let examMode = false; // promotion exam shift: next rank's difficulty, pass/fail
+let shiftOrders = []; // recipes ordered so far this shift (The Regular's memory test)
+let corporateIdx = -1; // guest index the District Manager observes, -1 = none
 let custShirt = CUST_SHIRTS[0];
 let custSitting = false;
 
@@ -634,6 +643,36 @@ function menuQuestion(level) {
 }
 
 // --- Random events --------------------------------------------------------
+// The health inspector's spot-check pool: one right way, three write-ups.
+const INSPECTOR_QUIZ = [
+  { text: "You just handled raw salmon. What now?", options: [
+    { t: "Wash hands and change gloves", good: true },
+    { t: "Wipe hands on the apron", good: false },
+    { t: "Give the gloves a quick rinse", good: false },
+    { t: "Keep going — it's all fish anyway", good: false },
+  ] },
+  { text: "Where does raw protein live in the fridge?", options: [
+    { t: "Sealed, on the bottom shelf", good: true },
+    { t: "Top shelf, easy to reach", good: false },
+    { t: "Wherever there's room", good: false },
+    { t: "Next to the toppings", good: false },
+  ] },
+  { text: "A guest mentions a shellfish allergy. You…", options: [
+    { t: "Fresh gloves, clean utensils, flag the order", good: true },
+    { t: "Scoop around the shrimp carefully", good: false },
+    { t: "Tell them they can pick it out", good: false },
+    { t: "Nothing — the shrimp is cooked", good: false },
+  ] },
+  { text: "The rice is past its hold time. You…", options: [
+    { t: "Toss it and start a fresh batch", good: true },
+    { t: "Give it a stir and keep serving", good: false },
+    { t: "Taste it — seems fine", good: false },
+    { t: "Crank the warmer up", good: false },
+  ] },
+];
+
+// `minRank` gates events behind career progress; `usesExtra` marks events that
+// borrow the extra actor (skipped when the District Manager is on the floor).
 const EVENTS = {
   spill: {
     when: "before",
@@ -671,6 +710,7 @@ const EVENTS = {
   },
   walkin: {
     when: "before",
+    usesExtra: true,
     async run() {
       extraStick.innerHTML = stickmanSVG(pick(CUST_SHIRTS), "ok");
       extraWrap.classList.remove("hidden");
@@ -688,6 +728,55 @@ const EVENTS = {
       return r;
     },
     label: "Acknowledged the waiting guest",
+  },
+  rushpair: {
+    when: "before",
+    minRank: 2,
+    usesExtra: true,
+    async run() {
+      extraStick.innerHTML = stickmanSVG(pick(CUST_SHIRTS), "ok");
+      extraWrap.classList.remove("hidden");
+      await enterDoor(extraWrap);
+      walkTo(extraWrap, SPOT.wait, 1200);
+      await say(extraBubble, "Hi! There's two of us — two orders!", 1300);
+      const r = await ask("A PAIR walks in mid-order. Triage!", [
+        { t: "“Welcome in! I'll take you both right after this bowl.”", good: true, r: "Perfect. We'll browse the menu!" },
+        { t: "Try juggling all three orders at once", good: false, r: "You're already mixing our bowls up..." },
+        { t: "“Can you two come back in ten?”", good: false, r: "Come BACK? We just walked in." },
+        { t: "(Avoid eye contact until they sort themselves out)", good: false, r: "We can see you seeing us." },
+      ], cfg().walkinSecs + 1);
+      await say(extraBubble, r.timedOut ? "Are we invisible? Seriously?" : r.reply, 1200);
+      await exitDoor(extraWrap, 1000);
+      extraWrap.classList.add("hidden");
+      return r;
+    },
+    label: "Triaged the two-guest rush",
+  },
+  inspector: {
+    when: "before",
+    minRank: 2,
+    usesExtra: true,
+    pts: 3,
+    async run() {
+      extraStick.innerHTML = stickmanSVG("#8a97a5", "warn");
+      extraWrap.classList.remove("hidden");
+      await enterDoor(extraWrap);
+      await walkTo(extraWrap, SPOT.wait, 1200);
+      await say(extraBubble, "Health inspector. One spot-check question.", 1400);
+      const quiz = pick(INSPECTOR_QUIZ);
+      const r = await ask(quiz.text, quiz.options, cfg().qSecs);
+      await say(
+        extraBubble,
+        r.good ? pick(["Textbook. This place runs tight.", "Correct. Carry on!"]) :
+        r.timedOut ? "Silence is NOT an answer on my form." :
+        "Hmm. That's going on the report.",
+        1400
+      );
+      await exitDoor(extraWrap, 1000);
+      extraWrap.classList.add("hidden");
+      return r;
+    },
+    label: "Passed the health inspector's spot check",
   },
   complaint: {
     when: "after",
@@ -746,9 +835,11 @@ async function runGuest(idx, personaKey) {
   let strikes = 0;
   let silences = 0;
   const logged = new Set();
+  // The Critic's visit counts double on the audit sheet.
+  const ptsMult = personaKey === "critic" ? 2 : 1;
   const put = (key, got, ptsOverride, labelOverride) => {
     const def = ITEMDEF[key];
-    const pts = ptsOverride != null ? ptsOverride : (def ? def.pts : 2);
+    const pts = (ptsOverride != null ? ptsOverride : (def ? def.pts : 2)) * ptsMult;
     const label = labelOverride || (def ? def.label(P.greetSecs) : key);
     log(idx, key, pts, got, label);
     logged.add(key);
@@ -770,9 +861,20 @@ async function runGuest(idx, personaKey) {
   placeAt(custWrap, SPOT.door);
   hush();
 
+  // The District Manager may be observing this guest (Store Manager rank up).
+  const corporate = idx === corporateIdx;
+
+  // Event pool: rank-gated, chatty guests always ramble, and extra-actor
+  // events stand down while the District Manager has the floor.
   const eventKey = personaKey === "chatty"
     ? "smalltalk"
-    : pick(["spill", "phone", "walkin", "complaint"]);
+    : pick(Object.keys(EVENTS).filter((k) => {
+        const ev = EVENTS[k];
+        if (k === "smalltalk") return false;
+        if ((ev.minRank || 0) > shiftRank) return false;
+        if (ev.usesExtra && corporate) return false;
+        return true;
+      }));
   const event = EVENTS[eventKey];
 
   // Storms out mid-visit: mark everything not yet logged as missed.
@@ -780,6 +882,7 @@ async function runGuest(idx, personaKey) {
     meta.leftEarly = true;
     for (const key of CORE_ORDER) if (!logged.has(key)) put(key, false);
     if (dine && !logged.has("dining")) put("dining", false);
+    if (corporate && !logged.has("corporate")) put("corporate", false, 4, "Flawless under corporate's eye");
     custMood("mad");
     SFX.storm();
     note("They've had enough…");
@@ -798,6 +901,16 @@ async function runGuest(idx, personaKey) {
     hush();
   };
 
+  // The District Manager arrives first and posts up to watch the whole visit.
+  if (corporate) {
+    note("The District Manager just walked in…");
+    extraStick.innerHTML = stickmanSVG("#5a6770", "warn");
+    extraWrap.classList.remove("hidden");
+    await enterDoor(extraWrap);
+    await walkTo(extraWrap, SPOT.wait, 1400);
+    await say(extraBubble, "Corporate visit. Pretend I'm not here.", 1500);
+  }
+
   note(`Guest ${idx + 1} of ${shiftGuests} is arriving…`);
   await wait(500);
 
@@ -805,6 +918,8 @@ async function runGuest(idx, personaKey) {
   await enterDoor(custWrap);
   walkTo(custWrap, SPOT.greet, 2000);
   if (personaKey === "rush") say(custBubble, "In a hurry, sorry!", 1400);
+  else if (personaKey === "critic") say(custBubble, "I review restaurants. Impress me.", 1500);
+  else if (personaKey === "regular") say(custBubble, "Aloha! It's me again!", 1400);
   const greet = track(await ask(
     personaKey === "rush" ? "A customer rushes in. Quick!" : "A customer just walked in!",
     mix(GREETS, 3),
@@ -846,14 +961,33 @@ async function runGuest(idx, personaKey) {
   else if (ft.reply) { moodDown(); await say(custBubble, ft.reply, 1000); }
   if (fedUp()) return stormOut();
 
-  // 5. Menu knowledge, ramping toward level 3 across the shift.
-  const q = menuQuestion(qLevel(idx));
+  // 5. Menu knowledge. The Regular tests your MEMORY instead: their "usual"
+  // is the first bowl made this shift. The Critic always grills at level 3.
+  const usualTest = personaKey === "regular" && shiftOrders.length > 0;
+  let q;
+  if (usualTest) {
+    const usual = shiftOrders[0];
+    q = {
+      recipe: usual,
+      correct: usual.name,
+      text: "I'll have the usual! You remember my bowl, right?",
+      options: [{ t: usual.name, good: true }]
+        .concat(pickN(RECIPES.filter((r) => r.name !== usual.name), 3).map((r) => ({ t: r.name, good: false }))),
+    };
+  } else {
+    q = menuQuestion(personaKey === "critic" ? 3 : qLevel(idx));
+  }
+  shiftOrders.push(q.recipe);
   await say(custBubble, q.text, 1600);
-  const mk = track(await ask(q.text, q.options, cfg().menuSecs));
-  put("menuKnow", mk.good);
+  const mk = track(await ask(
+    usualTest ? "Their usual is the FIRST bowl you made this shift…" : q.text,
+    q.options,
+    cfg().menuSecs
+  ));
+  put("menuKnow", mk.good, usualTest ? 5 : null, usualTest ? "Remembered the regular's usual" : null);
   if (mk.good) {
     moodUp();
-    await say(custBubble, pick([
+    await say(custBubble, usualTest ? "That's the one! Best service in town." : pick([
       `Exactly! ${q.correct} it is. One ${q.recipe.name}, please!`,
       `Yep, ${q.correct}! You know your menu. I'll take the ${q.recipe.name}.`,
       `Right on. Okay, one ${q.recipe.name} for me!`,
@@ -862,7 +996,9 @@ async function runGuest(idx, personaKey) {
     moodDown();
     await say(custBubble, mk.timedOut
       ? `Uh, hello? Anyway... one ${q.recipe.name}, please.`
-      : `It's actually ${q.correct}... I'll still take a ${q.recipe.name}.`, 1500);
+      : usualTest
+        ? `It's the ${q.correct}! I order it every single time...`
+        : `It's actually ${q.correct}... I'll still take a ${q.recipe.name}.`, 1500);
   }
   if (fedUp()) return stormOut();
 
@@ -883,7 +1019,7 @@ async function runGuest(idx, personaKey) {
   // Surprise event (pre-serve ones fire here).
   if (event.when === "before") {
     const er = track(await event.run());
-    put(eventKey, er.good, 2, event.label);
+    put(eventKey, er.good, event.pts || 2, event.label);
     if (fedUp()) return stormOut();
   }
 
@@ -909,7 +1045,7 @@ async function runGuest(idx, personaKey) {
   // Post-serve event (complaint).
   if (event.when === "after") {
     const er = track(await event.run());
-    put(eventKey, er.good, 2, event.label);
+    put(eventKey, er.good, event.pts || 2, event.label);
     if (fedUp()) return stormOut();
   }
 
@@ -949,6 +1085,16 @@ async function runGuest(idx, personaKey) {
     note("They're taking it to go…");
     SFX.bell();
     await exitDoor(custWrap, 1600);
+  }
+
+  // The District Manager delivers the verdict once the guest is gone.
+  if (corporate) {
+    put("corporate", strikes === 0, 4, "Flawless under corporate's eye");
+    await say(extraBubble, strikes === 0
+      ? "Not a single slip. HQ will hear about this."
+      : "We'll talk about what I saw. Later.", 1600);
+    await exitDoor(extraWrap, 1100);
+    extraWrap.classList.add("hidden");
   }
   hush();
 }
@@ -1045,11 +1191,22 @@ async function runShift(exam) {
     await wait(2000);
   }
 
+  // At Store Manager and up, the District Manager sometimes drops in to
+  // observe one guest's visit from start to finish.
+  shiftOrders = [];
+  corporateIdx = shiftRank >= 4 && Math.random() < 0.35
+    ? Math.floor(Math.random() * shiftGuests)
+    : -1;
+
   // Shifts can outnumber the personality pool, so repeats are allowed —
-  // shuffle the pool and cycle through it.
-  const pool = shuffle(Object.keys(PERSONALITIES));
+  // shuffle the rank-unlocked pool and cycle through it.
+  const pool = shuffle(Object.keys(PERSONALITIES).filter((k) => PERSONALITIES[k].minRank <= shiftRank));
+  const cast = [];
+  for (let i = 0; i < shiftGuests; i++) cast.push(pool[i % pool.length]);
+  // The Regular's memory test needs an earlier order to remember.
+  if (cast[0] === "regular") [cast[0], cast[1]] = [cast[1], cast[0]];
   for (let i = 0; i < shiftGuests; i++) {
-    await runGuest(i, pool[i % pool.length]);
+    await runGuest(i, cast[i]);
     if (i < shiftGuests - 1) {
       note("Next guest incoming…");
       await wait(1000);
