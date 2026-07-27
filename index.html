@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=17" />
+  <link rel="stylesheet" href="menu.css?v=18" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -40,7 +40,21 @@
       </a>
 
       <a class="card" data-game="signature-works" href="placeholder-1.html">
-        <div class="card-icon icon-signature"></div>
+        <div class="card-icon icon-signature">
+          <!-- The 9 real signature bowls on a slow conveyor; the strip is
+               duplicated by script below so the loop is seamless. -->
+          <div class="sig-strip" aria-hidden="true">
+            <img src="sig-bowl-1.avif" alt="" loading="lazy" decoding="async" />
+            <img src="sig-bowl-2.avif" alt="" loading="lazy" decoding="async" />
+            <img src="sig-bowl-3.avif" alt="" loading="lazy" decoding="async" />
+            <img src="sig-bowl-4.avif" alt="" loading="lazy" decoding="async" />
+            <img src="sig-bowl-5.avif" alt="" loading="lazy" decoding="async" />
+            <img src="sig-bowl-6.avif" alt="" loading="lazy" decoding="async" />
+            <img src="sig-bowl-7.avif" alt="" loading="lazy" decoding="async" />
+            <img src="sig-bowl-8.avif" alt="" loading="lazy" decoding="async" />
+            <img src="sig-bowl-9.avif" alt="" loading="lazy" decoding="async" />
+          </div>
+        </div>
         <div class="card-body">
           <h2 class="card-title">Signature Works</h2>
           <p class="card-desc">Build the 9 signature bowls from memory.</p>
@@ -124,6 +138,12 @@
   <script>
     PlayerCard.init(document.getElementById("pc-strip"));
     DailyCard.render(document.getElementById("dc"));
+
+    // Double the signature-bowl strip so its -50% scroll loops seamlessly.
+    {
+      const strip = document.querySelector(".sig-strip");
+      strip.innerHTML += strip.innerHTML;
+    }
 
     // Tag the most recently updated game (see data-latest on .cards).
     {

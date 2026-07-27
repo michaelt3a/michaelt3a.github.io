@@ -97,8 +97,43 @@ body {
   background: linear-gradient(135deg, #ee435b, #22b2b4);
 }
 
+/* Signature Works wears the 9 real bowls on a slow conveyor. The photos sit
+   on pure white, so the banner is white too and the strip blends seamlessly;
+   a brand-gradient baseline keeps it in the family of the other card colors. */
 .icon-signature {
-  background: linear-gradient(135deg, #22b2b4, #ee435b);
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+}
+.icon-signature::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #22b2b4, #ee435b);
+}
+.sig-strip {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  animation: sig-conveyor 42s linear infinite;
+}
+/* Uniform per-image margin (not flex gap) so every bowl is one equal unit and
+   the -50% translate lands exactly one copy over — a seamless loop. */
+.sig-strip img {
+  height: 86%;
+  width: auto;
+  margin-right: 14px;
+}
+@keyframes sig-conveyor {
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sig-strip { animation: none; }
 }
 
 .icon-order {
