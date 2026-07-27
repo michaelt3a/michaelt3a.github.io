@@ -93,8 +93,24 @@ body {
   height: 130px;
 }
 
+/* Scene banners: each card draws its game as an inline SVG over its brand
+   gradient. The SVG covers the banner and crops symmetrically on narrow
+   cards, so the action stays centered. */
+.card-icon > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .icon-bowl {
   background: linear-gradient(135deg, #ee435b, #22b2b4);
+}
+/* The next ingredient block hovers, deciding when to drop. */
+.bbi-float {
+  animation: bbi-float 2.2s ease-in-out infinite;
+}
+@keyframes bbi-float {
+  50% { transform: translateY(7px); }
 }
 
 /* Signature Works wears the 9 real bowls on a slow conveyor. The photos sit
@@ -139,9 +155,33 @@ body {
 .icon-order {
   background: linear-gradient(135deg, #f0a52c, #ee435b);
 }
+/* Fresh earnings bob over the counter, slightly out of phase. */
+.oui-coin {
+  animation: oui-coin 2.6s ease-in-out infinite;
+}
+.oui-coin2 {
+  animation: oui-coin 2.6s ease-in-out 0.9s infinite;
+}
+@keyframes oui-coin {
+  50% { transform: translateY(-6px); }
+}
 
 .icon-shopper {
   background: linear-gradient(135deg, #7c5cff, #ee435b);
+}
+/* The audit lens sweeps the lineup, lingering on each guest. */
+.ssi-lens {
+  animation: ssi-lens 7s ease-in-out infinite;
+}
+@keyframes ssi-lens {
+  0%, 14% { transform: translateX(0); }
+  30%, 48% { transform: translateX(80px); }
+  64%, 82% { transform: translateX(160px); }
+  100% { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bbi-float, .oui-coin, .oui-coin2, .ssi-lens { animation: none; }
 }
 
 .icon-placeholder {
