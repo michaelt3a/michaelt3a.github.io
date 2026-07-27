@@ -154,6 +154,11 @@
       noRank: true,
       best() {
         const n = lsNum("pokeworks-shopper-best");
+        // Career rank, mirrored from secret-shopper.js's RANKS ladder.
+        const SS_RANKS = ["🧢 Trainee", "🥄 Team Member", "⭐ Shift Lead", "📋 Asst. Manager", "🏬 Store Manager", "👑 District Legend"];
+        const c = lsJson("pokeworks-shopper-career");
+        const rank = c && SS_RANKS[c.rank] ? SS_RANKS[c.rank] : null;
+        if (rank) return { value: rank + (n ? " · " + n + "%" : ""), n: n };
         return n ? { value: n + "%", n: n } : null;
       },
     },

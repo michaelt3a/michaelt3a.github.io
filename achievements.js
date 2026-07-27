@@ -41,6 +41,10 @@
     { id: "ss-pass", game: "Secret Shopper", icon: "📋", title: "Passing Grade", how: "Finish a shift with a score of 80% or higher." },
     { id: "ss-noleave", game: "Secret Shopper", icon: "🚪", title: "Zero Doors Slammed", how: "Finish a shift without any guest leaving early." },
     { id: "ss-perfect", game: "Secret Shopper", icon: "🏅", title: "Flawless Audit", how: "Finish a shift with a score of 100%." },
+    { id: "ss-promoted", game: "Secret Shopper", icon: "🎖️", title: "Moving Up", how: "Pass a promotion exam." },
+    { id: "ss-exam100", game: "Secret Shopper", icon: "💯", title: "Aced the Exam", how: "Score 100% on a promotion exam." },
+    { id: "ss-manager", game: "Secret Shopper", icon: "🏬", title: "Store Manager", how: "Climb the career ladder to Store Manager." },
+    { id: "ss-legend", game: "Secret Shopper", icon: "👑", title: "District Legend", how: "Reach the top of the career ladder." },
     // Arcade-wide
     { id: "meta-all", game: "Arcade", icon: "🕹️", title: "Arcade Regular", how: "Play all 4 games at least once." },
     { id: "meta-streak7", game: "Arcade", icon: "🔥", title: "Seven Straight", how: "Play on 7 days in a row." },

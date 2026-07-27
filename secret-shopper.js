@@ -1311,6 +1311,13 @@ function finishShift() {
     if (pct >= 80) PokeAch.unlock("ss-pass");
     if (pct === 100) PokeAch.unlock("ss-perfect");
     if (guestMeta.every((m) => !m.leftEarly)) PokeAch.unlock("ss-noleave");
+    if (promoted) {
+      PokeAch.unlock("ss-promoted");
+      if (pct === 100) PokeAch.unlock("ss-exam100");
+    }
+    // Rank milestones re-check every shift, so they can't be missed.
+    if (career.rank >= 4) PokeAch.unlock("ss-manager");
+    if (career.rank === RANKS.length - 1) PokeAch.unlock("ss-legend");
   }
 
   if (pct === 100) SFX.fanfare();
