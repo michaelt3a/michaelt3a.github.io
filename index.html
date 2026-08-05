@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=22" />
+  <link rel="stylesheet" href="menu.css?v=23" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -302,9 +302,9 @@
        and challenges.js draws today's quest set from its seeded streams -->
   <script src="daily.js?v=5"></script>
   <script src="points.js?v=1"></script>
-  <script src="challenges.js?v=2"></script>
+  <script src="challenges.js?v=3"></script>
   <script src="hub-leaderboard.js?v=7"></script>
-  <script src="player-card.js?v=7"></script>
+  <script src="player-card.js?v=8"></script>
   <script src="daily-card.js?v=5"></script>
   <script>
     PlayerCard.init(document.getElementById("pc-strip"));
@@ -323,8 +323,10 @@
       const body = document.getElementById("ch-body");
       const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
         ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      const ps = PokeChallenges.playStreak();
       let html =
-        '<p class="ch-note">Finish these to earn points for the <a href="shop.html">🎁 Rewards Shop</a>. ' +
+        '<p class="ch-note">' + (ps > 1 ? "🔥 " + ps + " days in a row. " : "") +
+        'Finish these to earn points for the <a href="shop.html">🎁 Rewards Shop</a>. ' +
         "New set every day.</p>";
       for (const g of PokeChallenges.active()) {
         html += '<h3 class="ch-game">' + esc(g.label) + "</h3>";
@@ -341,7 +343,8 @@
       html +=
         '<p class="ch-note ch-note-foot">You also get +' + PokeChallenges.DAILY_PTS +
         " for finishing the Daily Challenge (on Bowl Builder and Order Up days), and +" +
-        PokeChallenges.TOP_PTS + " if you were #1 on yesterday's board.</p>";
+        PokeChallenges.TOP_PTS + " if you were #1 on yesterday's board. Play a customer game every day and each " +
+        PokeChallenges.STREAK_DAYS + "th day in a row pays +" + PokeChallenges.STREAK_PTS + ".</p>";
       body.innerHTML = html;
     }
 

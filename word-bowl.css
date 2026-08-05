@@ -99,6 +99,10 @@
 .wb-key.near { background: var(--gold, #ffd15a); border-color: var(--gold, #ffd15a); color: #4a3a00; }
 .wb-key.miss { background: rgba(255, 255, 255, 0.04); color: var(--on-dark-muted); border-color: transparent; }
 
+.wb-share {
+  margin-top: 0.2rem;
+}
+
 /* Start / played overlay */
 .wb-overlay {
   position: absolute;

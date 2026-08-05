@@ -449,7 +449,8 @@ body {
   white-space: nowrap;
 }
 
-.pc-streak {
+.pc-streak,
+.pc-points {
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -459,6 +460,13 @@ body {
   background: var(--chip);
   border-left: 4px solid var(--gold);
   color: var(--on-dark);
+}
+.pc-points {
+  border-left-color: #39a85b;
+}
+.pc-points a {
+  color: var(--gold);
+  font-weight: 700;
 }
 
 .pc-streak-ico {

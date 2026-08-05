@@ -209,6 +209,8 @@
     if (window.PokePoints) {
       PokePoints.add(pts, won ? "Word Bowl: solved in " + tries : "Word Bowl: good try");
     }
+    if (window.PokeChallenges) PokeChallenges.markPlay(); // counts toward the 7-day bonus
+    shareBtn.hidden = false;
     const bonus = TIER_PTS[word.tier] ? " It was a " + TIER_NAME[word.tier] + ", so it paid extra." : "";
     statusEl.textContent = won
       ? "🎉 " + word.w + " in " + tries + "! +" + pts + " pts." + bonus
@@ -221,6 +223,36 @@
     streakEl.textContent = s.career.streak;
   }
 
+  // --- Sharing -------------------------------------------------------------
+  // The classic paste-into-the-group-chat grid.
+  const shareBtn = document.getElementById("wb-share");
+  const shareDoneBtn = document.getElementById("wb-share-done");
+
+  function shareText() {
+    const s = load();
+    const word = todaysWord();
+    const EMOJI = { good: "🟩", near: "🟨", miss: "⬛" };
+    const lines = s.day.guesses.map((g) => grade(g, word.w).map((m) => EMOJI[m]).join(""));
+    const score = s.day.won ? s.day.guesses.length : "X";
+    return "Word Bowl " + score + "/" + TRIES + "\n" + lines.join("\n") + "\n\n" +
+      location.origin + location.pathname;
+  }
+  function doShare(btn) {
+    const text = shareText();
+    const copied = () => {
+      const old = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = old; }, 1400);
+    };
+    if (navigator.share) {
+      navigator.share({ text: text }).catch(() => { /* user backed out, that's fine */ });
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(copied, copied);
+    }
+  }
+  shareBtn.addEventListener("click", () => doShare(shareBtn));
+  shareDoneBtn.addEventListener("click", () => doShare(shareDoneBtn));
+
   // --- Boot ----------------------------------------------------------------
   const boot = load();
   paintStats(boot);
@@ -230,6 +262,7 @@
       ? "You got today's word in " + boot.day.guesses.length + " (+" + boot.day.pts + " pts). New word tomorrow."
       : "Today's word got away. New word tomorrow.";
     startBtn.hidden = true;
+    shareDoneBtn.hidden = false;
     statusEl.textContent = boot.day.won ? "Solved. Back tomorrow!" : "Out of tries. Back tomorrow!";
   } else if (boot.day.guesses.length) {
     // Mid-game reload: put the board back and keep going.

@@ -11,8 +11,10 @@
 // PokeChallenges.report(game, metrics); nothing here hooks into gameplay.
 (function () {
   const KEY = "pokeworks-quests";
-  const DAILY_PTS = 50;  // finishing a customer-game Daily Challenge
-  const TOP_PTS = 150;   // being #1 on yesterday's daily board
+  const DAILY_PTS = 50;   // finishing a customer-game Daily Challenge
+  const TOP_PTS = 150;    // being #1 on yesterday's daily board
+  const STREAK_PTS = 200; // every 7th day in a row with a customer game played
+  const STREAK_DAYS = 7;
   const CUSTOMER = { bowl: true, ou: true };
   // How many challenges each game rolls per day, by tier.
   const PICKS = { starter: 1, mid: 2, hard: 2 };
@@ -76,10 +78,18 @@
     if (!s || typeof s !== "object") s = {};
     if (s.date !== Daily.today()) {
       // New day: fresh progress. Claims survive (pruned) so yesterday's top
-      // bonus can't double-pay and today's daily award stays once-only.
-      s = { date: Daily.today(), progress: {}, done: {}, claims: prune(s.claims || {}) };
+      // bonus can't double-pay and today's daily award stays once-only. The
+      // play streak lives across days by definition.
+      s = {
+        date: Daily.today(),
+        progress: {},
+        done: {},
+        claims: prune(s.claims || {}),
+        streak: s.streak || { last: null, count: 0 },
+      };
       save(s);
     }
+    if (!s.streak) s.streak = { last: null, count: 0 };
     return s;
   }
   function save(s) {
@@ -119,9 +129,33 @@
     toast("+" + pts + " pts", why);
   }
 
+  // Every customer game calls this once per finished run (Word Bowl calls it
+  // directly). One play a day keeps the streak alive; every 7th day in a row
+  // pays a bonus.
+  function markPlay() {
+    const s = load();
+    const t = Daily.today();
+    if (s.streak.last === t) return;
+    s.streak.count = s.streak.last === Daily.yesterday() ? s.streak.count + 1 : 1;
+    s.streak.last = t;
+    save(s);
+    if (s.streak.count > 0 && s.streak.count % STREAK_DAYS === 0) {
+      award(STREAK_PTS, s.streak.count + " days in a row");
+    }
+  }
+  // Current streak, for the hub sheet and player card. Stale once a day is
+  // missed, same rule as the arcade streak.
+  function playStreak() {
+    const s = load();
+    if (!s.streak.last) return 0;
+    return s.streak.last === Daily.today() || s.streak.last === Daily.yesterday()
+      ? s.streak.count : 0;
+  }
+
   // Called by a customer game at the end of every run with that run's numbers.
   function report(game, metrics) {
     if (!POOLS[game]) return;
+    markPlay();
     const s = load();
     for (const q of todaysSet(game)) {
       if (s.done[q.id]) continue;
@@ -232,7 +266,11 @@
     }, 5200);
   }
 
-  window.PokeChallenges = { report, active, checkDailyAward, checkTopBonus, DAILY_PTS, TOP_PTS };
+  window.PokeChallenges = {
+    report, active, markPlay, playStreak,
+    checkDailyAward, checkTopBonus,
+    DAILY_PTS, TOP_PTS, STREAK_PTS, STREAK_DAYS,
+  };
 
   // Catch awards that landed elsewhere (e.g. the daily finished on a game
   // page before this script's page was opened).

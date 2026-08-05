@@ -6,7 +6,7 @@
   <title>Word Bowl - Pokeworks</title>
   <meta name="description" content="Guess the day's 5-letter word. New word daily, points for the Rewards Shop." />
   <link rel="stylesheet" href="styles.css?v=16" />
-  <link rel="stylesheet" href="word-bowl.css?v=1" />
+  <link rel="stylesheet" href="word-bowl.css?v=2" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -40,6 +40,7 @@
       <p class="wb-status" id="wb-status">Guess the 5-letter word</p>
       <div class="wb-grid" id="wb-grid"></div>
       <div class="wb-keys" id="wb-keys"></div>
+      <button id="wb-share" class="btn wb-share" type="button" hidden>Share your grid</button>
 
       <!-- Start / already-played overlay -->
       <div class="wb-overlay" id="wb-overlay">
@@ -52,6 +53,7 @@
             <span class="wb-tile demo miss">C</span> not in it
           </div>
           <button id="wb-start" class="btn" type="button">Play</button>
+          <button id="wb-share-done" class="btn btn-secondary wb-share" type="button" hidden>Share your grid</button>
         </div>
       </div>
     </main>
@@ -60,7 +62,8 @@
   <script src="transitions.js?v=3"></script>
   <script src="daily.js?v=5"></script>
   <script src="points.js?v=1"></script>
-  <script src="word-bowl.js?v=1"></script>
+  <script src="challenges.js?v=3"></script>
+  <script src="word-bowl.js?v=2"></script>
   <script src="pwa.js?v=1"></script>
 </body>
 </html>

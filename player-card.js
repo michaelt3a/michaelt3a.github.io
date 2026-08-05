@@ -147,6 +147,28 @@
       },
     },
     {
+      id: "wb",
+      label: "Word Bowl",
+      color: "#39a85b",
+      // Word Bowl is once-a-day with no board, so no rank line.
+      noRank: true,
+      best() {
+        const s = lsJson("pokeworks-wordbowl");
+        const c = s && s.career;
+        if (!c || !c.solved) return null;
+        // The stored streak goes stale once a day is missed.
+        const d = new Date();
+        const day = (x) => x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
+        const t = day(d);
+        d.setDate(d.getDate() - 1);
+        const live = c.lastWin === t || c.lastWin === day(d);
+        return {
+          value: c.solved + " solved" + (live && c.streak > 1 ? " · 🔥 " + c.streak : ""),
+          n: c.solved,
+        };
+      },
+    },
+    {
       id: "ss",
       label: "Secret Shopper",
       color: "#7c5cff",
@@ -170,6 +192,22 @@
   function streakText(s) {
     if (!s.count) return s.best ? "Best streak " + s.best + " days" : "No streak yet";
     return s.count + " day" + (s.count === 1 ? "" : "s") + " in a row";
+  }
+
+  // Rewards Shop wallet, when points.js is on the page (it is on the hub).
+  function pointsBlock() {
+    if (!window.PokePoints) return "";
+    const p = PokePoints.data();
+    const codes = p.redeemed.length;
+    return (
+      '<div class="pc-points"><span class="pc-streak-ico">🎁</span>' +
+      '<span class="pc-id"><strong>' + p.balance.toLocaleString() + " points</strong>" +
+      '<span class="pc-hint">' +
+      (p.earned
+        ? p.earned.toLocaleString() + " earned · " + codes + " code" + (codes === 1 ? "" : "s") + " redeemed · "
+        : "Play a customer game to start earning. ") +
+      '<a href="shop.html">Rewards Shop ›</a></span></span></div>'
+    );
   }
 
   function achProgress() {
@@ -251,6 +289,7 @@
       '<span class="pc-hint">' +
       (st.best ? "Longest run: " + st.best + " day" + (st.best === 1 ? "" : "s") : "Play on back-to-back days to build one.") +
       "</span></span></div>" +
+      pointsBlock() +
       '<div class="pc-stats">' + rows + "</div>";
 
     const input = bodyEl.querySelector("#pc-name-input");
