@@ -63,6 +63,33 @@ body {
   margin: 0;
 }
 
+/* Game groups: customer games up top, training games below. */
+.game-groups {
+  display: grid;
+  gap: 1.6rem;
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--on-dark-muted);
+}
+
+/* A rule line carries the label across the full width. */
+.group-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, currentColor, transparent);
+  opacity: 0.35;
+}
+
 /* Cards */
 .cards {
   display: grid;
@@ -842,6 +869,13 @@ body.sheet-lock {
   }
   .hub-subtitle {
     font-size: 0.85rem;
+  }
+  .game-groups {
+    gap: 0.85rem;
+  }
+  .group-title {
+    font-size: 0.7rem;
+    margin-bottom: 0.45rem;
   }
   .cards {
     grid-template-columns: 1fr 1fr;

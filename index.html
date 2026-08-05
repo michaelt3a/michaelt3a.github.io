@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=19" />
+  <link rel="stylesheet" href="menu.css?v=20" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -29,159 +29,169 @@
 
     <!-- data-latest names the game whose card wears the ✨ Updated tag.
          Move it whenever a game ships an update. -->
-    <div class="cards" data-latest="secret-shopper">
-      <a class="card" data-game="bowl-builder" href="bowl-builder.html">
-        <div class="card-icon icon-bowl">
-          <!-- A block hovers over the ingredient stack, ghost line and all. -->
-          <svg viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <circle cx="70" cy="32" r="30" fill="#ffd15a" opacity="0.22" />
-            <circle cx="70" cy="32" r="19" fill="#ffd15a" opacity="0.9" />
-            <line x1="158" y1="36" x2="246" y2="36" stroke="rgba(255,255,255,0.65)" stroke-width="2" stroke-dasharray="6 6" />
-            <g class="bbi-float">
-              <rect x="167" y="8" width="70" height="15" rx="5" fill="#39a85b" />
-            </g>
-            <rect x="171" y="40" width="70" height="15" rx="5" fill="#fd9f27" />
-            <rect x="162" y="55" width="70" height="15" rx="5" fill="#f7f2e8" />
-            <rect x="170" y="70" width="70" height="15" rx="5" fill="#ee435b" />
-            <rect x="164" y="85" width="70" height="15" rx="5" fill="#414f58" />
-            <ellipse cx="202" cy="127" rx="58" ry="5" fill="rgba(0,0,0,0.18)" />
-            <path d="M140 100 A62 26 0 0 0 264 100 Z" fill="#ffffff" />
-            <ellipse cx="202" cy="100" rx="62" ry="7" fill="#e8eef0" />
-          </svg>
-        </div>
-        <div class="card-body">
-          <h2 class="card-title">Bowl Builder</h2>
-          <p class="card-desc">Stack ingredients into the perfect poke bowl.</p>
-          <span class="badge badge-play">Play</span>
-        </div>
-      </a>
+    <div class="game-groups" data-latest="secret-shopper">
+      <section class="game-group">
+        <h2 class="group-title">🎮 Customer Games</h2>
+        <div class="cards">
+          <a class="card" data-game="bowl-builder" href="bowl-builder.html">
+            <div class="card-icon icon-bowl">
+              <!-- A block hovers over the ingredient stack, ghost line and all. -->
+              <svg viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <circle cx="70" cy="32" r="30" fill="#ffd15a" opacity="0.22" />
+                <circle cx="70" cy="32" r="19" fill="#ffd15a" opacity="0.9" />
+                <line x1="158" y1="36" x2="246" y2="36" stroke="rgba(255,255,255,0.65)" stroke-width="2" stroke-dasharray="6 6" />
+                <g class="bbi-float">
+                  <rect x="167" y="8" width="70" height="15" rx="5" fill="#39a85b" />
+                </g>
+                <rect x="171" y="40" width="70" height="15" rx="5" fill="#fd9f27" />
+                <rect x="162" y="55" width="70" height="15" rx="5" fill="#f7f2e8" />
+                <rect x="170" y="70" width="70" height="15" rx="5" fill="#ee435b" />
+                <rect x="164" y="85" width="70" height="15" rx="5" fill="#414f58" />
+                <ellipse cx="202" cy="127" rx="58" ry="5" fill="rgba(0,0,0,0.18)" />
+                <path d="M140 100 A62 26 0 0 0 264 100 Z" fill="#ffffff" />
+                <ellipse cx="202" cy="100" rx="62" ry="7" fill="#e8eef0" />
+              </svg>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">Bowl Builder</h3>
+              <p class="card-desc">Stack ingredients into the perfect poke bowl.</p>
+              <span class="badge badge-play">Play</span>
+            </div>
+          </a>
 
-      <a class="card" data-game="signature-works" href="placeholder-1.html">
-        <div class="card-icon icon-signature">
-          <!-- The 9 real signature bowls on a slow conveyor; the strip is
-               duplicated by script below so the loop is seamless. -->
-          <div class="sig-strip" aria-hidden="true">
-            <img src="sig-bowl-1.avif" alt="" loading="lazy" decoding="async" />
-            <img src="sig-bowl-2.avif" alt="" loading="lazy" decoding="async" />
-            <img src="sig-bowl-3.avif" alt="" loading="lazy" decoding="async" />
-            <img src="sig-bowl-4.avif" alt="" loading="lazy" decoding="async" />
-            <img src="sig-bowl-5.avif" alt="" loading="lazy" decoding="async" />
-            <img src="sig-bowl-6.avif" alt="" loading="lazy" decoding="async" />
-            <img src="sig-bowl-7.avif" alt="" loading="lazy" decoding="async" />
-            <img src="sig-bowl-8.avif" alt="" loading="lazy" decoding="async" />
-            <img src="sig-bowl-9.avif" alt="" loading="lazy" decoding="async" />
-          </div>
+          <a class="card" data-game="order-up" href="order-up.html">
+            <div class="card-icon icon-order">
+              <!-- Tycoon vibes: a customer at the scallop counter, coins and stars. -->
+              <svg viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <text x="305" y="36" font-size="19" fill="#ffd15a" text-anchor="middle" style="text-shadow:0 1px 2px rgba(0,0,0,0.25)">★★★★★</text>
+                <g class="oui-coin">
+                  <circle cx="88" cy="40" r="14" fill="#ffd15a" stroke="#e0a92d" stroke-width="2" />
+                  <text x="88" y="46" font-size="16" font-weight="800" fill="#a8760a" text-anchor="middle">$</text>
+                </g>
+                <g class="oui-coin2">
+                  <circle cx="120" cy="22" r="10" fill="#ffd15a" stroke="#e0a92d" stroke-width="2" />
+                  <text x="120" y="27" font-size="12" font-weight="800" fill="#a8760a" text-anchor="middle">$</text>
+                </g>
+                <!-- customer walking up with their order in mind -->
+                <g stroke="#22b2b4" stroke-width="5" stroke-linecap="round">
+                  <line x1="170" y1="70" x2="170" y2="99" />
+                  <line x1="170" y1="99" x2="159" y2="124" />
+                  <line x1="170" y1="99" x2="181" y2="124" />
+                  <line x1="170" y1="78" x2="156" y2="90" />
+                  <line x1="170" y1="78" x2="184" y2="90" />
+                </g>
+                <circle cx="170" cy="58" r="11" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5" />
+                <circle cx="166" cy="57" r="1.6" fill="#333" /><circle cx="174" cy="57" r="1.6" fill="#333" />
+                <path d="M166 62 Q170 66 174 62" fill="none" stroke="#7a4a2a" stroke-width="1.6" stroke-linecap="round" />
+                <!-- employee behind the counter -->
+                <g stroke="#ee435b" stroke-width="5" stroke-linecap="round">
+                  <line x1="300" y1="62" x2="300" y2="82" />
+                  <line x1="300" y1="70" x2="287" y2="80" />
+                  <line x1="300" y1="70" x2="313" y2="80" />
+                </g>
+                <circle cx="300" cy="50" r="11" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5" />
+                <circle cx="296" cy="49" r="1.6" fill="#333" /><circle cx="304" cy="49" r="1.6" fill="#333" />
+                <path d="M296 54 Q300 58 304 54" fill="none" stroke="#7a4a2a" stroke-width="1.6" stroke-linecap="round" />
+                <!-- scallop-front counter with steel top and wood trim -->
+                <rect x="228" y="86" width="172" height="44" fill="#ffffff" />
+                <g fill="#fd9f27">
+                  <circle cx="238" cy="106" r="10" /><circle cx="258" cy="106" r="10" /><circle cx="278" cy="106" r="10" /><circle cx="298" cy="106" r="10" /><circle cx="318" cy="106" r="10" /><circle cx="338" cy="106" r="10" /><circle cx="358" cy="106" r="10" /><circle cx="378" cy="106" r="10" /><circle cx="398" cy="106" r="10" />
+                </g>
+                <g fill="#f7b95e">
+                  <circle cx="248" cy="122" r="10" /><circle cx="268" cy="122" r="10" /><circle cx="288" cy="122" r="10" /><circle cx="308" cy="122" r="10" /><circle cx="328" cy="122" r="10" /><circle cx="348" cy="122" r="10" /><circle cx="368" cy="122" r="10" /><circle cx="388" cy="122" r="10" />
+                </g>
+                <rect x="228" y="80" width="172" height="10" fill="#d6dce0" />
+                <rect x="228" y="90" width="172" height="4" fill="#c89a62" />
+                <!-- a finished bowl waiting on the pass -->
+                <ellipse cx="255" cy="78" rx="14" ry="5" fill="#ffffff" stroke="#c9ced2" stroke-width="1.5" />
+                <ellipse cx="255" cy="75" rx="10" ry="3.5" fill="#ee435b" />
+              </svg>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">Order Up</h3>
+              <p class="card-desc">Fill customer orders before they leave.</p>
+              <span class="badge badge-play">Play</span>
+            </div>
+          </a>
         </div>
-        <div class="card-body">
-          <h2 class="card-title">Signature Works</h2>
-          <p class="card-desc">Build the 9 signature bowls from memory.</p>
-          <span class="badge badge-play">Play</span>
-        </div>
-      </a>
+      </section>
 
-      <a class="card" data-game="order-up" href="order-up.html">
-        <div class="card-icon icon-order">
-          <!-- Tycoon vibes: a customer at the scallop counter, coins and stars. -->
-          <svg viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <text x="305" y="36" font-size="19" fill="#ffd15a" text-anchor="middle" style="text-shadow:0 1px 2px rgba(0,0,0,0.25)">★★★★★</text>
-            <g class="oui-coin">
-              <circle cx="88" cy="40" r="14" fill="#ffd15a" stroke="#e0a92d" stroke-width="2" />
-              <text x="88" y="46" font-size="16" font-weight="800" fill="#a8760a" text-anchor="middle">$</text>
-            </g>
-            <g class="oui-coin2">
-              <circle cx="120" cy="22" r="10" fill="#ffd15a" stroke="#e0a92d" stroke-width="2" />
-              <text x="120" y="27" font-size="12" font-weight="800" fill="#a8760a" text-anchor="middle">$</text>
-            </g>
-            <!-- customer walking up with their order in mind -->
-            <g stroke="#22b2b4" stroke-width="5" stroke-linecap="round">
-              <line x1="170" y1="70" x2="170" y2="99" />
-              <line x1="170" y1="99" x2="159" y2="124" />
-              <line x1="170" y1="99" x2="181" y2="124" />
-              <line x1="170" y1="78" x2="156" y2="90" />
-              <line x1="170" y1="78" x2="184" y2="90" />
-            </g>
-            <circle cx="170" cy="58" r="11" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5" />
-            <circle cx="166" cy="57" r="1.6" fill="#333" /><circle cx="174" cy="57" r="1.6" fill="#333" />
-            <path d="M166 62 Q170 66 174 62" fill="none" stroke="#7a4a2a" stroke-width="1.6" stroke-linecap="round" />
-            <!-- employee behind the counter -->
-            <g stroke="#ee435b" stroke-width="5" stroke-linecap="round">
-              <line x1="300" y1="62" x2="300" y2="82" />
-              <line x1="300" y1="70" x2="287" y2="80" />
-              <line x1="300" y1="70" x2="313" y2="80" />
-            </g>
-            <circle cx="300" cy="50" r="11" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5" />
-            <circle cx="296" cy="49" r="1.6" fill="#333" /><circle cx="304" cy="49" r="1.6" fill="#333" />
-            <path d="M296 54 Q300 58 304 54" fill="none" stroke="#7a4a2a" stroke-width="1.6" stroke-linecap="round" />
-            <!-- scallop-front counter with steel top and wood trim -->
-            <rect x="228" y="86" width="172" height="44" fill="#ffffff" />
-            <g fill="#fd9f27">
-              <circle cx="238" cy="106" r="10" /><circle cx="258" cy="106" r="10" /><circle cx="278" cy="106" r="10" /><circle cx="298" cy="106" r="10" /><circle cx="318" cy="106" r="10" /><circle cx="338" cy="106" r="10" /><circle cx="358" cy="106" r="10" /><circle cx="378" cy="106" r="10" /><circle cx="398" cy="106" r="10" />
-            </g>
-            <g fill="#f7b95e">
-              <circle cx="248" cy="122" r="10" /><circle cx="268" cy="122" r="10" /><circle cx="288" cy="122" r="10" /><circle cx="308" cy="122" r="10" /><circle cx="328" cy="122" r="10" /><circle cx="348" cy="122" r="10" /><circle cx="368" cy="122" r="10" /><circle cx="388" cy="122" r="10" />
-            </g>
-            <rect x="228" y="80" width="172" height="10" fill="#d6dce0" />
-            <rect x="228" y="90" width="172" height="4" fill="#c89a62" />
-            <!-- a finished bowl waiting on the pass -->
-            <ellipse cx="255" cy="78" rx="14" ry="5" fill="#ffffff" stroke="#c9ced2" stroke-width="1.5" />
-            <ellipse cx="255" cy="75" rx="10" ry="3.5" fill="#ee435b" />
-          </svg>
-        </div>
-        <div class="card-body">
-          <h2 class="card-title">Order Up</h2>
-          <p class="card-desc">Fill customer orders before they leave.</p>
-          <span class="badge badge-play">Play</span>
-        </div>
-      </a>
+      <section class="game-group">
+        <h2 class="group-title">📋 Training Games</h2>
+        <div class="cards">
+          <a class="card" data-game="signature-works" href="placeholder-1.html">
+            <div class="card-icon icon-signature">
+              <!-- The 9 real signature bowls on a slow conveyor; the strip is
+                   duplicated by script below so the loop is seamless. -->
+              <div class="sig-strip" aria-hidden="true">
+                <img src="sig-bowl-1.avif" alt="" loading="lazy" decoding="async" />
+                <img src="sig-bowl-2.avif" alt="" loading="lazy" decoding="async" />
+                <img src="sig-bowl-3.avif" alt="" loading="lazy" decoding="async" />
+                <img src="sig-bowl-4.avif" alt="" loading="lazy" decoding="async" />
+                <img src="sig-bowl-5.avif" alt="" loading="lazy" decoding="async" />
+                <img src="sig-bowl-6.avif" alt="" loading="lazy" decoding="async" />
+                <img src="sig-bowl-7.avif" alt="" loading="lazy" decoding="async" />
+                <img src="sig-bowl-8.avif" alt="" loading="lazy" decoding="async" />
+                <img src="sig-bowl-9.avif" alt="" loading="lazy" decoding="async" />
+              </div>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">Signature Works</h3>
+              <p class="card-desc">Build the 9 signature bowls from memory.</p>
+              <span class="badge badge-play">Play</span>
+            </div>
+          </a>
 
-      <a class="card" data-game="secret-shopper" href="secret-shopper.html">
-        <div class="card-icon icon-shopper">
-          <!-- Three guests, one secret shopper — the magnifying glass keeps looking. -->
-          <svg viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <text x="200" y="26" font-size="22" font-weight="800" fill="rgba(255,255,255,0.85)" text-anchor="middle">?</text>
-            <g stroke="#22b2b4" stroke-width="5" stroke-linecap="round">
-              <line x1="120" y1="64" x2="120" y2="94" />
-              <line x1="120" y1="94" x2="109" y2="120" />
-              <line x1="120" y1="94" x2="131" y2="120" />
-              <line x1="120" y1="72" x2="106" y2="84" />
-              <line x1="120" y1="72" x2="134" y2="84" />
-            </g>
-            <circle cx="120" cy="52" r="11" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5" />
-            <circle cx="116" cy="51" r="1.6" fill="#333" /><circle cx="124" cy="51" r="1.6" fill="#333" />
-            <path d="M116 56 Q120 60 124 56" fill="none" stroke="#7a4a2a" stroke-width="1.6" stroke-linecap="round" />
-            <g stroke="#fd9f27" stroke-width="5" stroke-linecap="round">
-              <line x1="200" y1="64" x2="200" y2="94" />
-              <line x1="200" y1="94" x2="189" y2="120" />
-              <line x1="200" y1="94" x2="211" y2="120" />
-              <line x1="200" y1="72" x2="186" y2="84" />
-              <line x1="200" y1="72" x2="214" y2="84" />
-            </g>
-            <circle cx="200" cy="52" r="11" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5" />
-            <circle cx="196" cy="51" r="1.6" fill="#333" /><circle cx="204" cy="51" r="1.6" fill="#333" />
-            <path d="M196 57 L204 57" stroke="#7a4a2a" stroke-width="1.6" stroke-linecap="round" />
-            <g stroke="#39a85b" stroke-width="5" stroke-linecap="round">
-              <line x1="280" y1="64" x2="280" y2="94" />
-              <line x1="280" y1="94" x2="269" y2="120" />
-              <line x1="280" y1="94" x2="291" y2="120" />
-              <line x1="280" y1="72" x2="266" y2="84" />
-              <line x1="280" y1="72" x2="294" y2="84" />
-            </g>
-            <circle cx="280" cy="52" r="11" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5" />
-            <circle cx="276" cy="51" r="1.6" fill="#333" /><circle cx="284" cy="51" r="1.6" fill="#333" />
-            <path d="M276 56 Q280 60 284 56" fill="none" stroke="#7a4a2a" stroke-width="1.6" stroke-linecap="round" />
-            <!-- the audit lens sweeps the lineup -->
-            <g class="ssi-lens">
-              <circle cx="120" cy="60" r="27" fill="rgba(255,255,255,0.12)" stroke="#ffd15a" stroke-width="5" />
-              <line x1="140" y1="80" x2="156" y2="98" stroke="#ffd15a" stroke-width="7" stroke-linecap="round" />
-            </g>
-          </svg>
+          <a class="card" data-game="secret-shopper" href="secret-shopper.html">
+            <div class="card-icon icon-shopper">
+              <!-- Three guests, one secret shopper — the magnifying glass keeps looking. -->
+              <svg viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <text x="200" y="26" font-size="22" font-weight="800" fill="rgba(255,255,255,0.85)" text-anchor="middle">?</text>
+                <g stroke="#22b2b4" stroke-width="5" stroke-linecap="round">
+                  <line x1="120" y1="64" x2="120" y2="94" />
+                  <line x1="120" y1="94" x2="109" y2="120" />
+                  <line x1="120" y1="94" x2="131" y2="120" />
+                  <line x1="120" y1="72" x2="106" y2="84" />
+                  <line x1="120" y1="72" x2="134" y2="84" />
+                </g>
+                <circle cx="120" cy="52" r="11" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5" />
+                <circle cx="116" cy="51" r="1.6" fill="#333" /><circle cx="124" cy="51" r="1.6" fill="#333" />
+                <path d="M116 56 Q120 60 124 56" fill="none" stroke="#7a4a2a" stroke-width="1.6" stroke-linecap="round" />
+                <g stroke="#fd9f27" stroke-width="5" stroke-linecap="round">
+                  <line x1="200" y1="64" x2="200" y2="94" />
+                  <line x1="200" y1="94" x2="189" y2="120" />
+                  <line x1="200" y1="94" x2="211" y2="120" />
+                  <line x1="200" y1="72" x2="186" y2="84" />
+                  <line x1="200" y1="72" x2="214" y2="84" />
+                </g>
+                <circle cx="200" cy="52" r="11" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5" />
+                <circle cx="196" cy="51" r="1.6" fill="#333" /><circle cx="204" cy="51" r="1.6" fill="#333" />
+                <path d="M196 57 L204 57" stroke="#7a4a2a" stroke-width="1.6" stroke-linecap="round" />
+                <g stroke="#39a85b" stroke-width="5" stroke-linecap="round">
+                  <line x1="280" y1="64" x2="280" y2="94" />
+                  <line x1="280" y1="94" x2="269" y2="120" />
+                  <line x1="280" y1="94" x2="291" y2="120" />
+                  <line x1="280" y1="72" x2="266" y2="84" />
+                  <line x1="280" y1="72" x2="294" y2="84" />
+                </g>
+                <circle cx="280" cy="52" r="11" fill="#ffe0bd" stroke="#e0b98f" stroke-width="1.5" />
+                <circle cx="276" cy="51" r="1.6" fill="#333" /><circle cx="284" cy="51" r="1.6" fill="#333" />
+                <path d="M276 56 Q280 60 284 56" fill="none" stroke="#7a4a2a" stroke-width="1.6" stroke-linecap="round" />
+                <!-- the audit lens sweeps the lineup -->
+                <g class="ssi-lens">
+                  <circle cx="120" cy="60" r="27" fill="rgba(255,255,255,0.12)" stroke="#ffd15a" stroke-width="5" />
+                  <line x1="140" y1="80" x2="156" y2="98" stroke="#ffd15a" stroke-width="7" stroke-linecap="round" />
+                </g>
+              </svg>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">Secret Shopper</h3>
+              <p class="card-desc">Ace every step of the secret shopper's visit.</p>
+              <span class="badge badge-play">Play</span>
+            </div>
+          </a>
         </div>
-        <div class="card-body">
-          <h2 class="card-title">Secret Shopper</h2>
-          <p class="card-desc">Ace every step of the secret shopper's visit.</p>
-          <span class="badge badge-play">Play</span>
-        </div>
-      </a>
+      </section>
     </div>
 
     <div class="hub-actions">
@@ -248,10 +258,10 @@
       strip.innerHTML += strip.innerHTML;
     }
 
-    // Tag the most recently updated game (see data-latest on .cards).
+    // Tag the most recently updated game (see data-latest on .game-groups).
     {
-      const cards = document.querySelector(".cards");
-      const latest = cards.querySelector('.card[data-game="' + cards.dataset.latest + '"] .card-body');
+      const groups = document.querySelector(".game-groups");
+      const latest = groups.querySelector('.card[data-game="' + groups.dataset.latest + '"] .card-body');
       if (latest) {
         const tag = document.createElement("span");
         tag.className = "badge badge-new";
