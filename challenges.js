@@ -11,32 +11,60 @@
 // PokeChallenges.report(game, metrics); nothing here hooks into gameplay.
 (function () {
   const KEY = "pokeworks-quests";
-  const DAILY_PTS = 25; // finishing a customer-game Daily Challenge
-  const TOP_PTS = 75;   // being #1 on yesterday's daily board
+  const DAILY_PTS = 50;  // finishing a customer-game Daily Challenge
+  const TOP_PTS = 150;   // being #1 on yesterday's daily board
   const CUSTOMER = { bowl: true, ou: true };
+  // How many challenges each game rolls per day, by tier.
+  const PICKS = { starter: 1, mid: 2, hard: 2 };
 
   // mode "max": best single run must reach the goal. mode "sum": accumulates
   // across runs today (playtime, run counts).
+  //
+  // A full sweep of one game's five is ~250 pts, so a strong day across both
+  // games (plus the daily) covers the cheapest code — bigger codes are still
+  // a loyalty grind, which is the point.
   const POOLS = {
     bowl: [
-      { id: "bb-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 10, label: "Play Bowl Builder for 5 minutes" },
-      { id: "bb-runs3", tier: "starter", metric: "runs", mode: "sum", goal: 3, pts: 10, label: "Finish 3 Bowl Builder runs" },
-      { id: "bb-score18", tier: "mid", metric: "score", mode: "max", goal: 18, pts: 20, label: "Stack 18 blocks in one run" },
-      { id: "bb-combo5", tier: "mid", metric: "combo", mode: "max", goal: 5, pts: 20, label: "Land 5 perfect drops in a row" },
-      { id: "bb-power3", tier: "mid", metric: "powerups", mode: "max", goal: 3, pts: 20, label: "Grab 3 power-ups in one run" },
-      { id: "bb-score30", tier: "hard", metric: "score", mode: "max", goal: 30, pts: 35, label: "Stack 30 blocks in one run" },
-      { id: "bb-combo8", tier: "hard", metric: "combo", mode: "max", goal: 8, pts: 35, label: "Land 8 perfect drops in a row" },
-      { id: "bb-perfect12", tier: "hard", metric: "perfects", mode: "max", goal: 12, pts: 35, label: "Land 12 perfect drops in one run" },
+      // starters — momentum, not skill
+      { id: "bb-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Play Bowl Builder for 5 minutes" },
+      { id: "bb-runs3", tier: "starter", metric: "runs", mode: "sum", goal: 3, pts: 20, label: "Finish 3 Bowl Builder runs" },
+      { id: "bb-score10", tier: "starter", metric: "score", mode: "max", goal: 10, pts: 20, label: "Stack 10 blocks in one run" },
+      // mid — a decent run gets there
+      { id: "bb-score18", tier: "mid", metric: "score", mode: "max", goal: 18, pts: 40, label: "Stack 18 blocks in one run" },
+      { id: "bb-score22", tier: "mid", metric: "score", mode: "max", goal: 22, pts: 40, label: "Stack 22 blocks in one run" },
+      { id: "bb-combo5", tier: "mid", metric: "combo", mode: "max", goal: 5, pts: 40, label: "Land 5 perfect drops in a row" },
+      { id: "bb-power3", tier: "mid", metric: "powerups", mode: "max", goal: 3, pts: 40, label: "Grab 3 power-ups in one run" },
+      { id: "bb-perfect8", tier: "mid", metric: "perfects", mode: "max", goal: 8, pts: 40, label: "Land 8 perfect drops in one run" },
+      { id: "bb-runs6", tier: "mid", metric: "runs", mode: "sum", goal: 6, pts: 40, label: "Finish 6 Bowl Builder runs" },
+      { id: "bb-time12", tier: "mid", metric: "seconds", mode: "sum", goal: 720, pts: 40, label: "Play Bowl Builder for 12 minutes" },
+      // hard — a genuinely good run
+      { id: "bb-score30", tier: "hard", metric: "score", mode: "max", goal: 30, pts: 75, label: "Stack 30 blocks in one run" },
+      { id: "bb-score35", tier: "hard", metric: "score", mode: "max", goal: 35, pts: 90, label: "Stack 35 blocks in one run" },
+      { id: "bb-combo8", tier: "hard", metric: "combo", mode: "max", goal: 8, pts: 75, label: "Land 8 perfect drops in a row" },
+      { id: "bb-combo10", tier: "hard", metric: "combo", mode: "max", goal: 10, pts: 90, label: "Land 10 perfect drops in a row" },
+      { id: "bb-perfect12", tier: "hard", metric: "perfects", mode: "max", goal: 12, pts: 75, label: "Land 12 perfect drops in one run" },
+      { id: "bb-power5", tier: "hard", metric: "powerups", mode: "max", goal: 5, pts: 90, label: "Grab 5 power-ups in one run" },
     ],
     ou: [
-      { id: "ou-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 10, label: "Work the counter for 5 minutes" },
-      { id: "ou-shifts2", tier: "starter", metric: "runs", mode: "sum", goal: 2, pts: 10, label: "Complete 2 shifts" },
-      { id: "ou-serve10", tier: "mid", metric: "served", mode: "max", goal: 10, pts: 20, label: "Serve 10 customers in one shift" },
-      { id: "ou-money150", tier: "mid", metric: "money", mode: "max", goal: 150, pts: 20, label: "Bank $150 in one shift" },
-      { id: "ou-perfect5", tier: "mid", metric: "perfects", mode: "max", goal: 5, pts: 20, label: "Serve 5 perfect bowls in one shift" },
-      { id: "ou-combo6", tier: "hard", metric: "combo", mode: "max", goal: 6, pts: 35, label: "Reach a x6 combo in one shift" },
-      { id: "ou-money300", tier: "hard", metric: "money", mode: "max", goal: 300, pts: 35, label: "Bank $300 in one shift" },
-      { id: "ou-serve16", tier: "hard", metric: "served", mode: "max", goal: 16, pts: 35, label: "Serve 16 customers in one shift" },
+      // starters — momentum, not skill
+      { id: "ou-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Work the counter for 5 minutes" },
+      { id: "ou-shifts2", tier: "starter", metric: "runs", mode: "sum", goal: 2, pts: 20, label: "Complete 2 shifts" },
+      { id: "ou-serve6", tier: "starter", metric: "served", mode: "max", goal: 6, pts: 20, label: "Serve 6 customers in one shift" },
+      // mid — a decent shift gets there
+      { id: "ou-serve10", tier: "mid", metric: "served", mode: "max", goal: 10, pts: 40, label: "Serve 10 customers in one shift" },
+      { id: "ou-serve12", tier: "mid", metric: "served", mode: "max", goal: 12, pts: 40, label: "Serve 12 customers in one shift" },
+      { id: "ou-money150", tier: "mid", metric: "money", mode: "max", goal: 150, pts: 40, label: "Bank $150 in one shift" },
+      { id: "ou-perfect5", tier: "mid", metric: "perfects", mode: "max", goal: 5, pts: 40, label: "Serve 5 perfect bowls in one shift" },
+      { id: "ou-combo4", tier: "mid", metric: "combo", mode: "max", goal: 4, pts: 40, label: "Reach a x4 combo in one shift" },
+      { id: "ou-shifts4", tier: "mid", metric: "runs", mode: "sum", goal: 4, pts: 40, label: "Complete 4 shifts" },
+      { id: "ou-time12", tier: "mid", metric: "seconds", mode: "sum", goal: 720, pts: 40, label: "Work the counter for 12 minutes" },
+      // hard — a genuinely good shift
+      { id: "ou-combo6", tier: "hard", metric: "combo", mode: "max", goal: 6, pts: 75, label: "Reach a x6 combo in one shift" },
+      { id: "ou-money300", tier: "hard", metric: "money", mode: "max", goal: 300, pts: 75, label: "Bank $300 in one shift" },
+      { id: "ou-money400", tier: "hard", metric: "money", mode: "max", goal: 400, pts: 90, label: "Bank $400 in one shift" },
+      { id: "ou-serve16", tier: "hard", metric: "served", mode: "max", goal: 16, pts: 75, label: "Serve 16 customers in one shift" },
+      { id: "ou-serve20", tier: "hard", metric: "served", mode: "max", goal: 20, pts: 90, label: "Serve 20 customers in one shift" },
+      { id: "ou-perfect8", tier: "hard", metric: "perfects", mode: "max", goal: 8, pts: 90, label: "Serve 8 perfect bowls in one shift" },
     ],
   };
   const GAME_LABEL = { bowl: "Bowl Builder", ou: "Order Up" };
@@ -68,13 +96,19 @@
   }
 
   // --- Today's set (seeded, same for everyone) ----------------------------
+  // Draws PICKS[tier] from each tier without repeats — a seeded partial
+  // Fisher–Yates, so adding pool entries later can't reshuffle other tiers.
   function todaysSet(game) {
-    const pool = POOLS[game];
     const rng = Daily.stream("quests:" + game);
     const set = [];
     for (const tier of ["starter", "mid", "hard"]) {
-      const options = pool.filter((q) => q.tier === tier);
-      set.push(options[Math.floor(rng() * options.length)]);
+      const options = POOLS[game].filter((q) => q.tier === tier);
+      const want = Math.min(PICKS[tier], options.length);
+      for (let i = 0; i < want; i++) {
+        const j = i + Math.floor(rng() * (options.length - i));
+        [options[i], options[j]] = [options[j], options[i]];
+        set.push(options[i]);
+      }
     }
     return set;
   }
