@@ -60,7 +60,6 @@
   const keysEl = document.getElementById("wb-keys");
   const statusEl = document.getElementById("wb-status");
   const overlayEl = document.getElementById("wb-overlay");
-  const subEl = document.getElementById("wb-sub");
   const startBtn = document.getElementById("wb-start");
   const solvedEl = document.getElementById("wb-solved");
   const streakEl = document.getElementById("wb-streak");
@@ -163,9 +162,29 @@
     if (entry.length < 5 && /^[A-Z]$/.test(ch)) { entry += ch; paintEntry(); }
   }
 
+  // Real words only. The dictionary ships with the page; if it somehow didn't
+  // load, let everything through rather than making the game unplayable.
+  function isWord(g) {
+    return !window.WB_DICT || WB_DICT.has(g);
+  }
+  function shakeRow() {
+    const r = load().day.guesses.length;
+    if (r >= TRIES) return;
+    const row = ROWS[r][0].parentElement;
+    row.classList.remove("shake");
+    void row.offsetWidth; // restart the animation
+    row.classList.add("shake");
+  }
+
   function submit() {
     if (entry.length < 5) {
       statusEl.textContent = "Five letters first.";
+      shakeRow();
+      return;
+    }
+    if (!isWord(entry)) {
+      statusEl.textContent = entry + " isn't in the word list.";
+      shakeRow();
       return;
     }
     const s = load();
@@ -216,7 +235,32 @@
       ? "🎉 " + word.w + " in " + tries + "! +" + pts + " pts." + bonus
       : "It was " + word.w + ". +" + pts + " pts for playing.";
     paintStats(s);
+    setTimeout(() => showEnd(s), 1200); // let the last row's colors land first
   }
+
+  // --- Completion screen ---------------------------------------------------
+  const endEl = document.getElementById("wb-end");
+
+  function showEnd(s) {
+    const word = todaysWord();
+    const won = s.day.won;
+    document.getElementById("wb-end-emoji").textContent = won ? "🎉" : "😔";
+    document.getElementById("wb-end-title").textContent = won ? "Solved!" : "Out of tries";
+    document.getElementById("wb-end-sub").textContent = won
+      ? "You got " + word.w + " in " + s.day.guesses.length + "." +
+        (TIER_PTS[word.tier] ? " A " + TIER_NAME[word.tier] + ", so it paid extra." : "")
+      : "The word was " + word.w + ". Points for playing, though.";
+    document.getElementById("wb-end-pts").textContent = "+" + s.day.pts;
+    document.getElementById("wb-end-solved").textContent = s.career.solved;
+    document.getElementById("wb-end-streak").textContent = s.career.streak;
+    endEl.classList.remove("hidden");
+  }
+  document.getElementById("wb-end-close").addEventListener("click", () => {
+    endEl.classList.add("hidden");
+  });
+  document.getElementById("wb-end-share").addEventListener("click", (e) => {
+    doShare(e.currentTarget);
+  });
 
   function paintStats(s) {
     solvedEl.textContent = s.career.solved;
@@ -226,7 +270,6 @@
   // --- Sharing -------------------------------------------------------------
   // The classic paste-into-the-group-chat grid.
   const shareBtn = document.getElementById("wb-share");
-  const shareDoneBtn = document.getElementById("wb-share-done");
 
   function shareText() {
     const s = load();
@@ -251,19 +294,17 @@
     }
   }
   shareBtn.addEventListener("click", () => doShare(shareBtn));
-  shareDoneBtn.addEventListener("click", () => doShare(shareDoneBtn));
 
   // --- Boot ----------------------------------------------------------------
   const boot = load();
   paintStats(boot);
   if (boot.day.done) {
+    // Coming back after finishing: board behind, completion screen in front.
     paintSaved(boot);
-    subEl.textContent = boot.day.won
-      ? "You got today's word in " + boot.day.guesses.length + " (+" + boot.day.pts + " pts). New word tomorrow."
-      : "Today's word got away. New word tomorrow.";
-    startBtn.hidden = true;
-    shareDoneBtn.hidden = false;
+    overlayEl.classList.add("hidden");
+    shareBtn.hidden = false;
     statusEl.textContent = boot.day.won ? "Solved. Back tomorrow!" : "Out of tries. Back tomorrow!";
+    showEnd(boot);
   } else if (boot.day.guesses.length) {
     // Mid-game reload: put the board back and keep going.
     paintSaved(boot);

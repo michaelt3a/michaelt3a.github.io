@@ -103,6 +103,82 @@
   margin-top: 0.2rem;
 }
 
+/* A rejected guess shakes its row. */
+.wb-row.shake {
+  animation: wb-shake 0.4s ease;
+}
+@keyframes wb-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+/* Completion screen */
+.wb-panel {
+  position: relative;
+}
+.wb-end-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px;
+}
+.wb-end-emoji {
+  font-size: 2.6rem;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+.wb-end-title {
+  margin: 0 0 0.4rem;
+  color: var(--text);
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+.wb-end-stats {
+  display: flex;
+  justify-content: center;
+  gap: 1.6rem;
+  margin: 0 0 1.2rem;
+}
+.wb-end-stats div {
+  display: flex;
+  flex-direction: column;
+}
+.wb-end-stats strong {
+  font-size: 1.45rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.wb-end-stats small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.wb-end-stats div:first-child strong {
+  color: #39a85b;
+}
+#wb-end .btn {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.55rem;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+.wb-end-note {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 /* Start / played overlay */
 .wb-overlay {
   position: absolute;
