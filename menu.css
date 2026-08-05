@@ -193,6 +193,20 @@ body {
   50% { transform: translateY(-6px); }
 }
 
+.icon-word {
+  background: linear-gradient(135deg, #22b2b4, #39a85b);
+}
+/* The next letter lands in its tile. */
+.wbi-pop {
+  animation: wbi-pop 2.2s ease-in-out infinite;
+  transform-origin: 149px 93px;
+}
+@keyframes wbi-pop {
+  0%, 55%, 100% { transform: scale(1); }
+  65% { transform: scale(1.14); }
+  75% { transform: scale(1); }
+}
+
 .icon-shopper {
   background: linear-gradient(135deg, #7c5cff, #ee435b);
 }

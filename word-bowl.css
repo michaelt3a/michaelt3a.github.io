@@ -1,0 +1,157 @@
+/* Word Bowl: the daily word game. Dark stage, letter tiles, on-screen keys. */
+
+.wb-stage {
+  position: relative;
+  max-width: 430px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.5rem 0 1rem;
+}
+
+.wb-status {
+  margin: 0;
+  min-height: 1.3em;
+  color: var(--on-dark);
+  font-weight: 700;
+  text-align: center;
+}
+
+/* The 6x5 board */
+.wb-grid {
+  display: grid;
+  gap: 6px;
+}
+.wb-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.wb-tile {
+  width: 58px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--on-dark);
+  background: var(--chip);
+  border: 2px solid var(--chip-line);
+  border-radius: 8px;
+  text-transform: uppercase;
+  transition: transform 0.08s ease, background 0.2s ease, border-color 0.2s ease;
+}
+.wb-tile.filled {
+  border-color: var(--on-dark-muted);
+  transform: scale(1.04);
+}
+.wb-tile.good {
+  background: #39a85b;
+  border-color: #39a85b;
+  color: #fff;
+}
+.wb-tile.near {
+  background: var(--gold, #ffd15a);
+  border-color: var(--gold, #ffd15a);
+  color: #4a3a00;
+}
+.wb-tile.miss {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: transparent;
+  color: var(--on-dark-muted);
+}
+
+/* Keyboard */
+.wb-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.wb-key-row {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+.wb-key {
+  flex: 1 1 0;
+  max-width: 40px;
+  height: 50px;
+  border: none;
+  border-radius: 6px;
+  background: var(--chip);
+  border: 1px solid var(--chip-line);
+  color: var(--on-dark);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0;
+}
+.wb-key.wide {
+  max-width: 64px;
+  font-size: 0.62rem;
+}
+.wb-key.good { background: #39a85b; border-color: #39a85b; color: #fff; }
+.wb-key.near { background: var(--gold, #ffd15a); border-color: var(--gold, #ffd15a); color: #4a3a00; }
+.wb-key.miss { background: rgba(255, 255, 255, 0.04); color: var(--on-dark-muted); border-color: transparent; }
+
+/* Start / played overlay */
+.wb-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 12, 12, 0.82);
+  backdrop-filter: blur(3px);
+  border-radius: 14px;
+  z-index: 10;
+}
+.wb-overlay.hidden {
+  display: none;
+}
+.wb-panel {
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 1.6rem 1.4rem;
+  max-width: 330px;
+  text-align: center;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+.wb-sub {
+  color: var(--muted);
+  margin: 0 0 1rem;
+  line-height: 1.45;
+}
+.wb-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+.wb-tile.demo {
+  width: 26px;
+  height: 26px;
+  font-size: 0.9rem;
+  border-radius: 5px;
+}
+
+/* Phones: tighter tiles so the board and keys fit above the fold */
+@media (max-width: 480px) {
+  .wb-tile {
+    width: 52px;
+    height: 52px;
+    font-size: 1.4rem;
+  }
+  .wb-key {
+    height: 46px;
+  }
+}

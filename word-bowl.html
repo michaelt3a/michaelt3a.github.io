@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Word Bowl - Pokeworks</title>
+  <meta name="description" content="Guess the day's 5-letter word. New word daily, points for the Rewards Shop." />
+  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="stylesheet" href="word-bowl.css?v=1" />
+  <link rel="stylesheet" href="theme.css?v=3" />
+  <meta name="theme-color" content="#0a1010" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <script src="theme.js?v=3"></script>
+  <script src="sound.js?v=1"></script>
+  <script src="streak.js?v=1"></script>
+</head>
+<body>
+  <a href="index.html" class="back-link">← Minigames</a>
+
+  <div class="game-shell page-content">
+    <header class="hud">
+      <div class="hud-left">
+        <img src="pokeworks-logo-circle-1.png" alt="Pokeworks" class="logo" />
+      </div>
+      <div class="hud-right">
+        <div class="score">
+          <span class="score-label">Solved</span>
+          <span id="wb-solved" class="score-value">0</span>
+        </div>
+        <div class="score">
+          <span class="score-label">Streak</span>
+          <span id="wb-streak" class="score-value">0</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="wb-stage">
+      <p class="wb-status" id="wb-status">Guess the 5-letter word</p>
+      <div class="wb-grid" id="wb-grid"></div>
+      <div class="wb-keys" id="wb-keys"></div>
+
+      <!-- Start / already-played overlay -->
+      <div class="wb-overlay" id="wb-overlay">
+        <div class="wb-panel">
+          <h1 class="overlay-title">🥢 Word Bowl</h1>
+          <p class="wb-sub" id="wb-sub">One word a day, six tries. Solve it for Rewards Shop points: fewer guesses pay more, and menu words pay extra.</p>
+          <div class="wb-legend">
+            <span class="wb-tile demo good">A</span> right spot
+            <span class="wb-tile demo near">B</span> wrong spot
+            <span class="wb-tile demo miss">C</span> not in it
+          </div>
+          <button id="wb-start" class="btn" type="button">Play</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="transitions.js?v=3"></script>
+  <script src="daily.js?v=5"></script>
+  <script src="points.js?v=1"></script>
+  <script src="word-bowl.js?v=1"></script>
+  <script src="pwa.js?v=1"></script>
+</body>
+</html>

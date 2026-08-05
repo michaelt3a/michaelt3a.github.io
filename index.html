@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=21" />
+  <link rel="stylesheet" href="menu.css?v=22" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -30,14 +30,14 @@
     <!-- Rewards Shop strip: points from the customer games buy discount codes -->
     <a class="shop-strip" href="shop.html">
       <span class="shop-strip-ico">🎁</span>
-      <span class="shop-strip-txt"><strong>Rewards Shop</strong><small>Points from customer games buy discount codes.</small></span>
+      <span class="shop-strip-txt"><strong>Rewards Shop</strong><small>Play customer games, earn points, get discounts.</small></span>
       <span class="shop-strip-pts" id="shop-strip-pts">0 pts</span>
       <span class="shop-strip-go">›</span>
     </a>
 
     <!-- data-latest names the game whose card wears the ✨ Updated tag.
          Move it whenever a game ships an update. -->
-    <div class="game-groups" data-latest="secret-shopper">
+    <div class="game-groups" data-latest="word-bowl">
       <section class="game-group">
         <h2 class="group-title">🎮 Customer Games</h2>
         <div class="cards">
@@ -118,6 +118,41 @@
             <div class="card-body">
               <h3 class="card-title">Order Up</h3>
               <p class="card-desc">Fill customer orders before they leave.</p>
+              <span class="badge badge-play">Play</span>
+            </div>
+          </a>
+
+          <a class="card" data-game="word-bowl" href="word-bowl.html">
+            <div class="card-icon icon-word">
+              <!-- Yesterday's solve up top, today's guess being typed below. -->
+              <svg viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <g font-size="26" font-weight="800" fill="#ffffff" text-anchor="middle" font-family="system-ui, sans-serif">
+                  <rect x="72" y="12" width="46" height="46" rx="7" fill="#39a85b" />
+                  <text x="95" y="45">P</text>
+                  <rect x="126" y="12" width="46" height="46" rx="7" fill="rgba(255,255,255,0.22)" />
+                  <text x="149" y="45">O</text>
+                  <rect x="180" y="12" width="46" height="46" rx="7" fill="#ffd15a" />
+                  <text x="203" y="45" fill="#4a3a00">N</text>
+                  <rect x="234" y="12" width="46" height="46" rx="7" fill="rgba(255,255,255,0.22)" />
+                  <text x="257" y="45">Z</text>
+                  <rect x="288" y="12" width="46" height="46" rx="7" fill="#39a85b" />
+                  <text x="311" y="45">U</text>
+
+                  <rect x="72" y="70" width="46" height="46" rx="7" fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.5)" stroke-width="2" />
+                  <text x="95" y="103">M</text>
+                  <g class="wbi-pop">
+                    <rect x="126" y="70" width="46" height="46" rx="7" fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.5)" stroke-width="2" />
+                    <text x="149" y="103">A</text>
+                  </g>
+                  <rect x="180" y="70" width="46" height="46" rx="7" fill="rgba(255,255,255,0.12)" />
+                  <rect x="234" y="70" width="46" height="46" rx="7" fill="rgba(255,255,255,0.12)" />
+                  <rect x="288" y="70" width="46" height="46" rx="7" fill="rgba(255,255,255,0.12)" />
+                </g>
+              </svg>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">Word Bowl</h3>
+              <p class="card-desc">Guess the day's word in six tries.</p>
               <span class="badge badge-play">Play</span>
             </div>
           </a>
@@ -289,8 +324,8 @@
       const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
         ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       let html =
-        '<p class="ch-note">Points buy discount codes in the <a href="shop.html">🎁 Rewards Shop</a>. ' +
-        "New challenges every day — customer games only.</p>";
+        '<p class="ch-note">Finish these to earn points for the <a href="shop.html">🎁 Rewards Shop</a>. ' +
+        "New set every day.</p>";
       for (const g of PokeChallenges.active()) {
         html += '<h3 class="ch-game">' + esc(g.label) + "</h3>";
         for (const q of g.quests) {
@@ -304,9 +339,9 @@
         }
       }
       html +=
-        '<p class="ch-note ch-note-foot">Also: finish a customer-game Daily Challenge for +' +
-        PokeChallenges.DAILY_PTS + ", and top yesterday’s daily board for +" +
-        PokeChallenges.TOP_PTS + ".</p>";
+        '<p class="ch-note ch-note-foot">You also get +' + PokeChallenges.DAILY_PTS +
+        " for finishing the Daily Challenge (on Bowl Builder and Order Up days), and +" +
+        PokeChallenges.TOP_PTS + " if you were #1 on yesterday's board.</p>";
       body.innerHTML = html;
     }
 
