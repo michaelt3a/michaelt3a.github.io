@@ -1533,6 +1533,18 @@ function endGame(reason) {
       .join("");
   }
 
+  // Feed the shift into today's shop challenges (points for the Rewards Shop).
+  if (window.PokeChallenges) {
+    PokeChallenges.report("ou", {
+      money: S.score,
+      served: S.served,
+      perfects: S.shift.perfects,
+      combo: S.shift.bestCombo,
+      seconds: S.elapsed || 0,
+      runs: 1,
+    });
+  }
+
   // Offer a leaderboard entry for any scoring shift (boards live on the hub).
   ouLbDone.classList.add("hidden");
   if (isDailyRun) {

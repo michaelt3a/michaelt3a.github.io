@@ -25,7 +25,11 @@
       '<div class="dc-main">' +
       '<span class="dc-game">' + escapeHtml(c.game.label) + "</span>" +
       '<span class="dc-note">' +
-      (done ? "Played: " + fmtScore(done.score, c.game.unit) : "Same run for everyone. One attempt.") +
+      (done
+        ? "Played: " + fmtScore(done.score, c.game.unit)
+        : "Same run for everyone. One attempt." +
+          // Customer-game days pay Rewards Shop points.
+          (c.game.customer && window.PokeChallenges ? " Earns +" + PokeChallenges.DAILY_PTS + " pts." : "")) +
       "</span></div>" +
       (done
         ? '<div class="dc-rank" id="dc-rank">Checking today\'s board…</div>'

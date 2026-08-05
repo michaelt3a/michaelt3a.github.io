@@ -26,12 +26,8 @@ const scoreEl = document.getElementById("score");
 const highScoreEl = document.getElementById("high-score");
 const screenStart = document.getElementById("screen-start");
 const screenDifficulty = document.getElementById("screen-difficulty");
-const screenReward = document.getElementById("screen-reward");
 const screenGameover = document.getElementById("screen-gameover");
 const screenPaused = document.getElementById("screen-paused");
-const rewardBtn = document.getElementById("reward-btn");
-const scrollHint = document.getElementById("scroll-hint");
-const orderBtn = document.getElementById("order-btn");
 const playAgainBtn = document.getElementById("play-again-btn");
 const quitBtn = document.getElementById("quit-btn");
 const resumeBtn = document.getElementById("resume-btn");
@@ -51,30 +47,16 @@ const lbDone = document.getElementById("lb-done");
 const lbNameInput = document.getElementById("lb-name");
 const lbSaveBtn = document.getElementById("lb-save-btn");
 
-const overlayScreens = [screenStart, screenDifficulty, screenReward, screenGameover, screenPaused];
+const overlayScreens = [screenStart, screenDifficulty, screenGameover, screenPaused];
 
 // Show a single overlay panel and hide the rest.
 function showScreen(el) {
   for (const s of overlayScreens) s.classList.toggle("hidden", s !== el);
-  if (el !== screenReward) scrollHint.classList.add("hidden");
-}
-
-// Show the "Scroll to claim" cue only while the reward card overflows the box
-// and hasn't been scrolled to the bottom yet.
-function updateScrollHint() {
-  if (!state.rewardShowing) {
-    scrollHint.classList.add("hidden");
-    return;
-  }
-  const overflowing = screenReward.scrollHeight - screenReward.clientHeight > 4;
-  const atBottom =
-    screenReward.scrollTop >= screenReward.scrollHeight - screenReward.clientHeight - 8;
-  scrollHint.classList.toggle("hidden", !overflowing || atBottom);
 }
 
 // Briefly ignore overlay-button clicks after a screen appears, so a rapid
 // in-flight click (e.g. from spamming drops) can't blow straight through the
-// reward or game-over screen.
+// game-over screen.
 let screenActionsLockedUntil = 0;
 function lockScreenActions(ms = 600) {
   screenActionsLockedUntil = performance.now() + ms;
@@ -82,14 +64,6 @@ function lockScreenActions(ms = 600) {
 function screenActionsLocked() {
   return performance.now() < screenActionsLockedUntil;
 }
-
-const rewardSubtitle = screenReward.querySelector(".overlay-subtitle");
-const rewardCode = screenReward.querySelector(".reward-code");
-
-const confettiCanvas = document.getElementById("confetti");
-const cctx = confettiCanvas.getContext("2d");
-const CW = confettiCanvas.width;
-const CH = confettiCanvas.height;
 
 // Internal (fixed) canvas resolution — world coordinates use this space.
 const W = canvas.width; // 800
@@ -463,20 +437,17 @@ function randomTopping(exclude) {
 
 // Slide speed (px/sec) per difficulty, how much it ramps up per block, and an
 // optional smaller starting block (defaults to the full bowl opening).
-// `reward` is the score milestone that earns the `discount` (%) for that difficulty.
 const DIFFICULTY = {
-  easy: { speed: 190, ramp: 4, startWidth: 290, reward: 50, discount: 5 },
-  medium: { speed: 320, ramp: 8, startWidth: 260, reward: 35, discount: 5 },
-  impossible: { speed: 420, ramp: 12, startWidth: 180, reward: 25, discount: 10 },
+  easy: { speed: 190, ramp: 4, startWidth: 290 },
+  medium: { speed: 320, ramp: 8, startWidth: 260 },
+  impossible: { speed: 420, ramp: 12, startWidth: 180 },
 };
 
 const HIGH_SCORE_KEY = "pokeworks-high-score";
 
 const state = {
   running: false,
-  paused: false, // frozen while a reward / pause screen is up
-  rewardShowing: false, // the reward screen (with confetti) is up
-  rewarded: false, // reward already earned this game
+  paused: false, // frozen while the pause screen is up
   muted: false,
   score: 0,
   combo: 0, // consecutive perfect drops
@@ -864,7 +835,7 @@ function resumeFromPause() {
 function togglePause() {
   if (!state.running) return;
   if (state.paused) {
-    if (!screenPaused.classList.contains("hidden")) resumeFromPause(); // don't touch the reward pause
+    if (!screenPaused.classList.contains("hidden")) resumeFromPause();
   } else {
     pauseGame();
   }
@@ -953,7 +924,7 @@ function startGame(difficulty) {
   ensureAudio();
   state.running = true;
   state.paused = false;
-  state.rewarded = false;
+  state.runStart = performance.now(); // for the "play N minutes" challenges
   state.difficulty = difficulty;
   setScore(0);
   state.combo = 0;
@@ -971,7 +942,6 @@ function startGame(difficulty) {
   state.baseIngredient = randomFrom(BASES);
   state.cam = { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 };
   spawnActive();
-  clearConfetti();
   clearPowerups();
 
   overlay.classList.add("hidden");
@@ -1022,6 +992,18 @@ function endGame() {
   if (gsPerfects) gsPerfects.textContent = state.stats.perfects;
   if (gsCombo) gsCombo.textContent = state.stats.bestCombo;
   if (gsPower) gsPower.textContent = state.stats.powerups;
+
+  // Feed the run into today's shop challenges (points for the Rewards Shop).
+  if (window.PokeChallenges) {
+    PokeChallenges.report("bowl", {
+      score: state.score,
+      combo: state.stats.bestCombo,
+      perfects: state.stats.perfects,
+      powerups: state.stats.powerups,
+      seconds: state.runStart ? (performance.now() - state.runStart) / 1000 : 0,
+      runs: 1,
+    });
+  }
 
   // Offer a leaderboard entry (the board itself is viewed on the hub).
   // Global (Supabase) boards accept any positive score; a local-only board
@@ -1224,13 +1206,6 @@ function dropActive() {
 
   spawnActive();
   notePerfectStreak(); // 3-in-a-row perfect streak earns a power-up
-
-  // Earn the reward the first time you reach the difficulty's milestone.
-  const cfg = DIFFICULTY[state.difficulty] || DIFFICULTY.medium;
-  if (!state.rewarded && state.score >= cfg.reward) {
-    state.rewarded = true;
-    triggerReward(cfg);
-  }
 }
 
 // --- Loop & rendering ---------------------------------------------------
@@ -1702,82 +1677,6 @@ function renderMenu() {
   }
 }
 
-// --- Reward + confetti --------------------------------------------------
-
-const CONFETTI_COLORS = ["#ee435b", "#22b2b4", "#ffffff", "#f5a3ad", "#8fd6d7", "#f0637a", "#4fc3c4"];
-const confetti = [];
-
-// fromTop=true spawns just above the box (ongoing emission); fromTop=false
-// seeds across the whole box so the opening burst looks full immediately.
-function spawnConfetti(n, fromTop = true) {
-  for (let i = 0; i < n; i++) {
-    confetti.push({
-      x: Math.random() * CW,
-      y: fromTop ? -20 - Math.random() * 80 : Math.random() * (CH + 40) - 40,
-      vx: (Math.random() - 0.5) * 120,
-      vy: 60 + Math.random() * 170,
-      size: 5 + Math.random() * 6,
-      rot: Math.random() * Math.PI,
-      vrot: (Math.random() - 0.5) * 8,
-      sway: Math.random() * Math.PI * 2,
-      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-    });
-  }
-}
-
-function updateConfetti(dt) {
-  if (state.rewardShowing && confetti.length < 240) spawnConfetti(4); // keep it going while shown
-  for (let i = confetti.length - 1; i >= 0; i--) {
-    const c = confetti[i];
-    c.sway += dt * 4;
-    c.vy += 260 * dt;
-    c.x += (c.vx + Math.sin(c.sway) * 30) * dt;
-    c.y += c.vy * dt;
-    c.rot += c.vrot * dt;
-    if (c.y > CH + 30) confetti.splice(i, 1);
-  }
-}
-
-function renderConfetti() {
-  cctx.clearRect(0, 0, CW, CH);
-  for (const c of confetti) {
-    cctx.save();
-    cctx.translate(c.x, c.y);
-    cctx.rotate(c.rot);
-    cctx.fillStyle = c.color;
-    cctx.fillRect(-c.size / 2, -c.size * 0.35, c.size, c.size * 0.7);
-    cctx.restore();
-  }
-}
-
-function clearConfetti() {
-  confetti.length = 0;
-  cctx.clearRect(0, 0, CW, CH);
-}
-
-// A cheerful little arpeggio.
-function playReward() {
-  const notes = [523, 659, 784, 1047];
-  notes.forEach((f, i) => tone({ freq: f, type: "triangle", dur: 0.18, gain: 0.18, delay: i * 0.09 }));
-}
-
-function triggerReward(cfg) {
-  render(); // capture the just-completed bowl as the frozen backdrop
-  state.paused = true;
-  state.rewardShowing = true;
-  rewardSubtitle.textContent = `You reached ${cfg.reward}, so here's ${cfg.discount}% off your next bowl.`;
-  rewardCode.textContent = `POKEREWARDS${cfg.reward}`;
-  spawnConfetti(200, false); // seed across the whole box so it's full immediately
-  playReward();
-  showScreen(screenReward);
-  overlay.classList.remove("hidden");
-  updateCombo();
-  lockScreenActions();
-  screenReward.scrollTop = 0; // start at the top so the cue makes sense
-  updateScrollHint(); // measure now (reading scrollHeight forces a reflow)
-  requestAnimationFrame(updateScrollHint); // and again after layout settles
-}
-
 // --- Power-ups ----------------------------------------------------------
 
 const POWERUP_R = 30; // radius (canvas space)
@@ -2102,8 +2001,6 @@ function frame(timestamp) {
   state.lastTime = timestamp;
 
   if (state.running) {
-    // While paused for the reward, leave the frozen frame on the canvas and
-    // give the confetti all the frame budget.
     if (!state.paused) {
       updatePowerups(dt);
       update(dt);
@@ -2113,11 +2010,6 @@ function frame(timestamp) {
   } else {
     updateMenu(dt);
     renderMenu();
-  }
-
-  if (state.rewardShowing) {
-    updateConfetti(dt);
-    renderConfetti();
   }
 
   requestAnimationFrame(frame);
@@ -2151,29 +2043,6 @@ playAgainBtn.addEventListener("click", () => {
 quitBtn.addEventListener("click", () => {
   if (screenActionsLocked()) return;
   showStartScreen();
-});
-
-// Hide the scroll cue as soon as the reward card is scrolled toward the bottom.
-screenReward.addEventListener("scroll", updateScrollHint);
-
-// Resume play after the reward screen.
-rewardBtn.addEventListener("click", () => {
-  if (screenActionsLocked()) return;
-  state.paused = false;
-  state.rewardShowing = false;
-  scrollHint.classList.add("hidden");
-  overlay.classList.add("hidden");
-  clearConfetti();
-  updateCombo();
-  state.lastTime = 0; // avoid a big dt jump on resume
-  if (document.activeElement && document.activeElement.blur) {
-    document.activeElement.blur();
-  }
-});
-
-// Order Now — don't fire on a stray rapid click while the screen is locking.
-orderBtn.addEventListener("click", (e) => {
-  if (screenActionsLocked()) e.preventDefault();
 });
 
 // Pause / resume via the button below the box.

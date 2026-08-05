@@ -289,35 +289,6 @@ body {
   justify-content: safe center;
 }
 
-/* "Scroll to claim" cue — pinned to the bottom of the box, shown only when the
-   reward card overflows and hasn't been scrolled to the end (toggled in JS). */
-.scroll-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 12px;
-  transform: translateX(-50%);
-  z-index: 5;
-  background: var(--accent);
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.82rem;
-  padding: 0.4rem 0.95rem;
-  border-radius: 999px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
-  pointer-events: none;
-  white-space: nowrap;
-  animation: scroll-hint-bounce 1.3s ease-in-out infinite;
-}
-
-.scroll-hint.hidden {
-  display: none;
-}
-
-@keyframes scroll-hint-bounce {
-  0%, 100% { transform: translate(-50%, 0); }
-  50% { transform: translate(-50%, 5px); }
-}
-
 .overlay-title {
   font-size: clamp(1.75rem, 5vw, 2.75rem);
   margin: 0 0 0.5rem;
@@ -330,26 +301,6 @@ body {
   color: #45585a;
   margin: 0 0 1.75rem;
   text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9);
-}
-
-/* Reward screen */
-.reward-emoji {
-  font-size: 3rem;
-  line-height: 1;
-  margin-bottom: 0.35rem;
-}
-
-.reward-code {
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 1.4rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--accent-dark);
-  background: rgba(238, 67, 91, 0.1);
-  border: 1px dashed var(--accent);
-  border-radius: 10px;
-  padding: 0.65rem 1.1rem;
-  margin: 0 0 1.5rem;
 }
 
 /* Perfect-combo counter — a circle in the top-right of the box */
@@ -416,14 +367,6 @@ body {
 @keyframes combo-ring {
   0% { transform: scale(0.9); opacity: 0.85; }
   100% { transform: scale(1.7); opacity: 0; }
-}
-
-/* Reward actions (Order Now + Keep Playing) */
-.reward-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  align-items: center;
 }
 
 /* Controls below the box */
@@ -638,16 +581,6 @@ body {
 
 .btn.btn-secondary:hover {
   background: var(--teal-dark);
-}
-
-/* Confetti sits in front of everything but never intercepts clicks. */
-.confetti {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 30;
 }
 
 /* Difficulty selection */

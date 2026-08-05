@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=20" />
+  <link rel="stylesheet" href="menu.css?v=21" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -26,6 +26,14 @@
     <button class="pc-strip" type="button" id="pc-strip" data-open="sheet-you"></button>
 
     <section class="dc" id="dc"></section>
+
+    <!-- Rewards Shop strip: points from the customer games buy discount codes -->
+    <a class="shop-strip" href="shop.html">
+      <span class="shop-strip-ico">🎁</span>
+      <span class="shop-strip-txt"><strong>Rewards Shop</strong><small>Points from customer games buy discount codes.</small></span>
+      <span class="shop-strip-pts" id="shop-strip-pts">0 pts</span>
+      <span class="shop-strip-go">›</span>
+    </a>
 
     <!-- data-latest names the game whose card wears the ✨ Updated tag.
          Move it whenever a game ships an update. -->
@@ -195,6 +203,7 @@
     </div>
 
     <div class="hub-actions">
+      <button class="hub-btn" type="button" data-open="sheet-ch">🎯 Challenges</button>
       <button class="hub-btn" type="button" data-open="sheet-lb">🏆 Leaderboards</button>
       <button class="hub-btn" type="button" data-open="sheet-ach">🏅 Achievements</button>
     </div>
@@ -208,6 +217,17 @@
         <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
       </div>
       <div class="sheet-body" id="pc-body"></div>
+    </div>
+  </div>
+
+  <!-- Daily challenges (opens from the hub button) -->
+  <div class="sheet" id="sheet-ch" hidden>
+    <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Daily challenges">
+      <div class="sheet-head">
+        <h2 class="sheet-title">🎯 Today's Challenges</h2>
+        <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="sheet-body" id="ch-body"></div>
     </div>
   </div>
 
@@ -243,14 +263,52 @@
   <script src="transitions.js?v=3"></script>
   <script src="supabase-config.js?v=2"></script>
   <script src="achievements.js?v=8"></script>
-  <!-- daily.js first: hub-leaderboard.js registers today's board from it -->
-  <script src="daily.js?v=4"></script>
+  <!-- daily.js first: hub-leaderboard.js registers today's board from it,
+       and challenges.js draws today's quest set from its seeded streams -->
+  <script src="daily.js?v=5"></script>
+  <script src="points.js?v=1"></script>
+  <script src="challenges.js?v=1"></script>
   <script src="hub-leaderboard.js?v=7"></script>
   <script src="player-card.js?v=7"></script>
-  <script src="daily-card.js?v=4"></script>
+  <script src="daily-card.js?v=5"></script>
   <script>
     PlayerCard.init(document.getElementById("pc-strip"));
     DailyCard.render(document.getElementById("dc"));
+
+    // Shop strip: live points balance.
+    {
+      const pts = document.getElementById("shop-strip-pts");
+      const paint = () => { pts.textContent = PokePoints.balance().toLocaleString() + " pts"; };
+      PokePoints.onChange(paint);
+      paint();
+    }
+
+    // Today's challenges sheet: three per customer game, plus the bonus notes.
+    function buildChallenges() {
+      const body = document.getElementById("ch-body");
+      const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      let html =
+        '<p class="ch-note">Points buy discount codes in the <a href="shop.html">🎁 Rewards Shop</a>. ' +
+        "New challenges every day — customer games only.</p>";
+      for (const g of PokeChallenges.active()) {
+        html += '<h3 class="ch-game">' + esc(g.label) + "</h3>";
+        for (const q of g.quests) {
+          const pct = Math.round((q.progress / q.goal) * 100);
+          html +=
+            '<div class="ch-row' + (q.done ? " done" : "") + '">' +
+            '<div class="ch-info"><span class="ch-label">' + esc(q.label) + "</span>" +
+            '<div class="ch-bar"><i style="width:' + (q.done ? 100 : pct) + '%"></i></div></div>' +
+            '<span class="ch-pts">' + (q.done ? "✓" : "+" + q.pts) + "</span>" +
+            "</div>";
+        }
+      }
+      html +=
+        '<p class="ch-note ch-note-foot">Also: finish a customer-game Daily Challenge for +' +
+        PokeChallenges.DAILY_PTS + ", and top yesterday’s daily board for +" +
+        PokeChallenges.TOP_PTS + ".</p>";
+      body.innerHTML = html;
+    }
 
     // Double the signature-bowl strip so its -50% scroll loops seamlessly.
     {
@@ -282,9 +340,10 @@
           document.getElementById("hlb-list")
         ),
       "sheet-you": () => PlayerCard.renderSheet(document.getElementById("pc-body")),
+      "sheet-ch": buildChallenges,
     };
-    // Your bests change as you play, so the stats panel is rebuilt every open.
-    const alwaysRebuild = { "sheet-you": true };
+    // Panels whose contents change as you play are rebuilt every open.
+    const alwaysRebuild = { "sheet-you": true, "sheet-ch": true };
 
     function openSheet(id) {
       const el = document.getElementById(id);

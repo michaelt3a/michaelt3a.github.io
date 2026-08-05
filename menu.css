@@ -852,6 +852,291 @@ body.sheet-lock {
   background: var(--g, #ccc);
 }
 
+/* Rewards Shop strip on the hub (mirrors the daily card's chip look) */
+.shop-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.1rem;
+  padding: 0.65rem 0.95rem;
+  border-radius: 14px;
+  background: var(--chip);
+  border: 1.5px solid var(--chip-line);
+  border-left: 5px solid var(--gold, #ffd15a);
+  color: var(--on-dark);
+  text-decoration: none;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.shop-strip:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold, #ffd15a);
+}
+.shop-strip-ico {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.shop-strip-txt {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.shop-strip-txt strong {
+  font-size: 0.95rem;
+}
+.shop-strip-txt small {
+  font-size: 0.74rem;
+  color: var(--on-dark-muted);
+}
+.shop-strip-pts {
+  flex: none;
+  font-weight: 800;
+  color: var(--gold, #ffd15a);
+  font-variant-numeric: tabular-nums;
+}
+.shop-strip-go {
+  flex: none;
+  font-weight: 800;
+  color: var(--on-dark-muted);
+}
+
+/* Today's-challenges sheet */
+.ch-note {
+  color: var(--on-dark-muted);
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+.ch-note a {
+  color: var(--gold, #ffd15a);
+  font-weight: 700;
+}
+.ch-note-foot {
+  margin: 1.1rem 0 0;
+}
+.ch-game {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--on-dark-muted);
+}
+.ch-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  background: var(--chip);
+  border: 1px solid var(--chip-line);
+  margin-bottom: 6px;
+}
+.ch-row.done {
+  opacity: 0.65;
+}
+.ch-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ch-label {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--on-dark);
+  margin-bottom: 4px;
+}
+.ch-row.done .ch-label {
+  text-decoration: line-through;
+}
+.ch-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.ch-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gold, #ffd15a);
+  transition: width 0.4s ease;
+}
+.ch-pts {
+  flex: none;
+  font-weight: 800;
+  color: var(--gold, #ffd15a);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- Rewards Shop ---------------- */
+.shop {
+  max-width: 640px;
+}
+
+/* Balance card */
+.shop-balance {
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 1.4rem 1.2rem 1.2rem;
+  text-align: center;
+  margin-bottom: 1.6rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.shop-bal-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.shop-bal-num {
+  font-size: clamp(2.4rem, 8vw, 3.4rem);
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.shop-bal-label {
+  font-weight: 700;
+  color: var(--muted);
+}
+.shop-bal-sub {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* How-to-earn list */
+.shop-earn {
+  margin-bottom: 1.6rem;
+}
+.shop-earn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+  color: var(--on-dark-muted);
+  font-size: 0.9rem;
+}
+.shop-earn-list strong {
+  color: var(--on-dark);
+}
+
+/* Catalog */
+.shop-catalog {
+  margin-bottom: 1.6rem;
+}
+.shop-grid {
+  display: grid;
+  gap: 0.7rem;
+}
+.shop-item {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.shop-item.locked {
+  opacity: 0.6;
+}
+.shop-item-ico {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+.shop-item-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.shop-item-body strong {
+  display: block;
+  color: var(--text);
+}
+.shop-item-body small {
+  color: var(--muted);
+  line-height: 1.3;
+}
+.shop-buy {
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.shop-buy:disabled {
+  background: var(--muted);
+  cursor: default;
+}
+.shop-buy.armed {
+  background: var(--teal);
+}
+
+/* Redeemed codes */
+.shop-owned {
+  margin-bottom: 1.6rem;
+}
+.shop-owned-list {
+  display: grid;
+  gap: 0.6rem;
+}
+.shop-code {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: var(--panel-alt);
+  border: 1px dashed var(--teal);
+  border-radius: 12px;
+  padding: 0.7rem 0.9rem;
+}
+.shop-code-txt {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.shop-code-txt strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.shop-code-txt code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--teal-dark);
+  font-size: 0.95rem;
+}
+.shop-code-txt small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.shop-copy {
+  flex: 0 0 auto;
+  border: 1px solid var(--teal);
+  background: transparent;
+  color: var(--teal-dark);
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+.shop-note {
+  color: var(--on-dark-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  margin: 0;
+}
+
 /* Phones: a compact 2x2 grid so all four games fit without scrolling */
 @media (max-width: 640px) {
   body {
@@ -916,6 +1201,15 @@ body.sheet-lock {
     margin-bottom: 0.7rem;
     padding: 0.42rem 0.7rem;
     border-radius: 12px;
+  }
+  .shop-strip {
+    gap: 0.55rem;
+    margin-bottom: 0.7rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 12px;
+  }
+  .shop-strip-txt small {
+    display: none;
   }
   .pc-avatar {
     width: 30px;

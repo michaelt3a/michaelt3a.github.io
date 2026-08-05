@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rewards Shop - Pokeworks</title>
+  <meta name="description" content="Trade arcade points for Pokeworks discount codes." />
+  <link rel="stylesheet" href="menu.css?v=21" />
+  <link rel="stylesheet" href="theme.css?v=3" />
+  <meta name="theme-color" content="#0a1010" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <script src="theme.js?v=3"></script>
+  <script src="sound.js?v=1"></script>
+</head>
+<body>
+  <a href="index.html" class="back-link">← Minigames</a>
+
+  <main class="hub page-content shop">
+    <header class="hub-header">
+      <h1 class="hub-title">🎁 Rewards Shop</h1>
+      <p class="hub-subtitle">Trade points from the customer games for discount codes.</p>
+    </header>
+
+    <!-- Balance -->
+    <section class="shop-balance">
+      <div class="shop-bal-main">
+        <span class="shop-bal-num" id="shop-balance">0</span>
+        <span class="shop-bal-label">points</span>
+      </div>
+      <p class="shop-bal-sub" id="shop-earned"></p>
+    </section>
+
+    <!-- How points are earned -->
+    <section class="shop-earn">
+      <h2 class="group-title">💡 How to earn</h2>
+      <ul class="shop-earn-list">
+        <li>🎯 Daily challenges in <strong>Bowl Builder</strong> and <strong>Order Up</strong> — three each, fresh every day.</li>
+        <li>🗓 Finish the <strong>Daily Challenge</strong> on a customer-game day (+25).</li>
+        <li>🥇 Top yesterday's daily board (+75).</li>
+      </ul>
+    </section>
+
+    <!-- Catalog -->
+    <section class="shop-catalog">
+      <h2 class="group-title">🏷️ Rewards</h2>
+      <div class="shop-grid" id="shop-grid"></div>
+    </section>
+
+    <!-- Redeemed codes -->
+    <section class="shop-owned" id="shop-owned-wrap" hidden>
+      <h2 class="group-title">📇 My codes</h2>
+      <div class="shop-owned-list" id="shop-owned"></div>
+    </section>
+
+    <p class="shop-note">Codes are placeholders while the program is being set up — they won't scan at a register yet.</p>
+  </main>
+
+  <script src="transitions.js?v=3"></script>
+  <script src="points.js?v=1"></script>
+  <script src="shop.js?v=1"></script>
+  <script src="pwa.js?v=1"></script>
+</body>
+</html>
