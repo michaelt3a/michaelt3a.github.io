@@ -6,6 +6,13 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
+  // "$12" and "85%" hug the number; other units trail it ("31 blocks").
+  function fmtScore(score, unit) {
+    if (unit === "$") return "$" + score;
+    if (unit === "%") return score + "%";
+    return score + " " + unit;
+  }
+
   function render(el) {
     const c = Daily.challenge();
     const done = Daily.result();
@@ -18,9 +25,7 @@
       '<div class="dc-main">' +
       '<span class="dc-game">' + escapeHtml(c.game.label) + "</span>" +
       '<span class="dc-note">' +
-      (done
-        ? "Played: " + (c.game.unit === "$" ? "$" + done.score : done.score + " " + c.game.unit)
-        : "Same run for everyone. One attempt.") +
+      (done ? "Played: " + fmtScore(done.score, c.game.unit) : "Same run for everyone. One attempt.") +
       "</span></div>" +
       (done
         ? '<div class="dc-rank" id="dc-rank">Checking today\'s board…</div>'

@@ -13,12 +13,19 @@
   const STREAK_KEY = "pokeworks-daily-streak";
 
   // Each game runs on a fixed setting on its challenge day, otherwise "the same
-  // run" wouldn't mean anything.
+  // run" wouldn't mean anything. Customer and training games alternate so
+  // neither section goes two days without a turn.
   const GAMES = [
     { id: "bowl", label: "Bowl Builder", file: "bowl-builder.html", color: "#ee435b", unit: "blocks", setting: "medium" },
+    // Daily Signature Works is a speedrun of all 9 bowls in a seeded order;
+    // the score folds perfect bowls and time into one number.
+    { id: "sw", label: "Signature Works", file: "placeholder-1.html", color: "#22b2b4", unit: "pts", setting: "speedrun" },
     // Daily Order Up is always the timed Rush variant so every run is bounded
     // and the day's scores stay comparable.
     { id: "ou", label: "Order Up", file: "order-up.html", color: "#fd9f27", unit: "$", setting: "normal-rush" },
+    // Daily Secret Shopper is a fixed-rank shift (everyone gets Shift Lead
+    // difficulty, whatever their career says); the score is the audit %.
+    { id: "ss", label: "Secret Shopper", file: "secret-shopper.html", color: "#7c5cff", unit: "%", setting: "shift" },
   ];
 
   function dayString(d) {

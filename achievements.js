@@ -48,6 +48,9 @@
     // Arcade-wide
     { id: "meta-all", game: "Arcade", icon: "🕹️", title: "Arcade Regular", how: "Play all 4 games at least once." },
     { id: "meta-streak7", game: "Arcade", icon: "🔥", title: "Seven Straight", how: "Play on 7 days in a row." },
+    // One badge per hub section: prove yourself in both of its games.
+    { id: "meta-customer", game: "Arcade", icon: "😋", title: "Crowd Pleaser", how: "Stack 25 blocks in Bowl Builder and reach a 4.8★ rating in Order Up." },
+    { id: "meta-training", game: "Arcade", icon: "🎓", title: "Certified", how: "Finish a Signature Works speedrun and pass a Secret Shopper shift at 80%+." },
   ];
 
   function load() {
@@ -106,6 +109,16 @@
     }, 5200);
   }
 
+  // Cross-game combos re-check after every unlock (each combo unlocks once —
+  // unlock() bails early on anything already earned).
+  function checkMetas() {
+    const m = load();
+    const swDone = m["sw-first"] || m["sw-speedrun"];
+    if (m["bb-first"] && m["ou-first"] && m["ss-first"] && swDone) unlock("meta-all");
+    if (m["bb-25"] && m["ou-5star"]) unlock("meta-customer");
+    if (m["sw-speedrun"] && m["ss-pass"]) unlock("meta-training");
+  }
+
   function unlock(id) {
     const def = DEFS.find((d) => d.id === id);
     if (!def) return false;
@@ -114,12 +127,7 @@
     map[id] = Date.now();
     save(map);
     toast(def);
-    // Played every game? That's an achievement of its own.
-    if (id !== "meta-all") {
-      const m = load();
-      const swDone = m["sw-first"] || m["sw-speedrun"];
-      if (m["bb-first"] && m["ou-first"] && m["ss-first"] && swDone) unlock("meta-all");
-    }
+    if (!id.startsWith("meta-")) checkMetas();
     return true;
   }
 
@@ -142,6 +150,10 @@
       gridEl.appendChild(item);
     }
   }
+
+  // Players who qualified before a combo badge existed get it on the next
+  // page load rather than having to unlock something new first.
+  checkMetas();
 
   window.PokeAch = { DEFS, unlock, isUnlocked, renderWall };
 })();

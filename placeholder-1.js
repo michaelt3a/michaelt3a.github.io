@@ -128,6 +128,10 @@ let mode = "practice"; // "practice" | "speedrun"
 let run = null;        // active speedrun: { order, index, results, startMs }
 let timerRAF = 0;
 
+// Daily Challenge run (placeholder-1.html?daily=1): the bowl order is seeded
+// from the date so everyone faces the same sequence, and there's one attempt.
+const isDailyRun = !!(window.Daily && Daily.isRun());
+
 function resetSelection() {
   selected = {};
   for (const c of CATEGORIES) selected[c] = new Set();
@@ -851,17 +855,18 @@ async function submitSpeedrun(name, perfect, ms) {
   if (!res.ok) throw new Error("Supabase insert " + res.status);
 }
 
-// Submit the just-finished run under the typed name, then confirm.
+// Submit the just-finished run under the typed name, then confirm. Dailies
+// post to the day's shared board instead of the all-time speedrun table.
 async function submitSpeedrunName() {
   if (!srPendingRun) return;
   const name = (srLbNameInput.value || "").trim().slice(0, 12) || "Anon";
   saveLbName(name);
-  const perfect = srPendingRun.perfect;
-  const ms = srPendingRun.ms;
+  const pending = srPendingRun;
   srPendingRun = null;
   srLbSubmitBtn.disabled = true;
   try {
-    await submitSpeedrun(name, perfect, ms);
+    if (pending.daily) await Daily.submit(name, pending.score);
+    else await submitSpeedrun(name, pending.perfect, pending.ms);
   } catch (e) {
     /* local mirror already saved */
   }
@@ -870,11 +875,12 @@ async function submitSpeedrunName() {
   if (srLbDone) srLbDone.classList.remove("hidden");
 }
 
-// Fisher–Yates shuffle (a fresh order each run).
-function shuffled(arr) {
+// Fisher–Yates shuffle (a fresh order each run; dailies pass a seeded rng).
+function shuffled(arr, rng) {
+  const rand = rng || Math.random;
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rand() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -915,8 +921,10 @@ function stopTimer() {
 }
 
 function startSpeedrun() {
+  if (isDailyRun && Daily.isDone()) return; // one attempt a day
   if (window.PokeStreak) PokeStreak.mark();
-  run = { order: shuffled(RECIPES), index: 0, results: [], startMs: performance.now() };
+  const order = isDailyRun ? shuffled(RECIPES, Daily.stream("sw:order")) : shuffled(RECIPES);
+  run = { order: order, index: 0, results: [], startMs: performance.now() };
   setMode("speedrun");
   overlay.classList.add("hidden");
   resultsEl.classList.add("hidden");
@@ -987,9 +995,22 @@ function finishSpeedrun() {
     if (perfect === run.results.length) PokeAch.unlock("sw-perfectrun");
   }
 
-  // Offer to add this run to the leaderboard (viewed on the hub). Round the
-  // time — the DB stores whole milliseconds (an int column).
-  srPendingRun = { perfect: perfect, ms: Math.round(totalMs) };
+  if (isDailyRun) {
+    // Daily score: a perfect bowl always outweighs any time bonus, so accuracy
+    // ranks first and speed breaks ties (bonus fades to 0 at 10 minutes).
+    const score = perfect * 1000 + Math.max(0, 600 - Math.floor(totalMs / 1000));
+    Daily.complete(score);
+    resultsSummary.innerHTML +=
+      ` &middot; <strong>${score} pts</strong> on today's board`;
+    resultsAgain.classList.add("hidden"); // one attempt a day
+    srPendingRun = { daily: true, score: score };
+    dailyOverlay(); // closing the results reopens the overlay in its played state
+  } else {
+    resultsAgain.classList.remove("hidden");
+    // Offer to add this run to the leaderboard (viewed on the hub). Round the
+    // time — the DB stores whole milliseconds (an int column).
+    srPendingRun = { perfect: perfect, ms: Math.round(totalMs) };
+  }
   if (srLbDone) srLbDone.classList.add("hidden");
   if (srLbNameInput) srLbNameInput.value = loadLbName();
   if (srLbEntry) srLbEntry.classList.remove("hidden");
@@ -1187,3 +1208,30 @@ bowlArea.addEventListener("drop", (e) => {
 resetSelection();
 renderRecipes();
 drawBowl();
+
+// Daily Challenge: launched as placeholder-1.html?daily=1. Practice is hidden,
+// the speedrun order is seeded, and there's one attempt a day.
+function dailyOverlay() {
+  const title = overlay.querySelector(".overlay-title");
+  const sub = overlay.querySelector(".overlay-subtitle");
+  const note = overlay.querySelector(".overlay-note");
+  if (title) title.textContent = "🗓 Daily Challenge";
+  if (note) note.hidden = true;
+  recipeGrid.style.display = "none"; // beats the class's display:grid
+  const done = Daily.result();
+  if (!Daily.isTodaysGame("sw")) {
+    // Stale link — today's challenge is a different game.
+    sub.textContent =
+      "Today's challenge is " + Daily.challenge().game.label + ". Head back to the hub for it.";
+    speedrunBtn.hidden = true;
+  } else if (done) {
+    sub.textContent = "You've already played today: " + done.score + " pts. Back tomorrow for a new run.";
+    speedrunBtn.hidden = true;
+  } else {
+    sub.textContent = "Everyone builds today's 9 bowls in the same order. One attempt, so make it count.";
+    speedrunBtn.querySelector(".speedrun-txt").innerHTML =
+      "Start<small>Build all 9 bowls, timed.</small>";
+    speedrunBtn.hidden = false;
+  }
+}
+if (isDailyRun) dailyOverlay();

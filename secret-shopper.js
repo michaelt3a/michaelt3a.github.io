@@ -243,6 +243,15 @@ let corporateIdx = -1; // guest index the District Manager observes, -1 = none
 let custShirt = CUST_SHIRTS[0];
 let custSitting = false;
 
+// Daily Challenge shift (secret-shopper.html?daily=1): consequential
+// randomness is drawn from a date-seeded stream so everyone works the same
+// shift, at a fixed rank whatever your career says. (Different answers can
+// drift the later details apart, but the cast, orders, and questions start
+// identical for every player.)
+const isDailyRun = !!(window.Daily && Daily.isRun());
+const DAILY_RANK = 2; // Shift Lead: 4 guests, one shopper — fair for everyone
+let rand = Math.random; // swapped for the seeded stream during a daily shift
+
 // Rank config in effect right now (exam shifts run at the NEXT rank).
 const cfg = () => RANKS[shiftRank];
 // Menu questions ramp from the rank's base level up to 3 across the shift.
@@ -379,11 +388,11 @@ function moodDown() {
 
 // --- Helpers ------------------------------------------------------------
 function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
-function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function pick(arr) { return arr[Math.floor(rand() * arr.length)]; }
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rand() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -541,7 +550,7 @@ function extrasOf(r) {
 }
 function qSauceProtein() {
   const r = pick(RECIPES);
-  const useSauce = Math.random() < 0.5;
+  const useSauce = rand() < 0.5;
   const cat = useSauce ? "Sauce" : "Protein";
   const correct = r.items[cat][0];
   const wrongs = pickN(ING[cat].filter((n) => !r.items[cat].includes(n)), 3);
@@ -827,7 +836,7 @@ const EVENTS = {
 async function runGuest(idx, personaKey) {
   const P = PERSONALITIES[personaKey];
   const isShopper = shopperSet.has(idx);
-  const dine = Math.random() < P.dineChance;
+  const dine = rand() < P.dineChance;
   const meta = { label: P.label, dine, shopper: isShopper, leftEarly: false };
   guestMeta.push(meta);
 
@@ -1164,17 +1173,25 @@ function scoopStage(recipe, secs) {
 // --- The shift ----------------------------------------------------------
 async function runShift(exam) {
   if (running) return;
+  if (isDailyRun && Daily.isDone()) return; // one attempt a day
   if (window.PokeStreak) PokeStreak.mark();
   running = true;
   audit = [];
   guestMeta = [];
-  examMode = !!exam && examReady();
-  shiftRank = Math.min(career.rank + (examMode ? 1 : 0), RANKS.length - 1);
+  if (isDailyRun) {
+    rand = Daily.stream("ss:shift");
+    examMode = false;
+    shiftRank = DAILY_RANK;
+  } else {
+    rand = Math.random;
+    examMode = !!exam && examReady();
+    shiftRank = Math.min(career.rank + (examMode ? 1 : 0), RANKS.length - 1);
+  }
   const R = cfg();
   shiftGuests = R.guests;
   shopperSet = new Set();
   while (shopperSet.size < Math.min(R.shoppers, shiftGuests)) {
-    shopperSet.add(Math.floor(Math.random() * shiftGuests));
+    shopperSet.add(Math.floor(rand() * shiftGuests));
   }
 
   empStick.innerHTML = stickmanSVG("#ee435b", "ok");
@@ -1194,8 +1211,8 @@ async function runShift(exam) {
   // At Store Manager and up, the District Manager sometimes drops in to
   // observe one guest's visit from start to finish.
   shiftOrders = [];
-  corporateIdx = shiftRank >= 4 && Math.random() < 0.35
-    ? Math.floor(Math.random() * shiftGuests)
+  corporateIdx = shiftRank >= 4 && rand() < 0.35
+    ? Math.floor(rand() * shiftGuests)
     : -1;
 
   // Shifts can outnumber the personality pool, so repeats are allowed —
@@ -1258,7 +1275,8 @@ function finishShift() {
   }
 
   const pct = total ? Math.round((earned / total) * 100) : 0;
-  auditHeader.textContent = `${examMode ? "PROMOTION EXAM · " : ""}HOSPITALITY ${pct}% (${earned}/${total})`;
+  auditHeader.textContent =
+    `${isDailyRun ? "DAILY CHALLENGE · " : examMode ? "PROMOTION EXAM · " : ""}HOSPITALITY ${pct}% (${earned}/${total})`;
 
   // Reputation: pct scaled by shift size, so bigger shifts pay more. A perfect
   // 3-guest shift = 100 rep; a perfect 6-guest shift = 200.
@@ -1274,7 +1292,7 @@ function finishShift() {
 
   gradeEl.textContent =
     promoted ? `🎉 Exam passed at ${pct}%! Corporate promoted you to ${RANKS[career.rank].name}.` :
-    shiftRank > career.rank ? `Exam failed — ${pct}%, and corporate wanted ${EXAM_PASS_PCT}%. Your rep is safe; retake anytime.` :
+    !isDailyRun && shiftRank > career.rank ? `Exam failed — ${pct}%, and corporate wanted ${EXAM_PASS_PCT}%. Your rep is safe; retake anytime.` :
     pct === 100 ? "Perfect audit! The secret shopper is telling everyone about you." :
     pct >= 90 ? "Outstanding! Corporate is framing this one." :
     pct >= 80 ? "Great shift. The secret shopper left smiling." :
@@ -1320,9 +1338,52 @@ function finishShift() {
     if (career.rank === RANKS.length - 1) PokeAch.unlock("ss-legend");
   }
 
+  // A daily shift locks until tomorrow and offers a spot on the day's board.
+  if (isDailyRun) {
+    Daily.complete(pct);
+    ssLbPending = pct;
+    ssLbName.value = loadLbName();
+    ssLbDone.classList.add("hidden");
+    ssLbEntry.classList.remove("hidden");
+  } else {
+    ssLbEntry.classList.add("hidden");
+    ssLbDone.classList.add("hidden");
+  }
+
   if (pct === 100) SFX.fanfare();
   scorecardEl.classList.remove("hidden");
   scorecardEl.scrollTop = 0;
+}
+
+// --- Daily board submission (viewed on the hub) --------------------------
+const ssLbEntry = document.getElementById("ss-lb-entry");
+const ssLbDone = document.getElementById("ss-lb-done");
+const ssLbName = document.getElementById("ss-lb-name");
+const ssLbSave = document.getElementById("ss-lb-save");
+const SS_NAME_KEY = "pokeworks-lb-name";
+let ssLbPending = null; // today's pct awaiting a name
+
+function loadLbName() {
+  try { return localStorage.getItem(SS_NAME_KEY) || ""; } catch (e) { return ""; }
+}
+function saveLbName(n) {
+  try { localStorage.setItem(SS_NAME_KEY, n); } catch (e) { /* ignore */ }
+}
+async function submitDailyName() {
+  if (ssLbPending == null) return;
+  const name = (ssLbName.value || "").trim().slice(0, 12) || "Anon";
+  saveLbName(name);
+  const score = ssLbPending;
+  ssLbPending = null;
+  ssLbSave.disabled = true;
+  try {
+    await Daily.submit(name, score);
+  } catch (e) {
+    /* the local mirror in Daily.submit already saved */
+  }
+  ssLbSave.disabled = false;
+  ssLbEntry.classList.add("hidden");
+  ssLbDone.classList.remove("hidden");
 }
 
 // --- Career card (start overlay) ----------------------------------------
@@ -1355,16 +1416,46 @@ function renderCareer() {
   if (n && examReady()) examBtn.textContent = `📋 Promotion Exam: ${n.name}`;
 }
 
+// Daily Challenge: launched as secret-shopper.html?daily=1. The career card
+// gives way to the day's fixed shift, and there's one attempt.
+function dailyOverlay() {
+  const title = overlay.querySelector(".overlay-title");
+  if (title) title.textContent = "🗓 Daily Challenge";
+  examBtn.classList.add("hidden");
+  const done = Daily.result();
+  if (!Daily.isTodaysGame("ss")) {
+    // Stale link — today's challenge is a different game.
+    overlaySub.textContent =
+      "Today's challenge is " + Daily.challenge().game.label + ". Head back to the hub for it.";
+    startBtn.hidden = true;
+  } else if (done) {
+    overlaySub.textContent =
+      "You've already played today: " + done.score + "%. Back tomorrow for a new shift.";
+    startBtn.hidden = true;
+  } else {
+    const R = RANKS[DAILY_RANK];
+    overlaySub.textContent =
+      `Everyone works the same ${R.name} shift today: ${R.guests} guests, one of them ` +
+      "the secret shopper. One attempt, so make it count.";
+    startBtn.hidden = false;
+  }
+}
+
 // --- Wiring -------------------------------------------------------------
 startBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); runShift(false); });
 examBtn.addEventListener("click", () => { ensureAudio(); SFX.fanfare(); runShift(true); });
 // The scorecard hands you back to the career card, where the next shift (or
-// a promotion exam) begins.
+// a promotion exam) begins. After a daily it shows the played-for-today state.
 againBtn.addEventListener("click", () => {
   ensureAudio();
   scorecardEl.classList.add("hidden");
   renderCareer();
+  if (isDailyRun) dailyOverlay();
   overlay.classList.remove("hidden");
+});
+ssLbSave.addEventListener("click", submitDailyName);
+ssLbName.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); submitDailyName(); }
 });
 
 // Initial paint
@@ -1376,3 +1467,4 @@ placeAt(custWrap, SPOT.door);
 placeAt(empWrap, 74);
 showBest();
 renderCareer();
+if (isDailyRun) dailyOverlay();
