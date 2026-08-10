@@ -89,6 +89,40 @@
     render();
   }
 
+  // --- Email updates opt-in ------------------------------------------------
+  const mailInput = document.getElementById("shop-mail-input");
+  const mailSave = document.getElementById("shop-mail-save");
+  const mailNote = document.getElementById("shop-mail-note");
+
+  function renderMail() {
+    if (!window.PokeMail || !mailInput) return;
+    const m = PokeMail.load();
+    mailInput.value = m.email;
+    mailInput.disabled = m.on;
+    mailSave.textContent = m.on ? "Turn off" : "Sign up";
+    mailNote.hidden = !m.on;
+    mailNote.textContent = m.on ? "✓ You're signed up as " + m.email + "." : "";
+  }
+  if (window.PokeMail && mailSave) {
+    mailSave.addEventListener("click", () => {
+      const m = PokeMail.load();
+      if (m.on) {
+        PokeMail.set(m.email, false);
+      } else {
+        const email = mailInput.value.trim();
+        // A loose shape check; the mailer is the real gatekeeper.
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          mailNote.hidden = false;
+          mailNote.textContent = "That doesn't look like an email address.";
+          return;
+        }
+        PokeMail.set(email, true);
+      }
+      renderMail();
+    });
+    renderMail();
+  }
+
   PokePoints.onChange(render);
   render();
 })();

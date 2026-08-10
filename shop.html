@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rewards Shop - Pokeworks</title>
   <meta name="description" content="Trade arcade points for Pokeworks discount codes." />
-  <link rel="stylesheet" href="menu.css?v=23" />
+  <link rel="stylesheet" href="menu.css?v=24" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -44,6 +44,17 @@
       </ul>
     </section>
 
+    <!-- Email updates opt-in -->
+    <section class="shop-mail">
+      <h2 class="group-title">✉️ Email updates</h2>
+      <p class="shop-mail-sub">Get a note when you earn points and a heads-up when you have codes waiting. Nothing else, and you can turn it off anytime.</p>
+      <div class="shop-mail-row">
+        <input id="shop-mail-input" class="shop-mail-input" type="email" placeholder="you@example.com" autocomplete="email" />
+        <button id="shop-mail-save" class="shop-buy" type="button">Sign up</button>
+      </div>
+      <p class="shop-mail-note" id="shop-mail-note" hidden></p>
+    </section>
+
     <!-- Catalog -->
     <section class="shop-catalog">
       <h2 class="group-title">🏷️ Rewards</h2>
@@ -60,8 +71,10 @@
   </main>
 
   <script src="transitions.js?v=3"></script>
+  <script src="supabase-config.js?v=2"></script>
   <script src="points.js?v=1"></script>
-  <script src="shop.js?v=1"></script>
+  <script src="mail-sync.js?v=1"></script>
+  <script src="shop.js?v=2"></script>
   <script src="pwa.js?v=1"></script>
 </body>
 </html>

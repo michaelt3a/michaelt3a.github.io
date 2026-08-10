@@ -1044,6 +1044,43 @@ body.sheet-lock {
   color: var(--on-dark);
 }
 
+/* Email updates opt-in */
+.shop-mail {
+  margin-bottom: 1.6rem;
+}
+.shop-mail-sub {
+  color: var(--on-dark-muted);
+  font-size: 0.9rem;
+  margin: 0 0 0.7rem;
+}
+.shop-mail-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.shop-mail-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.55rem 0.95rem;
+  border: 1.5px solid var(--chip-line);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--on-dark);
+  background: var(--chip);
+}
+.shop-mail-input:focus {
+  outline: none;
+  border-color: var(--gold, #ffd15a);
+}
+.shop-mail-input:disabled {
+  opacity: 0.6;
+}
+.shop-mail-note {
+  color: var(--on-dark-muted);
+  font-size: 0.82rem;
+  margin: 0.5rem 0 0;
+}
+
 /* Catalog */
 .shop-catalog {
   margin-bottom: 1.6rem;
