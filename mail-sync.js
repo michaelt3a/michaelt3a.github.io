@@ -6,9 +6,9 @@
 // side (see server/README.md) reads that table and sends the actual mail:
 // a note after a day of earning, and a nudge when points sit unspent.
 //
-// The anon key can WRITE that table but never read it, so the email list
-// can't be pulled out of the browser. Nothing at all is sent unless the
-// player opted in.
+// Writes go through the points_mail_upsert RPC (the table itself is closed
+// to the anon key in both directions), so the email list can't be pulled out
+// of the browser. Nothing at all is sent unless the player opted in.
 (function () {
   const KEY = "pokeworks-mail";
   const SB = window.POKEWORKS_SUPABASE || {};
@@ -26,6 +26,18 @@
     try { localStorage.setItem(KEY, JSON.stringify(m)); } catch (e) { /* ignore */ }
   }
 
+  function rpc(body) {
+    fetch(SB.url + "/rest/v1/rpc/points_mail_upsert", {
+      method: "POST",
+      headers: {
+        apikey: SB.anonKey,
+        Authorization: "Bearer " + SB.anonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }).catch(function () { /* offline; try again next time */ });
+  }
+
   // Push the current state up. `earned` stamps last_earned_at, which is what
   // the mailer keys the "you earned points" note off.
   function sync(earned) {
@@ -33,23 +45,13 @@
     if (!canSync || !m.on || !m.email) return;
     let name = "";
     try { name = (localStorage.getItem("pokeworks-lb-name") || "").trim(); } catch (e) { /* ignore */ }
-    const body = {
-      email: m.email.trim().toLowerCase(),
-      name: name,
-      balance: window.PokePoints ? PokePoints.balance() : 0,
-      subscribed: true,
-    };
-    if (earned) body.last_earned_at = new Date().toISOString();
-    fetch(SB.url + "/rest/v1/points_mail?on_conflict=email", {
-      method: "POST",
-      headers: {
-        apikey: SB.anonKey,
-        Authorization: "Bearer " + SB.anonKey,
-        "Content-Type": "application/json",
-        Prefer: "resolution=merge-duplicates,return=minimal",
-      },
-      body: JSON.stringify(body),
-    }).catch(function () { /* offline or table not set up yet; try again next time */ });
+    rpc({
+      p_email: m.email,
+      p_name: name,
+      p_balance: window.PokePoints ? PokePoints.balance() : 0,
+      p_subscribed: true,
+      p_earned: !!earned,
+    });
   }
 
   // Sign up / change address / turn off. Turning off flips subscribed on the
@@ -58,20 +60,8 @@
     const m = { email: (email || "").trim(), on: !!on && !!(email || "").trim() };
     store(m);
     if (!canSync || !m.email) return;
-    if (m.on) {
-      sync(false);
-    } else {
-      fetch(SB.url + "/rest/v1/points_mail?on_conflict=email", {
-        method: "POST",
-        headers: {
-          apikey: SB.anonKey,
-          Authorization: "Bearer " + SB.anonKey,
-          "Content-Type": "application/json",
-          Prefer: "resolution=merge-duplicates,return=minimal",
-        },
-        body: JSON.stringify({ email: m.email.toLowerCase(), subscribed: false }),
-      }).catch(function () { /* ignore */ });
-    }
+    if (m.on) sync(false);
+    else rpc({ p_email: m.email, p_subscribed: false });
   }
 
   // Balance changes flow up as they happen; a positive first history entry

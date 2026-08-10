@@ -1,9 +1,14 @@
 # Points email setup
 
-The site already collects opt-ins and keeps balances synced (that part shipped
-with the shop). What's left needs the Supabase dashboard and takes about ten
-minutes. Nothing here runs on the website itself; this folder is just the
-server-side pieces and instructions.
+**Status: deployed and live (Aug 2026).** The table, RPC, edge function,
+secrets, and daily 9am Pacific cron are all set up in the Supabase project.
+This folder is the reference copy of the server-side pieces; the steps below
+are only needed again if the project is ever rebuilt from scratch.
+
+One limit to know about: until a domain is verified at resend.com/domains,
+Resend only delivers to the account owner's own address. Real customers
+start getting mail the day a domain is verified and MAIL_FROM is updated
+(Project Settings -> Edge Functions -> Secrets).
 
 Two emails get sent, both deliberately low-volume:
 
