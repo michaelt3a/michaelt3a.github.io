@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Duel - Pokeworks</title>
   <meta name="description" content="Challenge a friend to a live Bowl Builder duel." />
-  <link rel="stylesheet" href="menu.css?v=30" />
+  <link rel="stylesheet" href="menu.css?v=31" />
   <link rel="stylesheet" href="theme.css?v=7" />
   <meta name="theme-color" content="#0a1010" />
   <script src="theme.js?v=4"></script>
@@ -27,13 +27,19 @@
       <!-- Create or join -->
       <div class="duel-actions" id="duel-actions">
         <button id="duel-create" class="btn" type="button">Create a duel</button>
+        <p class="duel-or">or join with a code</p>
+        <div class="duel-share-row">
+          <input id="duel-code-in" class="duel-input duel-code-in" type="text" maxlength="4" placeholder="ABCD" autocapitalize="characters" autocomplete="off" spellcheck="false" />
+          <button id="duel-join" class="btn" type="button">Join</button>
+        </div>
       </div>
 
       <!-- Waiting room -->
       <div class="duel-room" id="duel-room" hidden>
-        <p class="duel-code-label">Send this link to your opponent:</p>
+        <p class="duel-code-label">Your room code is <b id="duel-code-big"></b>. Share it, or send the link:</p>
         <div class="duel-share-row">
           <input id="duel-link" class="duel-input" type="text" readonly />
+          <button id="duel-share" class="btn" type="button">Share</button>
           <button id="duel-copy" class="btn" type="button">Copy</button>
         </div>
         <p class="duel-status" id="duel-status">Waiting for an opponent…</p>
@@ -43,6 +49,6 @@
 
   <script src="supabase-config.js?v=2"></script>
   <script src="wordfilter.js?v=1"></script>
-  <script src="duel-lobby.js?v=1"></script>
+  <script src="duel-lobby.js?v=2"></script>
 </body>
 </html>

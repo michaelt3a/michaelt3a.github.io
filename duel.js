@@ -166,49 +166,84 @@
   }
 
   // --- Wire-up -------------------------------------------------------------
+  // The channel rebuilds itself whenever the tab comes back into view or the
+  // network returns, and re-announces our latest state, so a trip to the home
+  // screen (or Messages) can't kill the duel.
+  let client = null;
+  const myId = Math.floor(Math.random() * 1e9);
+  let met = false;
+
+  function announce(target) {
+    target.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName } });
+    if (mine.done) {
+      target.send({ type: "broadcast", event: "done", payload: { score: mine.score, stats: mine.stats } });
+    } else if (mine.score > 0) {
+      target.send({ type: "broadcast", event: "score", payload: { score: mine.score } });
+    }
+  }
+
+  function buildChannel() {
+    if (ch) {
+      try { client.removeChannel(ch); } catch (e) { /* ignore */ }
+      ch = null;
+    }
+    const mineCh = client.channel("duel-" + code + "-game");
+    ch = mineCh;
+    let pinger = 0;
+    mineCh.on("broadcast", { event: "hello" }, function (m) {
+      if (!m.payload || m.payload.id === myId) return;
+      if (m.payload.name) opp.name = m.payload.name;
+      if (!met) {
+        met = true;
+        clearInterval(pinger);
+        announce(mineCh);
+      }
+      paintBar();
+    });
+    mineCh.on("broadcast", { event: "score" }, function (msg) {
+      opp.score = msg.payload.score;
+      paintBar();
+      if (mine.done && !opp.done) showWaiting();
+    });
+    mineCh.on("broadcast", { event: "sab" }, function (msg) {
+      if (sabHandler) sabHandler(msg.payload.kind, opp.name);
+    });
+    mineCh.on("broadcast", { event: "done" }, function (msg) {
+      opp.done = true;
+      opp.score = msg.payload.score;
+      opp.stats = msg.payload.stats || null;
+      paintBar();
+      maybeSettle();
+    });
+    mineCh.subscribe(function (status) {
+      if (mineCh !== ch) return; // a newer rebuild took over
+      if (status === "SUBSCRIBED") {
+        if (!bar.parentElement) document.body.appendChild(bar);
+        paintBar();
+        announce(mineCh); // catch the opponent up on where we are
+        clearInterval(pinger);
+        pinger = setInterval(function () {
+          if (met || mineCh !== ch) { clearInterval(pinger); return; }
+          mineCh.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName } });
+        }, 900);
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        clearInterval(pinger);
+        setTimeout(function () { if (mineCh === ch) buildChannel(); }, 2000);
+      }
+    });
+  }
+
   function connect() {
     const s = document.createElement("script");
     s.src = CDN;
     s.onload = function () {
-      const client = window.supabase.createClient(SB.url, SB.anonKey);
-      const myId = Math.floor(Math.random() * 1e9);
-      let met = false;
-      let pinger = 0;
-      ch = client.channel("duel-" + code + "-game");
-      ch.on("broadcast", { event: "hello" }, function (m) {
-        if (!m.payload || m.payload.id === myId) return;
-        if (m.payload.name) opp.name = m.payload.name;
-        if (!met) {
-          met = true;
-          clearInterval(pinger);
-          ch.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName } });
-        }
-        paintBar();
+      client = window.supabase.createClient(SB.url, SB.anonKey);
+      buildChannel();
+      document.addEventListener("visibilitychange", function () {
+        if (!document.hidden && client) buildChannel();
       });
-      ch.on("broadcast", { event: "score" }, function (msg) {
-        opp.score = msg.payload.score;
-        paintBar();
-        if (mine.done && !opp.done) showWaiting();
-      });
-      ch.on("broadcast", { event: "sab" }, function (msg) {
-        if (sabHandler) sabHandler(msg.payload.kind, opp.name);
-      });
-      ch.on("broadcast", { event: "done" }, function (msg) {
-        opp.done = true;
-        opp.score = msg.payload.score;
-        opp.stats = msg.payload.stats || null;
-        paintBar();
-        maybeSettle();
-      });
-      ch.subscribe(function (status) {
-        if (status === "SUBSCRIBED") {
-          document.body.appendChild(bar);
-          paintBar();
-          pinger = setInterval(function () {
-            if (met) { clearInterval(pinger); return; }
-            ch.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName } });
-          }, 900);
-        }
+      window.addEventListener("online", function () {
+        if (client) buildChannel();
       });
     };
     document.head.appendChild(s);

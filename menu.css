@@ -1135,6 +1135,23 @@ body.sheet-lock {
 .duel-actions {
   margin-top: 1rem;
 }
+.duel-or {
+  color: var(--on-dark-muted);
+  font-size: 0.78rem;
+  text-align: center;
+  margin: 0.9rem 0 0.5rem;
+}
+.duel-code-in {
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  text-align: center;
+  font-weight: 800;
+}
+.duel-code-label b {
+  color: var(--gold, #ffd15a);
+  letter-spacing: 0.15em;
+}
+
 .duel-room {
   margin-top: 1.2rem;
 }
