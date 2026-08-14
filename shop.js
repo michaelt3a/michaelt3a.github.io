@@ -99,7 +99,7 @@
   const mailNote = document.getElementById("shop-mail-note");
   // Signing up pays a one-time bonus. The claim flag lives outside the mail
   // state so toggling off and back on can't farm it.
-  const MAIL_BONUS = 100;
+  const MAIL_BONUS = 25;
   const MAIL_BONUS_KEY = "pokeworks-mail-bonus";
 
   function renderMail() {
