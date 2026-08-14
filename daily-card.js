@@ -21,7 +21,7 @@
 
     el.style.setProperty("--g", c.game.color);
     el.innerHTML =
-      '<div class="dc-top"><span class="dc-tag">🗓 Daily Challenge</span>' + flame + "</div>" +
+      '<div class="dc-top"><span class="dc-tag">Daily Challenge</span>' + flame + "</div>" +
       '<div class="dc-main">' +
       '<span class="dc-game">' + escapeHtml(c.game.label) + "</span>" +
       '<span class="dc-note">' +

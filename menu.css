@@ -26,8 +26,6 @@ body {
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg);
-  background-image: url("bg-pattern.svg");
-  background-size: 200px auto;
   color: var(--text);
   min-height: 100vh;
   padding: 2.5rem 1.25rem 3rem;
@@ -45,7 +43,7 @@ body {
 }
 
 .hub-logo {
-  height: 88px;
+  height: 64px;
   width: auto;
   /* Recolor the logo's orange to PW Ahi Red (#ee435b), keeping the cream lettering. */
   filter: hue-rotate(-45deg) saturate(3) brightness(0.93);
@@ -102,18 +100,16 @@ body {
   flex-direction: column;
   background: var(--panel);
   border: 1px solid transparent;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   border-color: var(--accent);
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.12);
 }
 
 .card-icon {
@@ -255,8 +251,9 @@ body {
 }
 
 .badge-play {
-  background: var(--accent);
-  color: #fff;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
 }
 
 .badge-soon {
@@ -279,10 +276,9 @@ body {
   flex-wrap: wrap;
   margin-bottom: 1.1rem;
   padding: 0.75rem 0.95rem;
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--chip);
-  border: 1.5px solid var(--chip-line);
-  border-left: 5px solid var(--g, var(--accent));
+  border: 1px solid var(--chip-line);
   color: var(--on-dark);
 }
 
@@ -582,19 +578,19 @@ body {
 }
 
 .hub-btn {
-  background: var(--chip);
-  border: 1.5px solid var(--chip-line);
-  color: var(--on-dark);
+  background: none;
+  border: 1px solid var(--chip-line);
+  color: var(--on-dark-muted);
   border-radius: 999px;
-  padding: 0.6rem 1.4rem;
+  padding: 0.55rem 1.3rem;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+  transition: color 0.12s ease, border-color 0.12s ease;
 }
 
 .hub-btn:hover {
-  background: var(--chip-hover);
+  color: var(--on-dark);
   border-color: var(--accent);
   transform: translateY(-2px);
 }
@@ -779,7 +775,6 @@ body.sheet-lock {
   border-radius: 10px;
   padding: 0.5rem 0.8rem;
   margin-bottom: 6px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 /* The #1 spot: crowned, gold-ringed, and quietly shimmering */
@@ -850,7 +845,6 @@ body.sheet-lock {
   background: var(--panel);
   border-radius: 12px;
   padding: 0.7rem 0.8rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .ach-item.locked {
@@ -925,16 +919,14 @@ body.sheet-lock {
   gap: 0.8rem;
   margin-bottom: 1.1rem;
   padding: 0.65rem 0.95rem;
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--chip);
-  border: 1.5px solid var(--chip-line);
-  border-left: 5px solid var(--gold, #ffd15a);
+  border: 1px solid var(--chip-line);
   color: var(--on-dark);
   text-decoration: none;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 .shop-strip:hover {
-  transform: translateY(-2px);
   border-color: var(--gold, #ffd15a);
 }
 .shop-strip-ico {
@@ -1120,7 +1112,6 @@ body.sheet-lock {
   padding: 1.4rem 1.2rem 1.2rem;
   text-align: center;
   margin-bottom: 1.6rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .shop-bal-main {
   display: flex;
@@ -1209,7 +1200,6 @@ body.sheet-lock {
   background: var(--panel);
   border-radius: 14px;
   padding: 0.85rem 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .shop-item.locked {
   opacity: 0.6;

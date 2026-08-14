@@ -125,7 +125,7 @@
 
   // Game → its category buttons (value = board key).
   const GAMES = [
-    { id: "daily", label: "🗓 Today", color: "#ffd15a", cats: [
+    { id: "daily", label: "Today", color: "#ffd15a", cats: [
       { label: window.Daily ? Daily.challenge().game.label : "Today", key: "daily-today" },
     ] },
     { id: "bowl", label: "Bowl Builder", color: "#ee435b", cats: [
@@ -219,7 +219,7 @@
       seasons = document.createElement("div");
       seasons.className = "hlb-seasons";
       const label = new Date().toLocaleDateString(undefined, { month: "long" });
-      for (const [mode, text] of [["month", "🗓 " + label], ["all", "All-time"]]) {
+      for (const [mode, text] of [["month", label], ["all", "All-time"]]) {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "hlb-season" + (mode === seasonMode ? " active" : "");

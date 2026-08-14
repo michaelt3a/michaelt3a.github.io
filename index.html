@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=28" />
-  <link rel="stylesheet" href="theme.css?v=5" />
+  <link rel="stylesheet" href="menu.css?v=29" />
+  <link rel="stylesheet" href="theme.css?v=6" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
@@ -20,7 +20,7 @@
     <header class="hub-header">
       <img src="pokeworks-logo-circle-1.png" alt="Pokeworks" class="hub-logo" />
       <h1 class="hub-title">Minigames</h1>
-      <p class="hub-subtitle">Pick a game to play.</p>
+      
     </header>
 
     <button class="pc-strip" type="button" id="pc-strip" data-open="sheet-you"></button>
@@ -29,7 +29,7 @@
 
     <!-- Rewards Shop strip: points from the customer games buy discount codes -->
     <a class="shop-strip" href="shop.html">
-      <span class="shop-strip-ico">🎁</span>
+      
       <span class="shop-strip-txt"><strong>Rewards Shop</strong><small>Play customer games, earn points, get discounts.</small></span>
       <span class="shop-strip-pts" id="shop-strip-pts">0 pts</span>
       <span class="shop-strip-go">›</span>
@@ -39,7 +39,7 @@
          Move it whenever a game ships an update. -->
     <div class="game-groups" data-latest="word-bowl">
       <section class="game-group">
-        <h2 class="group-title">🎮 Customer Games</h2>
+        <h2 class="group-title">Customer Games</h2>
         <div class="cards">
           <a class="card" data-game="bowl-builder" href="bowl-builder.html">
             <div class="card-icon icon-bowl">
@@ -160,7 +160,7 @@
       </section>
 
       <section class="game-group">
-        <h2 class="group-title">📋 Training Games</h2>
+        <h2 class="group-title">Training Games</h2>
         <div class="cards">
           <a class="card" data-game="signature-works" href="placeholder-1.html">
             <div class="card-icon icon-signature">
@@ -238,9 +238,9 @@
     </div>
 
     <div class="hub-actions">
-      <button class="hub-btn" type="button" data-open="sheet-ch">🎯 Challenges</button>
-      <button class="hub-btn" type="button" data-open="sheet-lb">🏆 Leaderboards</button>
-      <button class="hub-btn" type="button" data-open="sheet-ach">🏅 Achievements</button>
+      <button class="hub-btn" type="button" data-open="sheet-ch">Challenges</button>
+      <button class="hub-btn" type="button" data-open="sheet-lb">Leaderboards</button>
+      <button class="hub-btn" type="button" data-open="sheet-ach">Achievements</button>
     </div>
   </main>
 
@@ -248,7 +248,7 @@
   <div class="sheet" id="sheet-you" hidden>
     <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Your stats">
       <div class="sheet-head">
-        <h2 class="sheet-title">👤 Your stats</h2>
+        <h2 class="sheet-title">Your stats</h2>
         <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
       </div>
       <div class="sheet-body" id="pc-body"></div>
@@ -259,7 +259,7 @@
   <div class="sheet" id="sheet-ch" hidden>
     <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Daily challenges">
       <div class="sheet-head">
-        <h2 class="sheet-title">🎯 Today's Challenges</h2>
+        <h2 class="sheet-title">Today's Challenges</h2>
         <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
       </div>
       <div class="sheet-body" id="ch-body"></div>
@@ -270,7 +270,7 @@
   <div class="sheet" id="sheet-lb" hidden>
     <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Leaderboards">
       <div class="sheet-head">
-        <h2 class="sheet-title">🏆 Leaderboards</h2>
+        <h2 class="sheet-title">Leaderboards</h2>
         <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
       </div>
       <div class="sheet-body">
@@ -285,7 +285,7 @@
   <div class="sheet" id="sheet-ach" hidden>
     <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Achievements">
       <div class="sheet-head">
-        <h2 class="sheet-title">🏅 Achievements</h2>
+        <h2 class="sheet-title">Achievements</h2>
         <span class="ach-count" id="ach-count">0 / 0</span>
         <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
       </div>
@@ -306,9 +306,9 @@
   <script src="points.js?v=2"></script>
   <script src="mail-sync.js?v=2"></script>
   <script src="challenges.js?v=4"></script>
-  <script src="hub-leaderboard.js?v=8"></script>
+  <script src="hub-leaderboard.js?v=9"></script>
   <script src="player-card.js?v=8"></script>
-  <script src="daily-card.js?v=5"></script>
+  <script src="daily-card.js?v=6"></script>
   <script>
     PlayerCard.init(document.getElementById("pc-strip"));
     DailyCard.render(document.getElementById("dc"));
@@ -339,8 +339,8 @@
         ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const ps = PokeChallenges.playStreak();
       let html =
-        '<p class="ch-note">' + (ps > 1 ? "🔥 " + ps + " days in a row. " : "") +
-        'Finish these to earn points for the <a href="shop.html">🎁 Rewards Shop</a>. ' +
+        '<p class="ch-note">' + (ps > 1 ? ps + " days in a row. " : "") +
+        'Finish these to earn points for the <a href="shop.html">Rewards Shop</a>. ' +
         "New set every day.</p>";
       for (const g of PokeChallenges.active()) {
         html += '<h3 class="ch-game">' + esc(g.label) + "</h3>";
