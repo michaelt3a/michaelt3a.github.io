@@ -38,6 +38,24 @@
     if (!res.ok) throw new Error("Supabase " + res.status);
     return res.json();
   }
+
+  // --- Seasons -------------------------------------------------------------
+  // Boards default to the current month so every month is a fresh race;
+  // All-time is one tap away. Rows carry created_at, so a "season" is just a
+  // date filter, no schema changes.
+  let seasonMode = "month"; // "month" | "all"
+  function monthStartISO(offsetMonths) {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + (offsetMonths || 0), 1).toISOString();
+  }
+  function seasonFilter() {
+    return seasonMode === "month" ? "&created_at=gte." + monthStartISO(0) : "";
+  }
+  function monthKey(offsetMonths) {
+    const d = new Date();
+    const m = new Date(d.getFullYear(), d.getMonth() + (offsetMonths || 0), 1);
+    return m.getFullYear() + "-" + String(m.getMonth() + 1).padStart(2, "0");
+  }
   function local(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
   }
@@ -74,18 +92,19 @@
       async fetch() {
         let rows;
         if (useSupabase) {
-          try { rows = await sbGet("sigworks_speedruns?select=name,perfect,ms&order=perfect.desc,ms.asc&limit=500"); }
+          try { rows = await sbGet("sigworks_speedruns?select=name,perfect,ms" + seasonFilter() + "&order=perfect.desc,ms.asc&limit=500"); }
           catch { rows = local("sigworks_speedrun_lb", []); }
         } else rows = local("sigworks_speedrun_lb", []);
         return dedupe(rows, byRun);
       },
     },
   };
-  // Shared score-board fetcher (Bowl Builder + Order Up).
+  // Shared score-board fetcher (Bowl Builder + Order Up). The local mirrors
+  // have no timestamps, so the offline fallback is always all-time.
   const scoreFetch = async function (table, filter, localGetter) {
     let rows;
     if (useSupabase) {
-      try { rows = await sbGet(`${table}?select=name,score&${filter}&order=score.desc&limit=500`); }
+      try { rows = await sbGet(`${table}?select=name,score&${filter}${seasonFilter()}&order=score.desc&limit=500`); }
       catch { rows = localGetter(); }
     } else rows = localGetter();
     return dedupe(rows, byScore);
@@ -126,16 +145,17 @@
   ];
 
   // One fetch per board per page load — the board view and the player card
-  // both read from here.
+  // both read from here. Cached separately per season mode.
   const cache = {};
   function fetchBoard(key) {
-    if (!cache[key]) {
-      cache[key] = BOARDS[key].fetch().catch(function (e) {
-        delete cache[key]; // let a later view retry
+    const ck = key + ":" + seasonMode;
+    if (!cache[ck]) {
+      cache[ck] = BOARDS[key].fetch().catch(function (e) {
+        delete cache[ck]; // let a later view retry
         throw e;
       });
     }
-    return cache[key];
+    return cache[ck];
   }
 
   let gamesEl, catsEl, listEl, curGame, curKey, reqId = 0;
@@ -178,9 +198,10 @@
     const statFn = BOARDS[key].stat;
     list.forEach((e, i) => {
       const li = document.createElement("li");
-      li.className = "lb-row";
+      // The top spot wears a crown and a shine.
+      li.className = "lb-row" + (i === 0 ? " lb-first" : "");
       li.innerHTML =
-        `<span class="lb-rank">${i + 1}</span>` +
+        `<span class="lb-rank">${i === 0 ? "👑" : i + 1}</span>` +
         `<span class="lb-name">${escapeHtml(e.name)}</span>` +
         `<span class="lb-score">${statFn(e)}</span>`;
       listEl.appendChild(li);
@@ -191,6 +212,30 @@
     gamesEl = rootGames;
     catsEl = rootCats;
     listEl = rootList;
+
+    // Season toggle above the game row: this month's race, or the all-time wall.
+    let seasons = gamesEl.parentElement.querySelector(".hlb-seasons");
+    if (!seasons) {
+      seasons = document.createElement("div");
+      seasons.className = "hlb-seasons";
+      const label = new Date().toLocaleDateString(undefined, { month: "long" });
+      for (const [mode, text] of [["month", "🗓 " + label], ["all", "All-time"]]) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "hlb-season" + (mode === seasonMode ? " active" : "");
+        b.textContent = text;
+        b.dataset.mode = mode;
+        b.addEventListener("click", () => {
+          if (seasonMode === mode) return;
+          seasonMode = mode;
+          for (const x of seasons.children) x.classList.toggle("active", x.dataset.mode === mode);
+          selectCat(curKey);
+        });
+        seasons.appendChild(b);
+      }
+      gamesEl.parentElement.insertBefore(seasons, gamesEl);
+    }
+
     gamesEl.innerHTML = "";
     for (const g of GAMES) {
       const btn = document.createElement("button");
@@ -209,6 +254,51 @@
   function clearCache() {
     for (const k of Object.keys(cache)) delete cache[k];
   }
+
+  // --- Season payout -------------------------------------------------------
+  // When the month rolls over, top 3 on a customer game's boards (best rank
+  // across its categories) collect points. Training boards get the monthly
+  // view but never pay, same rule as the rest of the economy.
+  const SEASON_PAY = { 1: 300, 2: 200, 3: 100 };
+  const SEASON_TABLES = {
+    bowl: { table: "bowl_scores", filters: ["difficulty=eq.easy", "difficulty=eq.medium", "difficulty=eq.impossible"], label: "Bowl Builder" },
+    ou: { table: "orderup_scores", filters: ["mode=eq.normal", "mode=eq.hard", "mode=eq.normal-rush", "mode=eq.hard-rush"], label: "Order Up" },
+  };
+  async function checkSeasonPayout() {
+    if (!useSupabase || !window.PokeChallenges || !window.PokePoints) return;
+    let name = "";
+    try { name = (localStorage.getItem("pokeworks-lb-name") || "").trim().toLowerCase(); } catch (e) { return; }
+    if (!name) return;
+    const from = monthStartISO(-1);
+    const to = monthStartISO(0);
+    const mk = monthKey(-1);
+    for (const id of Object.keys(SEASON_TABLES)) {
+      const gameCfg = SEASON_TABLES[id];
+      const claimKey = "season-" + mk + "-" + id;
+      // Peek cheaply: claimOnce consumes, so only claim once ranks are known.
+      let best = null;
+      let failed = 0;
+      let skip = false;
+      for (const f of gameCfg.filters) {
+        let rows;
+        try {
+          rows = await sbGet(gameCfg.table + "?select=name,score&" + f +
+            "&created_at=gte." + from + "&created_at=lt." + to + "&order=score.desc&limit=500");
+        } catch (e) { failed++; continue; }
+        const list = dedupe(rows, byScore);
+        const i = list.findIndex((e2) => String(e2.name).trim().toLowerCase() === name);
+        if (i >= 0 && i < 3 && (!best || i + 1 < best)) best = i + 1;
+      }
+      if (failed === gameCfg.filters.length) skip = true; // offline; retry next visit
+      if (skip) continue;
+      // Last month's boards are frozen, so one successful check settles it.
+      if (!PokeChallenges.claimOnce(claimKey)) continue;
+      if (best) {
+        PokeChallenges.awardPts(SEASON_PAY[best], "#" + best + " on last month's " + gameCfg.label + " board");
+      }
+    }
+  }
+  checkSeasonPayout();
 
   window.HubLeaderboard = { init, GAMES, fetchBoard, fmtTime, clearCache };
 })();

@@ -6,6 +6,8 @@
 // few days of loyalty, not one lucky run.
 (function () {
   const ITEMS = [
+    // Perks spend points without handing out a discount.
+    { id: "shield", icon: "🛟", title: "Streak insurance", desc: "Covers one missed day of your play streak. Holds one at a time.", cost: 150, kind: "perk" },
     { id: "pct5", icon: "🏷️", title: "5% off a bowl", desc: "A little thank-you for playing.", cost: 400, code: "POKE-FILLER-5OFF" },
     { id: "drink", icon: "🥤", title: "Free drink", desc: "Any fountain drink with a bowl.", cost: 700, code: "POKE-FILLER-DRINK" },
     { id: "side", icon: "🥟", title: "Free side", desc: "Miso soup, seaweed salad, or chips.", cost: 1200, code: "POKE-FILLER-SIDE" },
@@ -43,7 +45,8 @@
     // Catalog
     gridEl.innerHTML = "";
     for (const item of ITEMS) {
-      const afford = data.balance >= item.cost;
+      const held = item.kind === "perk" && window.PokeChallenges && PokeChallenges.shieldCount() > 0;
+      const afford = data.balance >= item.cost && !held;
       const card = document.createElement("div");
       card.className = "shop-item" + (afford ? "" : " locked");
       card.innerHTML =
@@ -51,7 +54,9 @@
         `<div class="shop-item-body"><strong>${item.title}</strong><small>${item.desc}</small></div>` +
         `<button class="shop-buy" type="button" ${afford ? "" : "disabled"}></button>`;
       const btn = card.querySelector(".shop-buy");
-      btn.textContent = armed === item.id ? "Sure? −" + item.cost : item.cost.toLocaleString() + " pts";
+      btn.textContent = held ? "✓ Saved up"
+        : armed === item.id ? "Sure? −" + item.cost
+        : item.cost.toLocaleString() + " pts";
       if (armed === item.id) btn.classList.add("armed");
       btn.addEventListener("click", () => onBuy(item));
       gridEl.appendChild(card);
@@ -98,7 +103,13 @@
     }
     clearTimeout(armedTimer);
     armed = null;
-    if (PokePoints.spend(item.cost, "Redeemed: " + item.title)) {
+    if (item.kind === "perk") {
+      // Perks don't mint a code; they stash their effect and stay off My Codes.
+      if (window.PokeChallenges && PokePoints.spend(item.cost, item.title)) {
+        PokeChallenges.addShield();
+        if (window.PokeTrack) PokeTrack.hit("redeem", item.id);
+      }
+    } else if (PokePoints.spend(item.cost, "Redeemed: " + item.title)) {
       PokePoints.recordRedeem(item);
       if (window.PokeTrack) PokeTrack.hit("redeem", item.id);
       justRedeemed = true;

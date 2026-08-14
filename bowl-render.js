@@ -14,7 +14,7 @@
 
   // Every ingredient that appears across the signature works, by category.
   const INGREDIENTS = {
-    "Base": ["White Rice", "Salad Mix"],
+    "Base": ["White Rice", "Salad Mix", "Ramen Noodles"],
     "Protein": ["Ahi Tuna", "Atlantic Salmon", "Chicken", "Lobster Surimi", "Firm Tofu", "Avocado"],
     "Mix-ins": [
       "Cucumber", "Sliced Onion", "Edamame", "Pineapple", "Cilantro",
@@ -69,12 +69,19 @@
       "Mix-ins": ["Cucumber", "Shredded Cabbage", "Shredded Kale", "Sweet Corn"],
       "Sauce": ["Ponzu Fresh"],
       "Toppings": ["Pickled Ginger", "Green Onion", "Shredded Nori", "Wonton Strips"] } },
+    // The June 2026 launch: chilled ramen noodles and greens underneath.
+    { name: "Surf & Turf", items: {
+      "Base": ["Ramen Noodles", "Salad Mix"], "Protein": ["Ahi Tuna", "Chicken"],
+      "Mix-ins": ["Cucumber", "Sliced Onion", "Edamame"],
+      "Sauce": ["OG Shoyu", "Pokeworks Classic"],
+      "Toppings": ["Avocado", "Surimi Salad", "Green Onion", "Sesame Seeds", "Onion Crisps", "Chili Crisp"] } },
   ];
 
   // Per-ingredient look: colors + a shape "kind".
   const STYLE = {
     "White Rice": { c: ["#f7f2e6", "#ece3cf", "#fbf8ef"], kind: "grain" },
     "Salad Mix": { c: ["#8fc95f", "#5f9e3a", "#3f7d34", "#9c5a6a", "#a7d16a"], kind: "leaf" },
+    "Ramen Noodles": { c: ["#f2df9a", "#e9d183", "#f7e8b0"], kind: "noodle" },
     "Ahi Tuna": { c: ["#d9483d", "#c23a30"], kind: "cube" },
     "Atlantic Salmon": { c: ["#f98d54", "#f2743a"], kind: "cube" },
     "Chicken": { c: ["#dcb684", "#caa063"], kind: "cube" },
@@ -146,6 +153,15 @@
         g.strokeStyle = col; g.lineWidth = Math.max(1.8, sz * 0.42); mRing(sz * 0.72);
         break;
       case "strand": mRR(-sz * 1.25, -sz * 0.22, sz * 2.5, sz * 0.44, sz * 0.22, false); break;
+      case "noodle":
+        g.strokeStyle = col;
+        g.lineWidth = Math.max(1.6, sz * 0.3);
+        g.lineCap = "round";
+        g.beginPath();
+        g.moveTo(-sz * 1.4, 0);
+        g.bezierCurveTo(-sz * 0.5, -sz * 0.7, sz * 0.5, sz * 0.7, sz * 1.4, 0);
+        g.stroke();
+        break;
       case "shred": mRR(-sz * 1.35, -sz * 0.16, sz * 2.7, sz * 0.32, sz * 0.16, false); break;
       case "leaf": mEll(sz * 0.95, sz * 0.5, true); break;
       case "crisp": mRR(-sz * 0.7, -sz * 0.55, sz * 1.4, sz * 1.1, 1.5, true); break;
@@ -156,22 +172,29 @@
     g.restore();
   }
 
-  function drawBed(cx, rimY, innerRx, innerRy, baseName) {
-    const isSalad = baseName === "Salad Mix";
-    g.fillStyle = isSalad ? "#356e2f" : "#e6d9bf";
+  // How each base paints its bed; two bases (Surf & Turf) interleave.
+  const BED = {
+    "White Rice": { solid: "#e6d9bf", n: 680, size: 3.6 },
+    "Salad Mix": { solid: "#356e2f", n: 320, size: 8.5 },
+    "Ramen Noodles": { solid: "#d9c47e", n: 300, size: 8 },
+  };
+
+  function drawBed(cx, rimY, innerRx, innerRy, baseNames) {
+    const beds = baseNames.map((b) => BED[b] || BED["White Rice"]);
+    g.fillStyle = beds[0].solid;
     g.beginPath();
     g.ellipse(cx, rimY, innerRx - 5, innerRy - 2, 0, 0, Math.PI * 2);
     g.fill();
 
-    const n = isSalad ? 320 : 680;
-    const base = isSalad ? 8.5 : 3.6;
+    const n = Math.round(beds.reduce((s, b) => s + b.n, 0) / beds.length);
     for (let i = 0; i < n; i++) {
+      const which = i % baseNames.length;
       const rn = Math.sqrt((i + 0.4) / n);
       const a = i * 2.39996 + rnd(i) * 0.5;
       const px = cx + Math.cos(a) * rn * (innerRx - 8);
       const py = rimY + Math.sin(a) * rn * (innerRy - 3);
-      const sz = base * (0.8 + rnd(i * 2.3) * 0.5);
-      drawMorsel(px, py, sz, baseName, i);
+      const sz = beds[which].size * (0.8 + rnd(i * 2.3) * 0.5);
+      drawMorsel(px, py, sz, baseNames[which], i);
     }
   }
 
@@ -199,8 +222,8 @@
   }
 
   function drawFill(cx, rimY, innerRx, innerRy, sel) {
-    const baseName = [...sel["Base"]][0];
-    if (baseName) drawBed(cx, rimY, innerRx, innerRy, baseName);
+    const baseNames = [...sel["Base"]];
+    if (baseNames.length) drawBed(cx, rimY, innerRx, innerRy, baseNames);
 
     const AMOUNT = { "Protein": 24, "Mix-ins": 22, "Toppings": 18 };
     const SIZE = { "Protein": 9, "Mix-ins": 7.5, "Toppings": 6 };

@@ -95,12 +95,21 @@
   function save(s) {
     try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* ignore */ }
   }
-  // Claims older than a few days can't be claimed again anyway.
+  // Daily claims older than a few days can't be claimed again anyway. Season
+  // claims stick around for the current and previous month so a settled
+  // payout can't repeat.
   function prune(claims) {
     const keep = {};
     const cutoff = [Daily.today(), Daily.yesterday()];
+    const months = [0, -1].map((off) => {
+      const d = new Date();
+      const m = new Date(d.getFullYear(), d.getMonth() + off, 1);
+      return "season-" + m.getFullYear() + "-" + String(m.getMonth() + 1).padStart(2, "0");
+    });
     for (const k of Object.keys(claims)) {
-      if (cutoff.some((d) => k.endsWith(d))) keep[k] = claims[k];
+      if (cutoff.some((d) => k.endsWith(d)) || months.some((m) => k.startsWith(m))) {
+        keep[k] = claims[k];
+      }
     }
     return keep;
   }
@@ -126,7 +135,34 @@
   // --- Earning -------------------------------------------------------------
   function award(pts, why) {
     if (window.PokePoints) PokePoints.add(pts, why);
-    toast("+" + pts + " pts", why);
+    toast("🎁 +" + pts + " pts", why);
+  }
+  // One-off claims (season payouts, bonuses) shared across features; returns
+  // false if this key was already claimed.
+  function claimOnce(key) {
+    const s = load();
+    if (s.claims[key]) return false;
+    s.claims[key] = true;
+    save(s);
+    return true;
+  }
+
+  // --- Streak insurance (bought in the shop) -------------------------------
+  // One shield bridges ONE missed day; bigger gaps still reset the streak.
+  const SHIELD_KEY = "pokeworks-streak-shield";
+  function shieldCount() {
+    try { return parseInt(localStorage.getItem(SHIELD_KEY), 10) || 0; } catch (e) { return 0; }
+  }
+  function setShields(n) {
+    try { localStorage.setItem(SHIELD_KEY, String(n)); } catch (e) { /* ignore */ }
+  }
+  function addShield() { setShields(shieldCount() + 1); }
+  function twoDaysAgo() {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return d.getFullYear() + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0");
   }
 
   // Every customer game calls this once per finished run (Word Bowl calls it
@@ -136,7 +172,16 @@
     const s = load();
     const t = Daily.today();
     if (s.streak.last === t) return;
-    s.streak.count = s.streak.last === Daily.yesterday() ? s.streak.count + 1 : 1;
+    if (s.streak.last === Daily.yesterday()) {
+      s.streak.count += 1;
+    } else if (s.streak.last === twoDaysAgo() && shieldCount() > 0) {
+      // Exactly one day missed and a shield in the drawer: the streak lives.
+      setShields(shieldCount() - 1);
+      s.streak.count += 1;
+      toast("🛟 Streak saved", "Insurance covered yesterday. " + s.streak.count + " days and counting.");
+    } else {
+      s.streak.count = 1;
+    }
     s.streak.last = t;
     save(s);
     if (s.streak.count > 0 && s.streak.count % STREAK_DAYS === 0) {
@@ -256,7 +301,7 @@
     const el = document.createElement("div");
     el.className = "pk-pts-toast";
     el.innerHTML = '<span class="pk-pts-amt"></span><span class="pk-pts-why"></span>';
-    el.querySelector(".pk-pts-amt").textContent = "🎁 " + amt;
+    el.querySelector(".pk-pts-amt").textContent = amt;
     el.querySelector(".pk-pts-why").textContent = why;
     box.appendChild(el);
     requestAnimationFrame(() => el.classList.add("show"));
@@ -269,6 +314,7 @@
   window.PokeChallenges = {
     report, active, markPlay, playStreak,
     checkDailyAward, checkTopBonus,
+    awardPts: award, claimOnce, shieldCount, addShield,
     DAILY_PTS, TOP_PTS, STREAK_PTS, STREAK_DAYS,
   };
 

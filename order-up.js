@@ -1044,7 +1044,8 @@ function renderTicket() {
     B.draw(bctx, BW, BH, emptySel());
     return;
   }
-  orderNameEl.textContent = c.name;
+  // The Surf & Turf is a new menu item; the ticket says so.
+  orderNameEl.textContent = c.name + (c.recipe && c.recipe.name === "Surf & Turf" ? " · ✨ NEW" : "");
   checklistEl.innerHTML = "";
   // Hard mode: no ticket — the player builds it from memory.
   if (isHard()) {
