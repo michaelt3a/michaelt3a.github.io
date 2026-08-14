@@ -490,6 +490,14 @@ body {
 .lb-entry-row .btn {
   padding: 0.55rem 1.3rem;
 }
+/* Name box on the duel ready screen */
+.duel-name-row {
+  max-width: 220px;
+  margin: 0 auto 1rem;
+}
+.duel-name-row .lb-input {
+  text-align: center;
+}
 
 .lb-tabs {
   display: flex;

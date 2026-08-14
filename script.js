@@ -2211,11 +2211,33 @@ if (isDuelRun) {
   if (sub) {
     sub.textContent =
       "Same blocks for both of you; highest stack wins. Every 8 blocks loads a sabotage. " +
-      "Hit Ready below; the blocks drop when you both have.";
+      "Set your name, hit Ready below, and the countdown starts once you both have.";
   }
   startBtn.classList.add("hidden"); // the Ready button below the box replaces it
   const link = screenStart.querySelector(".duel-entry");
   if (link) link.remove(); // you're already in one
+
+  // Your name, editable right up until you hit Ready. The lobby hands one
+  // over, but nobody should be stuck as "Player" because the room filled up
+  // while they were still typing.
+  const nameRow = document.createElement("div");
+  nameRow.className = "lb-entry-row duel-name-row";
+  const nameInput = document.createElement("input");
+  nameInput.className = "lb-input";
+  nameInput.type = "text";
+  nameInput.maxLength = 12;
+  nameInput.placeholder = "Your name";
+  nameInput.autocomplete = "off";
+  // The fallbacks ("You" locally, "Player" from the lobby) show as an empty
+  // box, so the placeholder nudges people to type something real.
+  nameInput.value = /^(You|Player)$/.test(PokeDuel.name) ? "" : PokeDuel.name;
+  nameRow.appendChild(nameInput);
+  screenStart.insertBefore(nameRow, startBtn);
+  let nameDebounce = 0;
+  nameInput.addEventListener("input", () => {
+    clearTimeout(nameDebounce);
+    nameDebounce = setTimeout(() => PokeDuel.setName(nameInput.value), 350);
+  });
 
   const controls = document.querySelector(".controls");
 
@@ -2228,6 +2250,8 @@ if (isDuelRun) {
     if (readyBtn.disabled) return;
     readyBtn.disabled = true;
     readyBtn.textContent = "Waiting for opponent…";
+    PokeDuel.setName(nameInput.value); // lock in whatever's in the box
+    nameInput.disabled = true;
     PokeDuel.setReady();
   });
 
@@ -2245,9 +2269,27 @@ if (isDuelRun) {
   });
 
   PokeDuel.onSab(applySabotage);
+  // Both dots green: a short countdown so the start is loud and simultaneous,
+  // instead of blocks ambushing whoever readied up first.
   PokeDuel.onBothReady(() => {
     readyBtn.style.display = "none";
-    if (!state.running) startGame("medium");
+    nameInput.disabled = true;
+    nameRow.remove();
+    const cdTitle = screenStart.querySelector(".overlay-title");
+    const cdSub = screenStart.querySelector(".overlay-subtitle");
+    if (cdSub) cdSub.textContent = "Both players ready. Here we go.";
+    let n = 3;
+    const tick = () => {
+      if (state.running) return; // paranoia: never double-start
+      if (n > 0) {
+        if (cdTitle) cdTitle.textContent = String(n);
+        n--;
+        setTimeout(tick, 1000);
+      } else {
+        startGame("medium");
+      }
+    };
+    tick();
   });
 }
 

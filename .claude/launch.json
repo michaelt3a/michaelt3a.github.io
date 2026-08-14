@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["http-server", ".", "-p", "8123", "-c-1"],
       "port": 8123
+    },
+    {
+      "name": "static-site-alt",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "8124", "-c-1"],
+      "port": 8124
     }
   ]
 }

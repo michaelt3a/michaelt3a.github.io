@@ -116,7 +116,8 @@
     currentCode = code;
     roomEl.hidden = false;
     actionsEl.hidden = true;
-    nameInput.disabled = true;
+    // The name stays editable the whole time you wait, and there's another
+    // chance to fix it on the ready screen, so nobody gets stuck as "Player".
     codeBig.textContent = code;
     linkInput.value = location.origin + location.pathname + "?room=" + code;
     connectRoom();

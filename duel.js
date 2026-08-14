@@ -14,6 +14,9 @@
   const params = new URLSearchParams(location.search);
   const code = (params.get("duel") || "").toUpperCase();
   const active = /^[A-Z2-9]{4}$/.test(code);
+  // Editable until the player hits Ready: the ready screen has a name box,
+  // and every heartbeat carries the latest name, so the other side stays
+  // current.
   let myName = (params.get("dn") || "").slice(0, 12) || "You";
 
   // Seeded streams, same recipe as daily.js but keyed on the room code.
@@ -180,13 +183,38 @@
 
   // --- Wire-up -------------------------------------------------------------
   // The channel rebuilds itself whenever the tab comes back into view or the
-  // network returns, and re-announces our latest state, so a trip to the home
-  // screen (or Messages) can't kill the duel.
+  // network returns. State flows over a permanent heartbeat: every beat
+  // re-broadcasts our full state (name, ready, score, done), and receiving is
+  // idempotent. A lost message just means the next beat carries it, so a
+  // backgrounded phone can never eat a ready-up and let one player start
+  // alone. Sabotage stays a one-shot event because replaying it would sting.
   let client = null;
   const myId = Math.floor(Math.random() * 1e9);
-  let met = false;
+
+  function applyOpp(p) {
+    if (!p || p.id === myId) return;
+    const hadDone = opp.done;
+    if (p.name) opp.name = String(p.name).slice(0, 12);
+    if (p.ready) opp.ready = true; // sticky: there's no un-readying
+    if (typeof p.score === "number" && p.score > opp.score) opp.score = p.score;
+    if (p.done) {
+      opp.done = true;
+      if (p.stats) opp.stats = p.stats;
+    }
+    paintBar();
+    checkBothReady();
+    if (opp.done && !hadDone) maybeSettle();
+    else if (mine.done && !opp.done) showWaiting(); // keep their live score fresh
+  }
 
   function announce(target) {
+    target.send({
+      type: "broadcast",
+      event: "sync",
+      payload: { id: myId, name: myName, ready: mine.ready, score: mine.score, done: mine.done, stats: mine.done ? mine.stats : null },
+    });
+    // Older cached clients only speak hello/ready/score/done; feed them too so
+    // a mid-rollout duel between mixed versions still works.
     target.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName } });
     if (mine.ready) target.send({ type: "broadcast", event: "ready", payload: { id: myId } });
     if (mine.done) {
@@ -203,51 +231,40 @@
     }
     const mineCh = client.channel("duel-" + code + "-game");
     ch = mineCh;
-    let pinger = 0;
-    mineCh.on("broadcast", { event: "hello" }, function (m) {
-      if (!m.payload || m.payload.id === myId) return;
-      if (m.payload.name) opp.name = m.payload.name;
-      if (!met) {
-        met = true;
-        clearInterval(pinger);
-        announce(mineCh);
-      }
-      paintBar();
+    let beat = 0;
+    mineCh.on("broadcast", { event: "sync" }, function (m) {
+      applyOpp(m.payload);
     });
-    mineCh.on("broadcast", { event: "score" }, function (msg) {
-      opp.score = msg.payload.score;
-      paintBar();
-      if (mine.done && !opp.done) showWaiting();
+    // Legacy events from older cached clients.
+    mineCh.on("broadcast", { event: "hello" }, function (m) {
+      if (m.payload) applyOpp({ id: m.payload.id, name: m.payload.name });
     });
     mineCh.on("broadcast", { event: "ready" }, function (m) {
-      if (!m.payload || m.payload.id === myId) return;
-      opp.ready = true;
-      paintBar();
-      checkBothReady();
+      if (m.payload) applyOpp({ id: m.payload.id, ready: true });
+    });
+    mineCh.on("broadcast", { event: "score" }, function (msg) {
+      // No id in the old payload; own broadcasts aren't echoed, so it's theirs.
+      applyOpp({ id: -1, score: msg.payload.score });
+    });
+    mineCh.on("broadcast", { event: "done" }, function (msg) {
+      applyOpp({ id: -1, score: msg.payload.score, done: true, stats: msg.payload.stats || null });
     });
     mineCh.on("broadcast", { event: "sab" }, function (msg) {
       if (sabHandler) sabHandler(msg.payload.kind, opp.name);
-    });
-    mineCh.on("broadcast", { event: "done" }, function (msg) {
-      opp.done = true;
-      opp.score = msg.payload.score;
-      opp.stats = msg.payload.stats || null;
-      paintBar();
-      maybeSettle();
     });
     mineCh.subscribe(function (status) {
       if (mineCh !== ch) return; // a newer rebuild took over
       if (status === "SUBSCRIBED") {
         if (!bar.parentElement) document.body.appendChild(bar);
         paintBar();
-        announce(mineCh); // catch the opponent up on where we are
-        clearInterval(pinger);
-        pinger = setInterval(function () {
-          if (met || mineCh !== ch) { clearInterval(pinger); return; }
-          mineCh.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName } });
-        }, 900);
+        announce(mineCh); // catch the opponent up right away
+        clearInterval(beat);
+        beat = setInterval(function () {
+          if (mineCh !== ch || (mine.done && opp.done)) { clearInterval(beat); return; }
+          announce(mineCh);
+        }, 1200);
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-        clearInterval(pinger);
+        clearInterval(beat);
         setTimeout(function () { if (mineCh === ch) buildChannel(); }, 2000);
       }
     });
@@ -278,9 +295,14 @@
     name: myName,
     stream: stream,
     oppName: function () { return opp.name; },
+    setName: function (n) {
+      myName = (n || "").trim().slice(0, 12) || "You";
+      paintBar();
+      if (ch) announce(ch); // the opponent's VS bar updates as you type
+    },
     setReady: function () {
       mine.ready = true;
-      send("ready", { id: myId });
+      if (ch) announce(ch); // full state right away; the heartbeat is the net
       paintBar();
       checkBothReady();
     },
