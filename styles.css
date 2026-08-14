@@ -574,6 +574,11 @@ body {
 .lb-done.hidden {
   display: none;
 }
+/* The start button hides for duels (Ready replaces it) and spent dailies.
+   Without this the class silently did nothing and the button stayed live. */
+#start-btn.hidden {
+  display: none;
+}
 .lb-empty {
   list-style: none;
   color: var(--muted);

@@ -413,6 +413,9 @@ const isDailyRun = !!(window.Daily && Daily.isRun());
 // Duel runs (bowl-builder.html?duel=CODE) seed from the room instead, so both
 // players fight the exact same blocks. duel.js owns the realtime side.
 const isDuelRun = !isDailyRun && !!(window.PokeDuel && PokeDuel.active);
+// Hard gate: in a duel, startGame refuses to run until both players have
+// readied up, no matter which button or code path asks for it.
+let duelCanStart = false;
 
 // Gameplay randomness routes through these so a Daily Challenge run can swap in
 // the day's seeded streams. Two independent streams: which ingredient comes
@@ -887,6 +890,7 @@ function spawnActive() {
 }
 
 function startGame(difficulty) {
+  if (isDuelRun && !duelCanStart) return; // no ready-up, no blocks
   if (window.PokeStreak) PokeStreak.mark();
   if (window.PokeTrack) PokeTrack.hit(isDailyRun ? "daily" : "play", "bowl");
   // A Daily Challenge run draws from the day's seeded streams instead, so
@@ -2214,6 +2218,7 @@ if (isDuelRun) {
       "Set your name, hit Ready below, and the countdown starts once you both have.";
   }
   startBtn.classList.add("hidden"); // the Ready button below the box replaces it
+  startBtn.style.display = "none";
   const link = screenStart.querySelector(".duel-entry");
   if (link) link.remove(); // you're already in one
 
@@ -2272,6 +2277,7 @@ if (isDuelRun) {
   // Both dots green: a short countdown so the start is loud and simultaneous,
   // instead of blocks ambushing whoever readied up first.
   PokeDuel.onBothReady(() => {
+    duelCanStart = true;
     readyBtn.style.display = "none";
     nameInput.disabled = true;
     nameRow.remove();
