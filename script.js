@@ -2200,8 +2200,9 @@ function drawSplat() {
   ctx.restore();
 }
 
-// Duel: unmistakable chrome. Purple glow, its own title, and the sabotage
-// button; duel.js draws the VS scoreboard and the end panels.
+// Duel: unmistakable chrome. Purple glow, its own title, a green Ready
+// button below the box, and the sabotage button; the game starts only once
+// BOTH players have readied up (the dots in the VS bar track who has).
 if (isDuelRun) {
   document.body.classList.add("duel-mode");
   const title = screenStart.querySelector(".overlay-title");
@@ -2209,16 +2210,31 @@ if (isDuelRun) {
   const sub = screenStart.querySelector(".overlay-subtitle");
   if (sub) {
     sub.textContent =
-      "Same blocks for both of you; highest stack wins. Every 8 blocks loads a sabotage. Use it.";
+      "Same blocks for both of you; highest stack wins. Every 8 blocks loads a sabotage. " +
+      "Hit Ready below; the blocks drop when you both have.";
   }
-  startBtn.textContent = "Ready!";
+  startBtn.classList.add("hidden"); // the Ready button below the box replaces it
   const link = screenStart.querySelector(".duel-entry");
-  if (link) link.hidden = true; // already in one
+  if (link) link.remove(); // you're already in one
+
+  const controls = document.querySelector(".controls");
+
+  const readyBtn = document.createElement("button");
+  readyBtn.className = "control-btn duel-ready";
+  readyBtn.type = "button";
+  readyBtn.textContent = "✓ Ready";
+  controls.appendChild(readyBtn);
+  readyBtn.addEventListener("click", () => {
+    if (readyBtn.disabled) return;
+    readyBtn.disabled = true;
+    readyBtn.textContent = "Waiting for opponent…";
+    PokeDuel.setReady();
+  });
 
   sabBtn.className = "control-btn duel-sab";
   sabBtn.type = "button";
   updateSabBtn();
-  document.querySelector(".controls").appendChild(sabBtn);
+  controls.appendChild(sabBtn);
   sabBtn.addEventListener("click", () => {
     if (!state.running || state.paused || state.duelCharges <= 0) return;
     state.duelCharges--;
@@ -2229,6 +2245,10 @@ if (isDuelRun) {
   });
 
   PokeDuel.onSab(applySabotage);
+  PokeDuel.onBothReady(() => {
+    readyBtn.style.display = "none";
+    if (!state.running) startGame("medium");
+  });
 }
 
 requestAnimationFrame(frame);

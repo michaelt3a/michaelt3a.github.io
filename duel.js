@@ -50,10 +50,18 @@
   }
 
   // --- State ---------------------------------------------------------------
-  let opp = { name: "Opponent", score: 0, done: false, stats: null };
-  let mine = { score: 0, done: false, stats: null };
+  let opp = { name: "Opponent", score: 0, done: false, stats: null, ready: false };
+  let mine = { score: 0, done: false, stats: null, ready: false };
   let ch = null;
   let sabHandler = null;
+  let bothReadyCb = null;
+  let bothReadyFired = false;
+
+  function checkBothReady() {
+    if (bothReadyFired || !mine.ready || !opp.ready) return;
+    bothReadyFired = true;
+    if (bothReadyCb) bothReadyCb();
+  }
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, (c) =>
@@ -68,6 +76,9 @@
     "align-items:center;gap:12px;background:rgba(20,10,40,.88);border:1.5px solid #8f6ef0;border-radius:999px;" +
     "padding:7px 18px;color:#f4ede3;font:700 14px system-ui,sans-serif;box-shadow:0 0 18px rgba(143,110,240,.45)}" +
     ".duel-bar b{font-variant-numeric:tabular-nums;font-size:17px}" +
+    ".duel-bar .rdot{display:inline-block;width:10px;height:10px;border-radius:50%;" +
+    "border:2px solid #667;margin-right:6px;vertical-align:-1px}" +
+    ".duel-bar .rdot.on{background:#39a85b;border-color:#39a85b}" +
     ".duel-bar .me b{color:#ffd15a}.duel-bar .them b{color:#b9a5ff}" +
     ".duel-bar .vs{color:#8f6ef0;font-size:11px;letter-spacing:.08em}" +
     ".duel-bar .fin{font-size:11px;color:#9aa;font-weight:700}" +
@@ -99,10 +110,12 @@
   bar.className = "duel-bar";
   function paintBar() {
     bar.innerHTML =
-      '<span class="me">' + escapeHtml(myName) + " <b>" + mine.score + "</b>" +
+      '<span class="me"><i class="rdot' + (mine.ready ? " on" : "") + '"></i>' +
+      escapeHtml(myName) + " <b>" + mine.score + "</b>" +
       (mine.done ? ' <span class="fin">FIN</span>' : "") + "</span>" +
       '<span class="vs">VS</span>' +
-      '<span class="them">' + escapeHtml(opp.name) + " <b>" + opp.score + "</b>" +
+      '<span class="them"><i class="rdot' + (opp.ready ? " on" : "") + '"></i>' +
+      escapeHtml(opp.name) + " <b>" + opp.score + "</b>" +
       (opp.done ? ' <span class="fin">FIN</span>' : "") + "</span>";
   }
 
@@ -175,6 +188,7 @@
 
   function announce(target) {
     target.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName } });
+    if (mine.ready) target.send({ type: "broadcast", event: "ready", payload: { id: myId } });
     if (mine.done) {
       target.send({ type: "broadcast", event: "done", payload: { score: mine.score, stats: mine.stats } });
     } else if (mine.score > 0) {
@@ -204,6 +218,12 @@
       opp.score = msg.payload.score;
       paintBar();
       if (mine.done && !opp.done) showWaiting();
+    });
+    mineCh.on("broadcast", { event: "ready" }, function (m) {
+      if (!m.payload || m.payload.id === myId) return;
+      opp.ready = true;
+      paintBar();
+      checkBothReady();
     });
     mineCh.on("broadcast", { event: "sab" }, function (msg) {
       if (sabHandler) sabHandler(msg.payload.kind, opp.name);
@@ -258,6 +278,17 @@
     name: myName,
     stream: stream,
     oppName: function () { return opp.name; },
+    setReady: function () {
+      mine.ready = true;
+      send("ready", { id: myId });
+      paintBar();
+      checkBothReady();
+    },
+    onBothReady: function (cb) {
+      bothReadyCb = cb;
+      checkBothReady(); // in case both were already ready before wiring
+    },
+    oppReady: function () { return opp.ready; },
     sendScore: function (score) {
       mine.score = score;
       paintBar();

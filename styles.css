@@ -584,6 +584,21 @@ body.duel-mode .stage {
   color: #8f6ef0;
   font-weight: 700;
 }
+
+/* The green go-button: the round starts once both players have pressed it */
+.duel-ready {
+  background: #39a85b;
+  border: none;
+  color: #fff;
+  font-weight: 800;
+}
+.duel-ready:hover {
+  background: #2f8f4d;
+}
+.duel-ready:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
 .duel-sab:disabled {
   opacity: 0.45;
   cursor: default;

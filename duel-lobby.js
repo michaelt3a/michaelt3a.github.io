@@ -170,9 +170,12 @@
     } else done();
   });
 
-  // Arriving through a shared link joins that room straight away.
+  // Arriving through a shared link prefills the code but waits for the Join
+  // click, so the guest gets a moment to set their name first.
   const room = new URLSearchParams(location.search).get("room");
   if (room && /^[A-Z2-9]{4}$/i.test(room)) {
-    openRoom(room.toUpperCase());
+    codeInput.value = room.toUpperCase();
+    joinBtn.textContent = "Join " + room.toUpperCase();
+    nameInput.focus();
   }
 })();
