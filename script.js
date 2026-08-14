@@ -38,7 +38,6 @@ const difficultyBtns = document.querySelectorAll(".difficulty-btn");
 const comboEl = document.getElementById("combo");
 const comboCountEl = document.getElementById("combo-count");
 const pauseBtn = document.getElementById("pause-btn");
-const muteBtn = document.getElementById("mute-btn");
 
 // Leaderboard entry elements (boards are viewed on the hub)
 const lbEntry = document.getElementById("lb-entry");
@@ -849,46 +848,8 @@ function quitFromPause() {
   showStartScreen();
 }
 
-const MUTE_KEY = "pokeworks-muted";
 
-function updateMuteBtn() {
-  muteBtn.textContent = state.muted ? "🔇 Muted" : "🔊 Sound";
-}
-
-// Mute is arcade-wide now (sound.js owns it, and there's a button in the corner
-// of every page). This in-game button is a second handle on the same switch.
-function loadMute() {
-  if (window.PokeSound) {
-    state.muted = PokeSound.isMuted();
-  } else {
-    try {
-      state.muted = localStorage.getItem(MUTE_KEY) === "1";
-    } catch (e) {
-      state.muted = false;
-    }
-  }
-  updateMuteBtn();
-}
-
-function toggleMute() {
-  if (window.PokeSound) {
-    PokeSound.toggle(); // the change event below syncs state.muted
-    return;
-  }
-  state.muted = !state.muted;
-  try {
-    localStorage.setItem(MUTE_KEY, state.muted ? "1" : "0");
-  } catch (e) {
-    /* ignore */
-  }
-  updateMuteBtn();
-}
-
-// Keep the in-game button in step when the corner button is used.
-document.addEventListener("pokesound:change", (e) => {
-  state.muted = !!(e.detail && e.detail.muted);
-  updateMuteBtn();
-});
+// All mute controls are gone from the arcade, so sound is simply on.
 
 // --- Game lifecycle -----------------------------------------------------
 
@@ -2088,9 +2049,6 @@ pauseBtn.addEventListener("click", togglePause);
 resumeBtn.addEventListener("click", resumeFromPause);
 pauseQuitBtn.addEventListener("click", quitFromPause);
 
-// Mute toggle.
-muteBtn.addEventListener("click", toggleMute);
-
 canvas.addEventListener("pointerdown", (e) => {
   if (!state.running || state.paused) return;
   // Map the pointer to canvas coordinates and check power-ups first — tapping
@@ -2118,7 +2076,6 @@ document.addEventListener("visibilitychange", () => {
 });
 
 loadHighScore();
-loadMute();
 buildMenuRows();
 
 // Daily Challenge: launched as bowl-builder.html?daily=1. Fixed difficulty (the

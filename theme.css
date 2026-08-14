@@ -31,9 +31,13 @@
   --pattern-wash: rgba(243, 239, 230, 0.62);
 }
 
-/* Minimal look: flat page color, no sparkle pattern. */
+/* The teal sparkle pattern is tuned for a near-black page; on cream it shouts.
+   A translucent wash of the page colour sits over it in light mode — simpler
+   than a positioned overlay, which would fight body's background propagation. */
 body {
-  background-image: none;
+  background-image: linear-gradient(var(--pattern-wash), var(--pattern-wash)),
+    url("bg-pattern.svg");
+  background-size: auto, 200px auto;
   transition: background-color 0.45s ease, color 0.45s ease;
 }
 

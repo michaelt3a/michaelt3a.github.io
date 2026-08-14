@@ -8,10 +8,9 @@
   const KEY = "pokeworks-muted";
   const gains = [];
 
-  function load() {
-    try { return localStorage.getItem(KEY) === "1"; } catch (e) { return false; }
-  }
-  let muted = load();
+  // With every mute control removed from the arcade, a stale stored mute
+  // would silence a browser forever; sound simply starts on.
+  let muted = false;
 
   const AC = window.AudioContext || window.webkitAudioContext;
   if (AC && !AC.__pokePatched) {
