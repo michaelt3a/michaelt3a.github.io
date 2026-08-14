@@ -573,6 +573,22 @@ body {
   padding: 0.8rem;
 }
 
+/* Duel mode: the whole stage wears a purple glow so it can't be mistaken
+   for a normal run, and the sabotage button joins the controls. */
+body.duel-mode .stage {
+  box-shadow: 0 0 0 2px #8f6ef0, 0 0 26px rgba(143, 110, 240, 0.4);
+  border-radius: 6px;
+}
+.duel-sab {
+  border: 1.5px solid #8f6ef0;
+  color: #8f6ef0;
+  font-weight: 700;
+}
+.duel-sab:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 /* Quiet link under the start button: live head-to-head via duel.html */
 .duel-entry {
   display: block;

@@ -557,7 +557,18 @@ function playGameOver() {
 function setScore(value) {
   state.score = value;
   scoreEl.textContent = String(value);
-  if (isDuelRun && state.running) PokeDuel.sendScore(value);
+  if (isDuelRun && state.running) {
+    PokeDuel.sendScore(value);
+    // Every 8 blocks loads a sabotage charge (two in the chamber, max).
+    if (value >= state.duelNextChargeAt) {
+      state.duelNextChargeAt += 8;
+      if (state.duelCharges < 2) {
+        state.duelCharges++;
+        showToast("🧨 Sabotage loaded!");
+      }
+      updateSabBtn();
+    }
+  }
 }
 
 function loadHighScore() {
@@ -910,6 +921,12 @@ function startGame(difficulty) {
   state.stats = { perfects: 0, bestCombo: 0, powerups: 0 };
   state.baseIngredient = randomFrom(BASES);
   state.cam = { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 };
+  state.duelCharges = 0;
+  state.duelNextChargeAt = 8;
+  state.duelSpeedDrops = 0;
+  state.duelSplat = null;
+  state.duelSabsSent = 0;
+  updateSabBtn();
   spawnActive();
   clearPowerups();
 
@@ -977,16 +994,16 @@ function endGame() {
   // Offer a leaderboard entry (the board itself is viewed on the hub).
   // Global (Supabase) boards accept any positive score; a local-only board
   // only offers when the score cracks the top 10.
-  // A duel reports the final score to the room; duel.js paints the verdict
-  // once both runs end. No board entry, and no replaying a memorized seed.
+  // A duel skips the normal game-over screen entirely: duel.js paints the
+  // waiting panel, then the stats face-off once both runs end. No board
+  // entry, and no replaying a memorized seed.
   if (isDuelRun) {
-    PokeDuel.finish(state.score);
-    if (playAgainBtn) playAgainBtn.classList.add("hidden");
-    pendingScore = null;
-    lbEntry.classList.add("hidden");
-    overlay.classList.remove("hidden");
-    showScreen(screenGameover);
-    lockScreenActions();
+    PokeDuel.finish(state.score, {
+      perfects: state.stats.perfects,
+      combo: state.stats.bestCombo,
+      powerups: state.stats.powerups,
+      sabs: state.duelSabsSent || 0,
+    });
     return;
   }
 
@@ -1143,6 +1160,7 @@ function dropActive() {
     landAnim: 1,
   });
   setScore(state.placed.length);
+  if (state.duelSpeedDrops > 0) state.duelSpeedDrops--;
 
   if (window.PokeAch) {
     if (state.score === 1) PokeAch.unlock("bb-first");
@@ -1201,7 +1219,8 @@ function update(dt) {
   if (!active) return;
 
   const cfg = DIFFICULTY[state.difficulty] || DIFFICULTY.medium;
-  const speed = cfg.speed + cfg.ramp * state.score;
+  // A "speed" sabotage makes the next few drops slide 45% faster.
+  const speed = (cfg.speed + cfg.ramp * state.score) * (state.duelSpeedDrops > 0 ? 1.45 : 1);
 
   active.x += active.dir * speed * dt;
 
@@ -2027,6 +2046,7 @@ function frame(timestamp) {
       update(dt);
       render();
       drawPowerups();
+      drawSplat();
     }
   } else {
     updateMenu(dt);
@@ -2127,12 +2147,88 @@ if (isDailyRun) {
   showStartScreen();
 }
 
-// Duel: the start screen names the stakes; the seed comes from the room.
+// --- Duel mode chrome + sabotage -----------------------------------------
+
+const sabBtn = isDuelRun ? document.createElement("button") : null;
+
+function updateSabBtn() {
+  if (!sabBtn) return;
+  const n = state.duelCharges || 0;
+  sabBtn.textContent = "🧨 Sabotage ×" + n;
+  sabBtn.disabled = n <= 0;
+}
+
+// Incoming sabotage: annoying for a few seconds, never lethal.
+function applySabotage(kind, who) {
+  if (!state.running || state.paused) return;
+  if (kind === "speed") {
+    state.duelSpeedDrops = 3;
+    showToast("🧨 " + who + " sped up your block!");
+  } else {
+    const blobs = [];
+    for (let i = 0; i < 5; i++) {
+      blobs.push({
+        x: 110 + Math.random() * (W - 220),
+        y: 230 + Math.random() * 290,
+        r: 45 + Math.random() * 35,
+      });
+    }
+    state.duelSplat = { until: performance.now() + 2600, blobs };
+    showToast("🥫 " + who + " sauced your screen!");
+  }
+  buzz(30);
+}
+
+// Sauce splat over the stack; the moving block up top stays visible, so you
+// aim from memory instead of dying blind.
+function drawSplat() {
+  if (!state.duelSplat) return;
+  if (performance.now() > state.duelSplat.until) { state.duelSplat = null; return; }
+  ctx.save();
+  for (const b of state.duelSplat.blobs) {
+    ctx.fillStyle = "rgba(196, 43, 28, 0.93)";
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.arc(b.x + b.r * 0.65, b.y + b.r * 0.35, b.r * 0.5, 0, Math.PI * 2);
+    ctx.arc(b.x - b.r * 0.55, b.y + b.r * 0.5, b.r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(150, 28, 18, 0.9)";
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Duel: unmistakable chrome. Purple glow, its own title, and the sabotage
+// button; duel.js draws the VS scoreboard and the end panels.
 if (isDuelRun) {
+  document.body.classList.add("duel-mode");
+  const title = screenStart.querySelector(".overlay-title");
+  if (title) title.textContent = "Duel";
   const sub = screenStart.querySelector(".overlay-subtitle");
-  if (sub) sub.textContent = "Duel time. Same blocks for both of you; highest stack wins.";
+  if (sub) {
+    sub.textContent =
+      "Same blocks for both of you; highest stack wins. Every 8 blocks loads a sabotage. Use it.";
+  }
+  startBtn.textContent = "Ready!";
   const link = screenStart.querySelector(".duel-entry");
   if (link) link.hidden = true; // already in one
+
+  sabBtn.className = "control-btn duel-sab";
+  sabBtn.type = "button";
+  updateSabBtn();
+  document.querySelector(".controls").appendChild(sabBtn);
+  sabBtn.addEventListener("click", () => {
+    if (!state.running || state.paused || state.duelCharges <= 0) return;
+    state.duelCharges--;
+    state.duelSabsSent++;
+    PokeDuel.sendSab(Math.random() < 0.5 ? "speed" : "splat");
+    showToast("🧨 Sabotage sent!");
+    updateSabBtn();
+  });
+
+  PokeDuel.onSab(applySabotage);
 }
 
 requestAnimationFrame(frame);
