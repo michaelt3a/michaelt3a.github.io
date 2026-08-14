@@ -83,18 +83,22 @@ body {
   outline-offset: 3px;
 }
 
-/* The theme switch: a plain slide toggle. Red side = light mode, green side
-   = dark mode, and the knob sits on whichever is active. */
+/* The theme switch: a small, quiet slide toggle. A neutral track with a tiny
+   red dot on the light end and a green dot on the dark end; the knob covers
+   whichever side is active. */
 .theme-switch {
-  width: 56px;
-  height: 30px;
+  width: 40px;
+  height: 20px;
   padding: 0;
   border: 1.5px solid var(--chip-line);
   border-radius: 999px;
-  background: linear-gradient(90deg, #ee435b 50%, #39a85b 50%);
+  background: var(--chip);
   position: relative;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.theme-switch:hover {
+  border-color: var(--on-dark-muted);
 }
 
 .theme-switch:focus-visible {
@@ -102,20 +106,41 @@ body {
   outline-offset: 3px;
 }
 
+.theme-switch::before,
+.theme-switch::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  opacity: 0.75;
+}
+.theme-switch::before {
+  left: 6px;
+  background: #ee435b;
+}
+.theme-switch::after {
+  right: 6px;
+  background: #39a85b;
+}
+
 .ts-knob {
   position: absolute;
+  z-index: 1;
   top: 2px;
   left: 2px;
-  width: 23px;
-  height: 23px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  background: var(--on-dark);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   transition: left 0.22s ease;
 }
 
 :root[data-theme="dark"] .ts-knob {
-  left: calc(100% - 25px);
+  left: calc(100% - 15px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -145,15 +170,15 @@ body .pk-ach-toasts {
     font-size: 0.95rem;
   }
   .theme-switch {
-    width: 48px;
-    height: 26px;
+    width: 36px;
+    height: 18px;
   }
   .ts-knob {
-    width: 19px;
-    height: 19px;
+    width: 11px;
+    height: 11px;
   }
   :root[data-theme="dark"] .ts-knob {
-    left: calc(100% - 21px);
+    left: calc(100% - 13px);
   }
   body .ss-toasts,
   body .pk-ach-toasts {
