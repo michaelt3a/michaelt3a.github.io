@@ -23,6 +23,7 @@
   // Two-tap redeem: first tap arms the button, second confirms.
   let armed = null; // item id
   let armedTimer = 0;
+  let justRedeemed = false; // scroll-and-glow the new code on the next render
 
   function fmtDate(t) {
     const d = new Date(t);
@@ -74,6 +75,17 @@
       });
       ownedEl.appendChild(row);
     }
+
+    // A fresh redeem pulls the page down to the new code and glows it.
+    if (justRedeemed) {
+      justRedeemed = false;
+      const first = ownedEl.querySelector(".shop-code");
+      if (first) {
+        first.classList.add("shop-code-new");
+        first.addEventListener("animationend", () => first.classList.remove("shop-code-new"), { once: true });
+        first.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
   }
 
   function onBuy(item) {
@@ -89,6 +101,7 @@
     if (PokePoints.spend(item.cost, "Redeemed: " + item.title)) {
       PokePoints.recordRedeem(item);
       if (window.PokeTrack) PokeTrack.hit("redeem", item.id);
+      justRedeemed = true;
     }
     render();
   }
@@ -141,6 +154,13 @@
       renderMail();
     });
     renderMail();
+  }
+
+  // While codes are placeholders, points are play money; the test button
+  // makes trying the shop (and the redeem animation) painless.
+  const testBtn = document.getElementById("shop-test-pts");
+  if (testBtn) {
+    testBtn.addEventListener("click", () => PokePoints.add(500, "Test points"));
   }
 
   PokePoints.onChange(render);
