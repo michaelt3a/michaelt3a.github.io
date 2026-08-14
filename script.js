@@ -1716,6 +1716,10 @@ function pickPowerType() {
   const b = rngPowerup();
   const c = rngPowerup();
   if (!state.shieldEarned && a < SHIELD_CHANCE) return "shield";
+  // The golden scallop: pure Rewards Shop points, once a game, rare. It reads
+  // the top of the same draw the shield reads the bottom of, so the other
+  // odds are untouched and seeded runs stay deterministic.
+  if (!state.goldenEarned && a > 0.985) return "golden";
   if (!state.hasSaver && b < 0.22) return "saver";
   return c < 0.5 ? "expand" : "magnet";
 }
@@ -1891,8 +1895,36 @@ function drawPowerups() {
     if (p.type === "magnet") drawMagnetGlyph(p.x, p.y, r);
     else if (p.type === "shield") drawShieldGlyph(p.x, p.y, r);
     else if (p.type === "saver") drawSaverGlyph(p.x, p.y, r);
+    else if (p.type === "golden") drawGoldenGlyph(p.x, p.y, r);
     else drawExpandGlyph(p.x, p.y, r);
   }
+}
+
+// The golden scallop: a gold shell fan on a matching gold-ringed disc.
+function drawGoldenGlyph(x, y, r) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#ffd15a";
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2); // gold ring over the teal one
+  ctx.stroke();
+  ctx.fillStyle = "#ffd15a";
+  ctx.strokeStyle = "#c9982a";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.05, r * 0.5, Math.PI, 0); // the shell dome
+  ctx.lineTo(0, r * 0.55); // down to the hinge
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath(); // ridge lines fanning from the hinge
+  for (const fx of [-0.32, 0, 0.32]) {
+    ctx.moveTo(0, r * 0.5);
+    ctx.lineTo(r * fx, -r * 0.4);
+  }
+  ctx.stroke();
+  ctx.restore();
 }
 
 // Returns true if a power-up was collected at (px, py) — caller then skips the drop.
@@ -1918,6 +1950,10 @@ function applyPower(type) {
   if (type === "magnet") {
     state.magnetDrops = MAGNET_DROPS;
     showToast("🧲 Magnet on!");
+  } else if (type === "golden") {
+    state.goldenEarned = true;
+    showToast("✨ Golden scallop! +20 pts");
+    if (window.PokeChallenges) PokeChallenges.awardPts(20, "Caught the golden scallop");
   } else if (type === "shield") {
     state.hasShield = true;
     state.shieldEarned = true;
@@ -1991,6 +2027,7 @@ function clearPowerups() {
   state.magnetDrops = 0;
   state.hasShield = false;
   state.shieldEarned = false;
+  state.goldenEarned = false;
   state.hasSaver = false;
   if (puToast) puToast.classList.add("hidden");
   updateStatusBadges();

@@ -747,6 +747,12 @@ function addCustomer() {
     shirt: special === "critic" ? "#2a2f31" : special === "inspector" ? "#5a7d8c" : tier.shirt || SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
     mood: "ok",
   };
+  // The golden guest: a rare walk-in whose perfect bowl pays Rewards Shop
+  // points. Never on dailies, so the shared board stays pure skill.
+  if (!isDailyRun && !special && !S.tutorial && Math.random() < 0.03) {
+    c.golden = true;
+    c.shirt = "#ffd15a";
+  }
   S.customers.push(c);
   buildCustomer(c);
   reflowDoor();
@@ -756,7 +762,7 @@ function addCustomer() {
 function buildCustomer(c) {
   const el = document.createElement("button");
   el.type = "button";
-  el.className = "ou-cust";
+  el.className = "ou-cust" + (c.golden ? " golden" : "");
   const tagClass = c.special ? "t-" + c.special : "t-" + c.tier.key;
   const tagIcon = c.special === "critic" ? "🎩" : c.special === "inspector" ? "📋" : c.tier.icon;
   el.innerHTML =
@@ -889,6 +895,10 @@ function serve(c) {
     if (S.served === 10) PokeAch.unlock("ou-10");
     if (isHard() && S.served === 5) PokeAch.unlock("ou-hard");
     if (c.tier.key === "vip" && a.perfect) PokeAch.unlock("ou-vip");
+  }
+  // A golden guest pays shop points, but only for a perfect bowl.
+  if (c.golden && a.perfect && window.PokeChallenges) {
+    PokeChallenges.awardPts(20, "Perfect bowl for the golden guest");
   }
   // Only a perfect bowl keeps the combo alive.
   S.combo = a.perfect ? S.combo + 1 : 0;

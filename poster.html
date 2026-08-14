@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Table Tent - Pokeworks Minigames</title>
+  <meta name="description" content="Printable table tent for the Pokeworks arcade." />
+  <meta name="robots" content="noindex" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #e8e4dc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+    }
+    .hint {
+      color: #555;
+      font-size: 14px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .hint button {
+      font: inherit;
+      font-weight: 700;
+      padding: 6px 18px;
+      border-radius: 999px;
+      border: none;
+      background: #ee435b;
+      color: #fff;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    /* One US-letter sheet, two identical panels stacked so it folds into a tent. */
+    .sheet {
+      width: 8.5in;
+      height: 11in;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 6px 30px rgba(0, 0, 0, 0.18);
+    }
+    .panel {
+      height: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.22in;
+      padding: 0.5in;
+      border-bottom: 1px dashed #bbb; /* the fold line */
+    }
+    .panel:last-child { border-bottom: none; }
+    /* The top panel prints upside down so both sides read upright when folded. */
+    .panel.flip { transform: rotate(180deg); }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.16in;
+    }
+    .brand img { height: 0.65in; }
+    .brand strong {
+      font-size: 26px;
+      letter-spacing: -0.01em;
+      color: #1f2b2b;
+    }
+    h2 {
+      margin: 0;
+      font-size: 30px;
+      color: #ee435b;
+      text-align: center;
+      letter-spacing: -0.01em;
+    }
+    .qr {
+      width: 1.85in;
+      height: 1.85in;
+    }
+    .perks {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      text-align: center;
+      color: #45585a;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+    .url {
+      font-weight: 800;
+      color: #22b2b4;
+      font-size: 16px;
+    }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .hint { display: none; }
+      .sheet { box-shadow: none; }
+      @page { size: letter portrait; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <p class="hint">
+    Print on letter paper, fold along the dashed line, and it stands on its own.
+    <button onclick="window.print()">🖨 Print</button>
+  </p>
+
+  <div class="sheet">
+    <div class="panel flip">
+      <div class="brand"><img src="pokeworks-logo-circle-1.png" alt="" /><strong>Pokeworks Minigames</strong></div>
+      <h2>Play while you wait 🥢</h2>
+      <img class="qr" src="qr-site.svg" alt="QR code to the minigames site" />
+      <ul class="perks">
+        <li>🗓 A new challenge every day</li>
+        <li>🎁 Earn points, trade them for discounts</li>
+        <li>🏆 Beat the whole store on the leaderboard</li>
+      </ul>
+      <span class="url">michaelt3a.github.io</span>
+    </div>
+    <div class="panel">
+      <div class="brand"><img src="pokeworks-logo-circle-1.png" alt="" /><strong>Pokeworks Minigames</strong></div>
+      <h2>Play while you wait 🥢</h2>
+      <img class="qr" src="qr-site.svg" alt="QR code to the minigames site" />
+      <ul class="perks">
+        <li>🗓 A new challenge every day</li>
+        <li>🎁 Earn points, trade them for discounts</li>
+        <li>🏆 Beat the whole store on the leaderboard</li>
+      </ul>
+      <span class="url">michaelt3a.github.io</span>
+    </div>
+  </div>
+</body>
+</html>

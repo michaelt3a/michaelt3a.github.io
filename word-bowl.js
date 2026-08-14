@@ -11,10 +11,12 @@
   const PLAY_PTS = 10;                 // showing up counts for something
   const WIN_PTS = 30;                  // solving it
   const TRY_PTS = 10;                  // per unused guess
+  const HARD_PTS = 15;                 // solving with hard mode on
   const TIER_PTS = { 1: 0, 2: 15, 3: 30 };
   const TIER_NAME = { 2: "menu word", 3: "deep-menu word" };
 
-  // Order is hand-mixed so the tiers rotate instead of clumping.
+  // Order is hand-mixed so the tiers rotate instead of clumping. About 100
+  // words means several months before a repeat.
   const WORDS = [
     { w: "OCEAN", tier: 1 }, { w: "MANGO", tier: 2 }, { w: "PLATE", tier: 1 },
     { w: "PONZU", tier: 3 }, { w: "SWEET", tier: 1 }, { w: "SUSHI", tier: 2 },
@@ -32,6 +34,26 @@
     { w: "ALOHA", tier: 2 }, { w: "ONION", tier: 1 }, { w: "MOCHI", tier: 2 },
     { w: "LUNCH", tier: 1 }, { w: "SALTY", tier: 2 }, { w: "APPLE", tier: 1 },
     { w: "DICED", tier: 2 }, { w: "SPICE", tier: 1 }, { w: "WAVES", tier: 1 },
+    { w: "BREAD", tier: 1 }, { w: "DASHI", tier: 3 }, { w: "TOAST", tier: 1 },
+    { w: "CURRY", tier: 2 }, { w: "CREAM", tier: 1 }, { w: "GYOZA", tier: 3 },
+    { w: "DRINK", tier: 1 }, { w: "SALSA", tier: 2 }, { w: "FEAST", tier: 1 },
+    { w: "KATSU", tier: 3 }, { w: "SNACK", tier: 1 }, { w: "TANGY", tier: 2 },
+    { w: "JUICE", tier: 1 }, { w: "NATTO", tier: 3 }, { w: "GRAPE", tier: 1 },
+    { w: "ZESTY", tier: 2 }, { w: "PEACH", tier: 1 }, { w: "ENOKI", tier: 3 },
+    { w: "OLIVE", tier: 1 }, { w: "BASIL", tier: 2 }, { w: "SUGAR", tier: 1 },
+    { w: "CUMIN", tier: 2 }, { w: "FLOUR", tier: 1 }, { w: "ANISE", tier: 2 },
+    { w: "TABLE", tier: 1 }, { w: "CAPER", tier: 2 }, { w: "KNIFE", tier: 1 },
+    { w: "MOCHA", tier: 2 }, { w: "WATER", tier: 1 }, { w: "LATTE", tier: 2 },
+    { w: "STOVE", tier: 1 }, { w: "BROIL", tier: 2 }, { w: "GRILL", tier: 1 },
+    { w: "MAIZE", tier: 2 }, { w: "SMOKE", tier: 1 }, { w: "ALGAE", tier: 2 },
+    { w: "FLAME", tier: 1 }, { w: "GUAVA", tier: 2 }, { w: "ROAST", tier: 1 },
+    { w: "CHIVE", tier: 2 }, { w: "STEAK", tier: 1 }, { w: "PASTA", tier: 1 },
+    { w: "PIZZA", tier: 1 }, { w: "CANDY", tier: 1 }, { w: "COCOA", tier: 1 },
+    { w: "CIDER", tier: 1 }, { w: "PUNCH", tier: 1 }, { w: "BEANS", tier: 1 },
+    { w: "WHEAT", tier: 1 }, { w: "CLAMS", tier: 1 }, { w: "CRABS", tier: 1 },
+    { w: "PERCH", tier: 1 }, { w: "TROUT", tier: 1 }, { w: "SHARK", tier: 1 },
+    { w: "WHALE", tier: 1 }, { w: "REEFS", tier: 1 }, { w: "STORM", tier: 1 },
+    { w: "CLOUD", tier: 1 }, { w: "SUNNY", tier: 1 }, { w: "PALMS", tier: 1 },
   ];
 
   function todaysWord() {
@@ -47,7 +69,7 @@
     if (!s || typeof s !== "object") s = {};
     if (!s.career) s.career = { solved: 0, streak: 0, lastWin: null };
     if (!s.day || s.day.date !== Daily.today()) {
-      s.day = { date: Daily.today(), guesses: [], done: false, won: false, pts: 0 };
+      s.day = { date: Daily.today(), guesses: [], done: false, won: false, pts: 0, hard: false };
     }
     return s;
   }
@@ -97,9 +119,9 @@
   }
 
   // --- Scoring -------------------------------------------------------------
-  function scoreFor(won, tries, tier) {
+  function scoreFor(won, tries, tier, hard) {
     let pts = PLAY_PTS;
-    if (won) pts += WIN_PTS + (TRIES - tries) * TRY_PTS + TIER_PTS[tier];
+    if (won) pts += WIN_PTS + (TRIES - tries) * TRY_PTS + TIER_PTS[tier] + (hard ? HARD_PTS : 0);
     return pts;
   }
 
@@ -163,9 +185,33 @@
   }
 
   // Real words only. The dictionary ships with the page; if it somehow didn't
-  // load, let everything through rather than making the game unplayable.
+  // load, let everything through rather than making the game unplayable. The
+  // answer list itself always counts, dictionary or not.
   function isWord(g) {
+    if (WORDS.some((e) => e.w === g)) return true;
     return !window.WB_DICT || WB_DICT.has(g);
+  }
+
+  // Hard mode: every revealed hint has to be honored in later guesses.
+  // Returns null when the guess is fine, or a short complaint.
+  function hardViolation(guess) {
+    const s = load();
+    if (!s.day.hard) return null;
+    const answer = todaysWord().w;
+    const mustHave = new Set();
+    for (const g of s.day.guesses) {
+      const marks = grade(g, answer);
+      for (let i = 0; i < 5; i++) {
+        if (marks[i] === "good" && guess[i] !== g[i]) {
+          return "Hard mode: spot " + (i + 1) + " has to stay " + g[i] + ".";
+        }
+        if (marks[i] === "near") mustHave.add(g[i]);
+      }
+    }
+    for (const ch of mustHave) {
+      if (!guess.includes(ch)) return "Hard mode: the word needs a " + ch + ".";
+    }
+    return null;
   }
   function shakeRow() {
     const r = load().day.guesses.length;
@@ -184,6 +230,12 @@
     }
     if (!isWord(entry)) {
       statusEl.textContent = entry + " isn't in the word list.";
+      shakeRow();
+      return;
+    }
+    const broken = hardViolation(entry);
+    if (broken) {
+      statusEl.textContent = broken;
       shakeRow();
       return;
     }
@@ -212,7 +264,7 @@
 
   function finish(s, won, word) {
     const tries = s.day.guesses.length;
-    const pts = scoreFor(won, tries, word.tier);
+    const pts = scoreFor(won, tries, word.tier, s.day.hard);
     s.day.done = true;
     s.day.won = won;
     s.day.pts = pts;
@@ -248,7 +300,8 @@
     document.getElementById("wb-end-title").textContent = won ? "Solved!" : "Out of tries";
     document.getElementById("wb-end-sub").textContent = won
       ? "You got " + word.w + " in " + s.day.guesses.length + "." +
-        (TIER_PTS[word.tier] ? " A " + TIER_NAME[word.tier] + ", so it paid extra." : "")
+        (TIER_PTS[word.tier] ? " A " + TIER_NAME[word.tier] + ", so it paid extra." : "") +
+        (s.day.hard ? " Hard mode paid a bonus too." : "")
       : "The word was " + word.w + ". Points for playing, though.";
     document.getElementById("wb-end-pts").textContent = "+" + s.day.pts;
     document.getElementById("wb-end-solved").textContent = s.career.solved;
@@ -276,8 +329,8 @@
     const word = todaysWord();
     const EMOJI = { good: "🟩", near: "🟨", miss: "⬛" };
     const lines = s.day.guesses.map((g) => grade(g, word.w).map((m) => EMOJI[m]).join(""));
-    const score = s.day.won ? s.day.guesses.length : "X";
-    return "Word Bowl " + score + "/" + TRIES + "\n" + lines.join("\n") + "\n\n" +
+    const score = (s.day.won ? s.day.guesses.length : "X") + "/" + TRIES + (s.day.hard ? "*" : "");
+    return "Word Bowl " + score + "\n" + lines.join("\n") + "\n\n" +
       location.origin + location.pathname;
   }
   function doShare(btn) {
@@ -317,9 +370,15 @@
   startBtn.addEventListener("click", () => {
     if (window.PokeStreak) PokeStreak.mark();
     if (window.PokeTrack) PokeTrack.hit("play", "wb");
+    const hardCheck = document.getElementById("wb-hard-check");
+    if (hardCheck && hardCheck.checked) {
+      const s = load();
+      s.day.hard = true;
+      save(s);
+    }
     overlayEl.classList.add("hidden");
     locked = false;
-    statusEl.textContent = "Guess the 5-letter word";
+    statusEl.textContent = load().day.hard ? "Hard mode on. Guess the word" : "Guess the 5-letter word";
   });
 
   window.addEventListener("keydown", (e) => {

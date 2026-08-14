@@ -1323,3 +1323,12 @@
 }
 .ou-erase:hover { background: #fdecec; }
 .ou-erase.armed { background: #e2574c; color: #fff; border-color: #e2574c; }
+
+/* The golden guest: rare walk-in whose perfect bowl pays shop points */
+.ou-cust.golden .ou-stick {
+  filter: drop-shadow(0 0 7px rgba(255, 209, 90, 0.95));
+}
+.ou-cust.golden .ou-nametag {
+  background: #ffd15a;
+  color: #4a3a00;
+}

@@ -207,6 +207,18 @@
   margin: 0 0 1rem;
   line-height: 1.45;
 }
+.wb-hard {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-bottom: 0.9rem;
+  cursor: pointer;
+}
+.wb-hard input {
+  accent-color: var(--accent);
+  margin-right: 4px;
+}
+
 .wb-legend {
   display: flex;
   align-items: center;

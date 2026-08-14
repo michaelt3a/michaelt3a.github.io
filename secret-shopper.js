@@ -79,6 +79,9 @@ const PERSONALITIES = {
   // The Critic always dines in, always gets a level-3 menu question, and every
   // audit line on their visit counts DOUBLE.
   critic: { label: "The Critic", greetSecs: 4.5, scoopSecs: 7, dineChance: 1, minRank: 3 },
+  // Content pack: easygoing faces that vary the pacing without special rules.
+  tourist: { label: "Tourist", greetSecs: 6, scoopSecs: 9, dineChance: 0.8, minRank: 0 },
+  foodie: { label: "The Foodie", greetSecs: 5, scoopSecs: 8.5, dineChance: 1, minRank: 1 },
 };
 
 // Audit line definitions (label may embed the greet window at runtime).
@@ -805,6 +808,48 @@ const EVENTS = {
       return r;
     },
     label: "Recovered from a mistake",
+  },
+  influencer: {
+    when: "before",
+    minRank: 1,
+    usesExtra: true,
+    async run() {
+      extraStick.innerHTML = stickmanSVG("#e8709b", "ok");
+      extraWrap.classList.remove("hidden");
+      await enterDoor(extraWrap);
+      walkTo(extraWrap, SPOT.wait, 1300);
+      await say(extraBubble, "Hiii! Food blogger here. Can I grab a quick pic of the line? 📸", 1500);
+      const r = await ask("An influencer wants a photo mid-order.", [
+        { t: "“Of course! One second while I finish this bowl.”", good: true, r: "Love it. You're going on the story!" },
+        { t: "(Pose mid-scoop and drop the toppings)", good: false, r: "Um. That fell right in the sauce." },
+        { t: "“No photos. Ever.”", good: false, r: "Deleting my five-star review as we speak." },
+        { t: "(Duck behind the counter)", good: false, r: "Are they... hiding from me?" },
+      ], cfg().qSecs);
+      await say(extraBubble, r.timedOut ? "Okaaay, posting 'staff ignored me'..." : r.reply, 1300);
+      await exitDoor(extraWrap, 1000);
+      extraWrap.classList.add("hidden");
+      return r;
+    },
+    label: "Handled the photo op gracefully",
+  },
+  allergy: {
+    when: "before",
+    pts: 3,
+    async run() {
+      custMood("warn");
+      await say(custBubble, "Oh wait, I'm allergic to sesame. Is that a problem?", 1500);
+      const r = await ask("The guest mentions an allergy!", [
+        { t: "“Thanks for telling me! Fresh gloves and a clean scoop.”", good: true, r: "Oh good. That's so reassuring." },
+        { t: "“It's probably fine.”", good: false, r: "PROBABLY?!" },
+        { t: "(Pick the sesame seeds out by hand)", good: false, r: "That's... not how allergies work." },
+        { t: "“The sauce hides the taste anyway.”", good: false, r: "The TASTE is not the problem!" },
+      ], cfg().qSecs);
+      if (r.good) moodUp();
+      else custMood("mad");
+      await say(custBubble, r.timedOut ? "So... is that a yes on the sesame?" : r.reply, 1300);
+      return r;
+    },
+    label: "Took the allergy seriously",
   },
   smalltalk: {
     when: "before",
