@@ -573,8 +573,10 @@ function clearFeedback() {
   feedbackEl.className = "feedback";
 }
 
+let practiceLogged = false; // one practice tally per visit, not one per recipe
 function selectRecipe(recipe) {
   if (window.PokeStreak) PokeStreak.mark();
+  if (!practiceLogged && window.PokeTrack) { practiceLogged = true; PokeTrack.hit("play", "sw"); }
   stopTimer();
   run = null;
   setMode("practice");
@@ -923,6 +925,7 @@ function stopTimer() {
 function startSpeedrun() {
   if (isDailyRun && Daily.isDone()) return; // one attempt a day
   if (window.PokeStreak) PokeStreak.mark();
+  if (window.PokeTrack) PokeTrack.hit(isDailyRun ? "daily" : "play", "sw");
   const order = isDailyRun ? shuffled(RECIPES, Daily.stream("sw:order")) : shuffled(RECIPES);
   run = { order: order, index: 0, results: [], startMs: performance.now() };
   setMode("speedrun");

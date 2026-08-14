@@ -35,6 +35,9 @@
     earnedEl.textContent = data.earned
       ? data.earned.toLocaleString() + " earned all-time"
       : "Play Bowl Builder or Order Up to start earning.";
+    if (window.PokeBoost && PokeBoost.active()) {
+      earnedEl.textContent += " · ⚡ " + PokeBoost.mult() + "x points on right now!";
+    }
 
     // Catalog
     gridEl.innerHTML = "";
@@ -85,6 +88,7 @@
     armed = null;
     if (PokePoints.spend(item.cost, "Redeemed: " + item.title)) {
       PokePoints.recordRedeem(item);
+      if (window.PokeTrack) PokeTrack.hit("redeem", item.id);
     }
     render();
   }
@@ -117,6 +121,7 @@
           return;
         }
         PokeMail.set(email, true);
+        if (window.PokeTrack) PokeTrack.hit("signup", "mail");
       }
       renderMail();
     });

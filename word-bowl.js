@@ -316,6 +316,7 @@
 
   startBtn.addEventListener("click", () => {
     if (window.PokeStreak) PokeStreak.mark();
+    if (window.PokeTrack) PokeTrack.hit("play", "wb");
     overlayEl.classList.add("hidden");
     locked = false;
     statusEl.textContent = "Guess the 5-letter word";

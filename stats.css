@@ -1,0 +1,164 @@
+/* Owner stats page. Dark surface; text always in ink tokens, series color
+   only on chips and bar segments. */
+
+.stats {
+  max-width: 760px;
+}
+
+/* Headline tiles */
+.st-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 1.2rem;
+}
+.st-tile {
+  background: var(--chip);
+  border: 1px solid var(--chip-line);
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+}
+.st-tile strong {
+  font-size: 1.7rem;
+  color: var(--on-dark);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.st-tile small {
+  color: var(--on-dark-muted);
+  font-size: 0.74rem;
+}
+
+/* Cards */
+.st-card {
+  background: var(--chip);
+  border: 1px solid var(--chip-line);
+  border-radius: 14px;
+  padding: 1rem 1.1rem 1.1rem;
+  margin-bottom: 1.2rem;
+}
+.st-card-title {
+  margin: 0 0 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--on-dark-muted);
+}
+
+/* Legend */
+.st-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-bottom: 0.8rem;
+}
+.st-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--on-dark-muted);
+  font-size: 0.78rem;
+}
+.st-key i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+/* Chart: flex columns, stacked segments, 2px surface gaps, thin marks */
+.st-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 180px;
+  border-bottom: 1px solid var(--chip-line); /* recessive baseline, no grid */
+  padding-bottom: 2px;
+}
+.st-col {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  cursor: default;
+}
+.st-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px; /* the surface gap between stacked segments */
+  height: 100%;
+}
+.st-bar i {
+  display: block;
+  min-height: 2px;
+}
+/* Rounded data-end on the top segment only; the base stays anchored. */
+.st-bar i:first-child {
+  border-radius: 4px 4px 0 0;
+}
+.st-col small {
+  color: var(--on-dark-muted);
+  font-size: 0.62rem;
+  text-align: center;
+  margin-top: 4px;
+  height: 1em;
+  white-space: nowrap;
+}
+
+/* Hover tooltip */
+.st-tip {
+  position: fixed;
+  z-index: 50;
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  max-width: 240px;
+}
+.st-tip .st-key {
+  color: var(--muted);
+}
+.st-empty {
+  color: var(--on-dark-muted);
+  font-size: 0.85rem;
+  margin: 0.8rem 0 0;
+}
+
+/* Table view */
+.st-table-wrap {
+  overflow-x: auto;
+}
+.st-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.78rem;
+  color: var(--on-dark);
+  font-variant-numeric: tabular-nums;
+}
+.st-table th {
+  text-align: right;
+  color: var(--on-dark-muted);
+  font-weight: 700;
+  padding: 0.3rem 0.55rem;
+  border-bottom: 1px solid var(--chip-line);
+  white-space: nowrap;
+}
+.st-table th:first-child,
+.st-table td:first-child {
+  text-align: left;
+}
+.st-table td {
+  text-align: right;
+  padding: 0.3rem 0.55rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}

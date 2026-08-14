@@ -28,9 +28,14 @@
   }
 
   // Earn `amt` points. `why` is a short human label kept in the history.
+  // Boost windows (see boost.js) multiply every earn while they're active.
   function add(amt, why) {
     amt = Math.max(0, Math.round(amt));
     if (!amt) return;
+    if (window.PokeBoost && PokeBoost.active()) {
+      amt = amt * PokeBoost.mult();
+      why = String(why || "") + " (" + PokeBoost.mult() + "x)";
+    }
     const s = load();
     s.balance += amt;
     s.earned += amt;

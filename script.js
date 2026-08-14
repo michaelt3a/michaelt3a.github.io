@@ -912,6 +912,7 @@ function spawnActive() {
 
 function startGame(difficulty) {
   if (window.PokeStreak) PokeStreak.mark();
+  if (window.PokeTrack) PokeTrack.hit(isDailyRun ? "daily" : "play", "bowl");
   // A Daily Challenge run draws from the day's seeded streams instead, so
   // everyone gets the same ingredients and power-ups.
   if (isDailyRun) {

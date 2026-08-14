@@ -1175,6 +1175,7 @@ async function runShift(exam) {
   if (running) return;
   if (isDailyRun && Daily.isDone()) return; // one attempt a day
   if (window.PokeStreak) PokeStreak.mark();
+  if (window.PokeTrack) PokeTrack.hit(isDailyRun ? "daily" : "play", "ss");
   running = true;
   audit = [];
   guestMeta = [];

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=24" />
+  <link rel="stylesheet" href="menu.css?v=25" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -301,7 +301,9 @@
   <!-- daily.js first: hub-leaderboard.js registers today's board from it,
        and challenges.js draws today's quest set from its seeded streams -->
   <script src="daily.js?v=5"></script>
-  <script src="points.js?v=1"></script>
+  <script src="boost.js?v=1"></script>
+  <script src="track.js?v=1"></script>
+  <script src="points.js?v=2"></script>
   <script src="mail-sync.js?v=2"></script>
   <script src="challenges.js?v=3"></script>
   <script src="hub-leaderboard.js?v=7"></script>
@@ -318,6 +320,17 @@
       PokePoints.onChange(paint);
       paint();
     }
+
+    // Boost banner: appears while a double-points window is on.
+    PokeBoost.onReady(() => {
+      if (!PokeBoost.active()) return;
+      const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      const b = document.createElement("div");
+      b.className = "boost-banner";
+      b.innerHTML = "⚡ <strong>" + PokeBoost.mult() + "x points on!</strong> " + esc(PokeBoost.label());
+      document.querySelector(".shop-strip").after(b);
+    });
 
     // Today's challenges sheet: three per customer game, plus the bonus notes.
     function buildChallenges() {
@@ -413,6 +426,7 @@
       if (open) closeSheet(open);
     });
   </script>
+  <script src="tour.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>
 </html>

@@ -1412,6 +1412,7 @@ function frame(t) {
 // --- Lifecycle ----------------------------------------------------------
 function startGame(mode) {
   if (window.PokeStreak) PokeStreak.mark();
+  if (window.PokeTrack) PokeTrack.hit(isDailyRun ? "daily" : "play", "ou");
   rngRecipe = isDailyRun ? Daily.stream("ou:recipe") : Math.random;
   ensureAudio();
   S.customers.forEach((c) => c.el && c.el.remove());
