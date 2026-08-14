@@ -97,6 +97,10 @@
   const mailInput = document.getElementById("shop-mail-input");
   const mailSave = document.getElementById("shop-mail-save");
   const mailNote = document.getElementById("shop-mail-note");
+  // Signing up pays a one-time bonus. The claim flag lives outside the mail
+  // state so toggling off and back on can't farm it.
+  const MAIL_BONUS = 100;
+  const MAIL_BONUS_KEY = "pokeworks-mail-bonus";
 
   function renderMail() {
     if (!window.PokeMail || !mailInput) return;
@@ -122,6 +126,17 @@
         }
         PokeMail.set(email, true);
         if (window.PokeTrack) PokeTrack.hit("signup", "mail");
+        let bonused = false;
+        try {
+          if (!localStorage.getItem(MAIL_BONUS_KEY)) {
+            localStorage.setItem(MAIL_BONUS_KEY, "1");
+            PokePoints.add(MAIL_BONUS, "Email signup bonus");
+            bonused = true;
+          }
+        } catch (e) { /* ignore */ }
+        renderMail();
+        if (bonused) mailNote.textContent += " +" + MAIL_BONUS + " points added!";
+        return;
       }
       renderMail();
     });
