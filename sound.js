@@ -37,16 +37,11 @@
     window.webkitAudioContext = Patched;
   }
 
+  // No corner mute button anymore; games with sound expose their own control
+  // (Bowl Builder's toolbar button drives this module through PokeSound).
   function apply() {
     for (const g of gains) {
       try { g.gain.value = muted ? 0 : 1; } catch (e) { /* ignore */ }
-    }
-    const btn = document.getElementById("sound-toggle");
-    if (btn) {
-      btn.textContent = muted ? "🔇" : "🔊";
-      btn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
-      btn.setAttribute("aria-pressed", String(muted));
-      btn.classList.toggle("is-muted", muted);
     }
     document.dispatchEvent(new CustomEvent("pokesound:change", { detail: { muted: muted } }));
   }
@@ -55,36 +50,6 @@
     muted = !!v;
     try { localStorage.setItem(KEY, muted ? "1" : "0"); } catch (e) { /* ignore */ }
     apply();
-  }
-
-  // Shared corner tray, also used by the theme toggle. Whichever script runs
-  // first creates it.
-  function corner() {
-    let c = document.getElementById("pk-corner");
-    if (!c) {
-      c = document.createElement("div");
-      c.id = "pk-corner";
-      c.className = "pk-corner";
-      document.body.appendChild(c);
-    }
-    return c;
-  }
-
-  function mount() {
-    if (document.getElementById("sound-toggle")) return;
-    const btn = document.createElement("button");
-    btn.id = "sound-toggle";
-    btn.className = "corner-btn sound-toggle";
-    btn.type = "button";
-    btn.addEventListener("click", function () { set(!muted); });
-    corner().appendChild(btn);
-    apply();
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mount);
-  } else {
-    mount();
   }
 
   window.PokeSound = {

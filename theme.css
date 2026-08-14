@@ -83,83 +83,43 @@ body {
   outline-offset: 3px;
 }
 
-/* Muted reads as "off" rather than just a different glyph. */
-.sound-toggle.is-muted {
-  opacity: 0.6;
+/* The theme switch: a plain slide toggle. Red side = light mode, green side
+   = dark mode, and the knob sits on whichever is active. */
+.theme-switch {
+  width: 56px;
+  height: 30px;
+  padding: 0;
+  border: 1.5px solid var(--chip-line);
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ee435b 50%, #39a85b 50%);
+  position: relative;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
-.tt-svg {
-  width: 26px;
-  height: 26px;
-  overflow: visible;
-  /* the whole badge swings round as the sun sets */
-  transform: rotate(0deg);
-  transition: transform 0.6s cubic-bezier(0.5, 1.6, 0.4, 1);
+.theme-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
-:root[data-theme="dark"] .tt-svg {
-  transform: rotate(-135deg);
+.ts-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transition: left 0.22s ease;
 }
 
-/* The disc: a full sun, or a crescent once the cut-out slides across it. */
-.tt-orb {
-  fill: #f6b93b;
-  transition: fill 0.5s ease;
-}
-
-:root[data-theme="dark"] .tt-orb {
-  fill: #dfe7f2;
-}
-
-.tt-cut {
-  transform-box: view-box;
-  transform-origin: center;
-  /* parked far off the disc in light mode, so the sun reads as a full circle */
-  transform: translate(13px, -13px);
-  transition: transform 0.55s cubic-bezier(0.5, 1.5, 0.4, 1);
-}
-
-:root[data-theme="dark"] .tt-cut {
-  transform: translate(0, 0);
-}
-
-/* Rays retract into the disc on the way to night. */
-.tt-rays {
-  stroke: #f6b93b;
-  stroke-width: 2;
-  stroke-linecap: round;
-  transform-box: view-box;
-  transform-origin: center;
-  transform: scale(1) rotate(0deg);
-  opacity: 1;
-  transition: transform 0.5s cubic-bezier(0.5, 1.5, 0.4, 1), opacity 0.35s ease;
-}
-
-:root[data-theme="dark"] .tt-rays {
-  transform: scale(0.2) rotate(-60deg);
-  opacity: 0;
-}
-
-/* A couple of stars fade in behind the moon. */
-.tt-stars {
-  fill: #dfe7f2;
-  opacity: 0;
-  transform-box: view-box;
-  transform-origin: center;
-  transform: scale(0.4);
-  transition: opacity 0.4s ease 0.15s, transform 0.5s cubic-bezier(0.5, 1.6, 0.4, 1) 0.15s;
-}
-
-:root[data-theme="dark"] .tt-stars {
-  opacity: 1;
-  transform: scale(1);
+:root[data-theme="dark"] .ts-knob {
+  left: calc(100% - 25px);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tt-svg,
-  .tt-cut,
-  .tt-rays,
-  .tt-stars,
+  .ts-knob,
   body {
     transition-duration: 0.01ms;
   }
@@ -184,9 +144,16 @@ body .pk-ach-toasts {
     height: 36px;
     font-size: 0.95rem;
   }
-  .tt-svg {
-    width: 22px;
-    height: 22px;
+  .theme-switch {
+    width: 48px;
+    height: 26px;
+  }
+  .ts-knob {
+    width: 19px;
+    height: 19px;
+  }
+  :root[data-theme="dark"] .ts-knob {
+    left: calc(100% - 21px);
   }
   body .ss-toasts,
   body .pk-ach-toasts {
