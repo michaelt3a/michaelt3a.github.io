@@ -22,12 +22,13 @@
   const copyBtn = document.getElementById("duel-copy");
   const statusEl = document.getElementById("duel-status");
 
+  // The hub name prefills as a convenience, but this input is its own thing:
+  // edits stay in the duel, never write back, and skip the board name filter
+  // (duel names are only ever seen by the person you invited).
   try { nameInput.value = localStorage.getItem(NAME_KEY) || ""; } catch (e) { /* ignore */ }
 
   function myName() {
-    let n = (nameInput.value || "").trim().slice(0, 12);
-    if (window.PokeFilter) n = PokeFilter.clean(n);
-    return n || "Player";
+    return (nameInput.value || "").trim().slice(0, 12) || "Player";
   }
 
   // The realtime client library loads on demand; nobody else pays for it.
@@ -131,7 +132,6 @@
 
   // --- Buttons -------------------------------------------------------------
   createBtn.addEventListener("click", function () {
-    try { if (myName() !== "Player") localStorage.setItem(NAME_KEY, myName()); } catch (e) { /* ignore */ }
     openRoom(makeCode());
   });
 
@@ -142,7 +142,6 @@
       codeInput.placeholder = "4 letters";
       return;
     }
-    try { if (myName() !== "Player") localStorage.setItem(NAME_KEY, myName()); } catch (e) { /* ignore */ }
     openRoom(code);
   });
   codeInput.addEventListener("keydown", function (e) {
