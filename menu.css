@@ -1145,21 +1145,16 @@ body.sheet-lock {
   font-size: 0.85rem;
 }
 
-/* How-to-earn list */
-.shop-earn {
-  margin-bottom: 1.6rem;
-}
-.shop-earn-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.45rem;
+/* One line on where points come from; the hub's challenges sheet has the rest */
+.shop-earn-line {
   color: var(--on-dark-muted);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  text-align: center;
+  margin: -0.6rem 0 1.6rem;
 }
-.shop-earn-list strong {
-  color: var(--on-dark);
+.shop-earn-line a {
+  color: var(--gold, #ffd15a);
+  font-weight: 700;
 }
 
 /* Email updates opt-in */

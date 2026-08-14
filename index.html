@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=27" />
+  <link rel="stylesheet" href="menu.css?v=28" />
   <link rel="stylesheet" href="theme.css?v=5" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -355,10 +355,9 @@
         }
       }
       html +=
-        '<p class="ch-note ch-note-foot">You also get +' + PokeChallenges.DAILY_PTS +
-        " for finishing the Daily Challenge (on Bowl Builder and Order Up days), and +" +
-        PokeChallenges.TOP_PTS + " if you were #1 on yesterday's board. Play a customer game every day and each " +
-        PokeChallenges.STREAK_DAYS + "th day in a row pays +" + PokeChallenges.STREAK_PTS + ".</p>";
+        '<p class="ch-note ch-note-foot">Bonuses: +' + PokeChallenges.DAILY_PTS +
+        " daily challenge · +" + PokeChallenges.TOP_PTS + " topping yesterday's board · +" +
+        PokeChallenges.STREAK_PTS + " every " + PokeChallenges.STREAK_DAYS + "-day streak.</p>";
       body.innerHTML = html;
     }
 
