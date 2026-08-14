@@ -22,6 +22,7 @@
     { id: "bb-combo10", game: "Bowl Builder", icon: "🎯", title: "Perfect Ten", how: "Land 10 perfect drops in a row." },
     { id: "bb-shield", game: "Bowl Builder", icon: "🛡️", title: "Saved by the Bowl", how: "Survive a miss with the Shield power-up." },
     { id: "bb-power5", game: "Bowl Builder", icon: "🍚", title: "Collector", how: "Collect 5 power-ups in one run." },
+    { id: "bb-golden", game: "Bowl Builder", icon: "🐚", title: "Golden Catch", how: "Catch the golden scallop." },
     // Signature Works
     { id: "sw-first", game: "Signature Works", icon: "📖", title: "Memorized One", how: "Build 1 signature bowl correctly." },
     { id: "sw-nohints", game: "Signature Works", icon: "🙈", title: "No Peeking", how: "Build a signature bowl using 0 hints." },
@@ -36,6 +37,10 @@
     { id: "ou-5star", game: "Order Up", icon: "🌟", title: "Five-Star Kitchen", how: "Reach a 4.8★ rating with 10+ reviews." },
     { id: "ou-critic", game: "Order Up", icon: "🎩", title: "Critic's Choice", how: "Earn a 5-star review from the food critic." },
     { id: "ou-franchise", game: "Order Up", icon: "🏪", title: "Chain Reaction", how: "Open your first franchise." },
+    { id: "ou-golden", game: "Order Up", icon: "✨", title: "Golden Service", how: "Serve the golden guest a perfect bowl." },
+    // Word Bowl
+    { id: "wb-first", game: "Word Bowl", icon: "🥢", title: "Word Up", how: "Solve a Word Bowl." },
+    { id: "wb-hard", game: "Word Bowl", icon: "🧠", title: "No Training Wheels", how: "Solve a Word Bowl with hard mode on." },
     // Secret Shopper
     { id: "ss-first", game: "Secret Shopper", icon: "🕵️", title: "Clocked In", how: "Finish a shift." },
     { id: "ss-pass", game: "Secret Shopper", icon: "📋", title: "Passing Grade", how: "Finish a shift with a score of 80% or higher." },
@@ -46,11 +51,13 @@
     { id: "ss-manager", game: "Secret Shopper", icon: "🏬", title: "Store Manager", how: "Climb the career ladder to Store Manager." },
     { id: "ss-legend", game: "Secret Shopper", icon: "👑", title: "District Legend", how: "Reach the top of the career ladder." },
     // Arcade-wide
-    { id: "meta-all", game: "Arcade", icon: "🕹️", title: "Arcade Regular", how: "Play all 4 games at least once." },
+    { id: "meta-all", game: "Arcade", icon: "🕹️", title: "Arcade Regular", how: "Play all 5 games at least once." },
     { id: "meta-streak7", game: "Arcade", icon: "🔥", title: "Seven Straight", how: "Play on 7 days in a row." },
     // One badge per hub section: prove yourself in both of its games.
     { id: "meta-customer", game: "Arcade", icon: "😋", title: "Crowd Pleaser", how: "Stack 25 blocks in Bowl Builder and reach a 4.8★ rating in Order Up." },
     { id: "meta-training", game: "Arcade", icon: "🎓", title: "Certified", how: "Finish a Signature Works speedrun and pass a Secret Shopper shift at 80%+." },
+    { id: "meta-insured", game: "Arcade", icon: "🛟", title: "Better Safe", how: "Buy streak insurance in the shop." },
+    { id: "meta-podium", game: "Arcade", icon: "🏆", title: "On the Podium", how: "Finish a month in a customer game's top 3." },
   ];
 
   function load() {
@@ -114,7 +121,7 @@
   function checkMetas() {
     const m = load();
     const swDone = m["sw-first"] || m["sw-speedrun"];
-    if (m["bb-first"] && m["ou-first"] && m["ss-first"] && swDone) unlock("meta-all");
+    if (m["bb-first"] && m["ou-first"] && m["ss-first"] && swDone && m["wb-first"]) unlock("meta-all");
     if (m["bb-25"] && m["ou-5star"]) unlock("meta-customer");
     if (m["sw-speedrun"] && m["ss-pass"]) unlock("meta-training");
   }

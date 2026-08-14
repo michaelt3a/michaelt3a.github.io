@@ -410,6 +410,9 @@ const TOPPINGS = [
 
 // Is this page load a Daily Challenge run? (bowl-builder.html?daily=1)
 const isDailyRun = !!(window.Daily && Daily.isRun());
+// Duel runs (bowl-builder.html?duel=CODE) seed from the room instead, so both
+// players fight the exact same blocks. duel.js owns the realtime side.
+const isDuelRun = !isDailyRun && !!(window.PokeDuel && PokeDuel.active);
 
 // Gameplay randomness routes through these so a Daily Challenge run can swap in
 // the day's seeded streams. Two independent streams: which ingredient comes
@@ -554,6 +557,7 @@ function playGameOver() {
 function setScore(value) {
   state.score = value;
   scoreEl.textContent = String(value);
+  if (isDuelRun && state.running) PokeDuel.sendScore(value);
 }
 
 function loadHighScore() {
@@ -879,6 +883,9 @@ function startGame(difficulty) {
   if (isDailyRun) {
     rngIngredient = Daily.stream("bowl:ingredient");
     rngPowerup = Daily.stream("bowl:power");
+  } else if (isDuelRun) {
+    rngIngredient = PokeDuel.stream("ing");
+    rngPowerup = PokeDuel.stream("power");
   } else {
     rngIngredient = Math.random;
     rngPowerup = Math.random;
@@ -970,6 +977,19 @@ function endGame() {
   // Offer a leaderboard entry (the board itself is viewed on the hub).
   // Global (Supabase) boards accept any positive score; a local-only board
   // only offers when the score cracks the top 10.
+  // A duel reports the final score to the room; duel.js paints the verdict
+  // once both runs end. No board entry, and no replaying a memorized seed.
+  if (isDuelRun) {
+    PokeDuel.finish(state.score);
+    if (playAgainBtn) playAgainBtn.classList.add("hidden");
+    pendingScore = null;
+    lbEntry.classList.add("hidden");
+    overlay.classList.remove("hidden");
+    showScreen(screenGameover);
+    lockScreenActions();
+    return;
+  }
+
   if (lbDone) lbDone.classList.add("hidden");
   // A daily run posts to the day's board instead, and locks once it ends.
   if (isDailyRun) {
@@ -1025,7 +1045,8 @@ function saveLbName(name) {
 // Save the pending score under the typed name, then confirm.
 async function submitLeaderboardName() {
   if (!pendingScore) return;
-  const name = (lbNameInput.value || "").trim().slice(0, 12) || "Anon";
+  const raw = (lbNameInput.value || "").trim().slice(0, 12);
+  const name = (window.PokeFilter ? PokeFilter.clean(raw) : raw) || "Anon";
   saveLbName(name);
   const diff = pendingScore.diff;
   const score = pendingScore.score;
@@ -1915,6 +1936,7 @@ function applyPower(type) {
     state.goldenEarned = true;
     showToast("✨ Golden scallop! +20 pts");
     if (window.PokeChallenges) PokeChallenges.awardPts(20, "Caught the golden scallop");
+    if (window.PokeAch) PokeAch.unlock("bb-golden");
   } else if (type === "shield") {
     state.hasShield = true;
     state.shieldEarned = true;
@@ -2019,6 +2041,7 @@ function frame(timestamp) {
 // A daily run skips the difficulty picker — the setting is fixed for the day.
 startBtn.addEventListener("click", () => {
   if (isDailyRun) startGame(Daily.challenge().game.setting);
+  else if (isDuelRun) startGame("medium"); // both duelists play the same setting
   else showDifficulty();
 });
 
@@ -2102,6 +2125,14 @@ if (isDailyRun) {
       "Everyone gets this exact run today. One attempt, so make it count.";
   }
   showStartScreen();
+}
+
+// Duel: the start screen names the stakes; the seed comes from the room.
+if (isDuelRun) {
+  const sub = screenStart.querySelector(".overlay-subtitle");
+  if (sub) sub.textContent = "Duel time. Same blocks for both of you; highest stack wins.";
+  const link = screenStart.querySelector(".duel-entry");
+  if (link) link.hidden = true; // already in one
 }
 
 requestAnimationFrame(frame);

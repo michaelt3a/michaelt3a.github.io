@@ -295,6 +295,7 @@
       if (!PokeChallenges.claimOnce(claimKey)) continue;
       if (best) {
         PokeChallenges.awardPts(SEASON_PAY[best], "#" + best + " on last month's " + gameCfg.label + " board");
+        if (window.PokeAch) PokeAch.unlock("meta-podium");
       }
     }
   }

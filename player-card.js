@@ -32,7 +32,8 @@
     return "";
   }
   function setName(name) {
-    const n = name.trim().slice(0, 12);
+    let n = name.trim().slice(0, 12);
+    if (window.PokeFilter && !PokeFilter.ok(n)) n = ""; // blocked names just don't stick
     try {
       localStorage.setItem(NAME_KEY, n);
       for (const k of ALT_NAME_KEYS) localStorage.setItem(k, n);

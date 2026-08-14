@@ -1417,7 +1417,8 @@ function saveLbName(n) {
 }
 async function submitDailyName() {
   if (ssLbPending == null) return;
-  const name = (ssLbName.value || "").trim().slice(0, 12) || "Anon";
+  const raw = (ssLbName.value || "").trim().slice(0, 12);
+  const name = (window.PokeFilter ? PokeFilter.clean(raw) : raw) || "Anon";
   saveLbName(name);
   const score = ssLbPending;
   ssLbPending = null;

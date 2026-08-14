@@ -897,8 +897,9 @@ function serve(c) {
     if (c.tier.key === "vip" && a.perfect) PokeAch.unlock("ou-vip");
   }
   // A golden guest pays shop points, but only for a perfect bowl.
-  if (c.golden && a.perfect && window.PokeChallenges) {
-    PokeChallenges.awardPts(20, "Perfect bowl for the golden guest");
+  if (c.golden && a.perfect) {
+    if (window.PokeChallenges) PokeChallenges.awardPts(20, "Perfect bowl for the golden guest");
+    if (window.PokeAch) PokeAch.unlock("ou-golden");
   }
   // Only a perfect bowl keeps the combo alive.
   S.combo = a.perfect ? S.combo + 1 : 0;
@@ -1801,7 +1802,8 @@ function saveLbNameSaved(n) {
 }
 async function submitLbName() {
   if (!lbPending) return;
-  const name = (ouLbName.value || "").trim().slice(0, 12) || "Anon";
+  const raw = (ouLbName.value || "").trim().slice(0, 12);
+  const name = (window.PokeFilter ? PokeFilter.clean(raw) : raw) || "Anon";
   saveLbNameSaved(name);
   const mode = lbPending.mode;
   const score = lbPending.score;

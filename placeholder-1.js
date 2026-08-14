@@ -882,7 +882,8 @@ async function submitSpeedrun(name, perfect, ms) {
 // post to the day's shared board instead of the all-time speedrun table.
 async function submitSpeedrunName() {
   if (!srPendingRun) return;
-  const name = (srLbNameInput.value || "").trim().slice(0, 12) || "Anon";
+  const raw = (srLbNameInput.value || "").trim().slice(0, 12);
+  const name = (window.PokeFilter ? PokeFilter.clean(raw) : raw) || "Anon";
   saveLbName(name);
   const pending = srPendingRun;
   srPendingRun = null;

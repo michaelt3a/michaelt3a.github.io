@@ -108,6 +108,7 @@
       if (window.PokeChallenges && PokePoints.spend(item.cost, item.title)) {
         PokeChallenges.addShield();
         if (window.PokeTrack) PokeTrack.hit("redeem", item.id);
+        if (window.PokeAch) PokeAch.unlock("meta-insured");
       }
     } else if (PokePoints.spend(item.cost, "Redeemed: " + item.title)) {
       PokePoints.recordRedeem(item);

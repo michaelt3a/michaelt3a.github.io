@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Duel - Pokeworks</title>
+  <meta name="description" content="Challenge a friend to a live Bowl Builder duel." />
+  <link rel="stylesheet" href="menu.css?v=30" />
+  <link rel="stylesheet" href="theme.css?v=7" />
+  <meta name="theme-color" content="#0a1010" />
+  <script src="theme.js?v=4"></script>
+</head>
+<body>
+  <a href="index.html" class="back-link">← Minigames</a>
+
+  <main class="hub page-content duel">
+    <header class="hub-header">
+      <h1 class="hub-title">Duel</h1>
+      <p class="hub-subtitle">Same blocks, same order, live scores. Higher stack wins.</p>
+    </header>
+
+    <div class="duel-panel">
+      <!-- Step 1: name -->
+      <label class="duel-label" for="duel-name">Your name</label>
+      <input id="duel-name" class="duel-input" type="text" maxlength="12" placeholder="Your name" autocomplete="off" />
+
+      <!-- Create or join -->
+      <div class="duel-actions" id="duel-actions">
+        <button id="duel-create" class="btn" type="button">Create a duel</button>
+      </div>
+
+      <!-- Waiting room -->
+      <div class="duel-room" id="duel-room" hidden>
+        <p class="duel-code-label">Send this link to your opponent:</p>
+        <div class="duel-share-row">
+          <input id="duel-link" class="duel-input" type="text" readonly />
+          <button id="duel-copy" class="btn" type="button">Copy</button>
+        </div>
+        <p class="duel-status" id="duel-status">Waiting for an opponent…</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="supabase-config.js?v=2"></script>
+  <script src="wordfilter.js?v=1"></script>
+  <script src="duel-lobby.js?v=1"></script>
+</body>
+</html>

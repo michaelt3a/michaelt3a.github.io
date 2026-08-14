@@ -573,6 +573,20 @@ body {
   padding: 0.8rem;
 }
 
+/* Quiet link under the start button: live head-to-head via duel.html */
+.duel-entry {
+  display: block;
+  margin-top: 0.9rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.duel-entry:hover {
+  color: var(--accent);
+}
+
 .btn.btn-secondary {
   background: var(--teal);
   color: #fff;

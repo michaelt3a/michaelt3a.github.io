@@ -1100,6 +1100,63 @@ body.sheet-lock {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------------- Duel lobby ---------------- */
+.duel {
+  max-width: 460px;
+}
+.duel-panel {
+  background: var(--chip);
+  border: 1px solid var(--chip-line);
+  border-radius: 12px;
+  padding: 1.3rem 1.2rem;
+}
+.duel-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--on-dark-muted);
+  margin-bottom: 0.4rem;
+}
+.duel-input {
+  width: 100%;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--chip-line);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--on-dark);
+  background: rgba(0, 0, 0, 0.2);
+}
+.duel-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.duel-actions {
+  margin-top: 1rem;
+}
+.duel-room {
+  margin-top: 1.2rem;
+}
+.duel-code-label {
+  color: var(--on-dark-muted);
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+}
+.duel-share-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.duel-share-row .btn {
+  flex: none;
+}
+.duel-status {
+  color: var(--gold, #ffd15a);
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin: 1rem 0 0;
+}
+
 /* ---------------- Rewards Shop ---------------- */
 .shop {
   max-width: 640px;

@@ -281,6 +281,10 @@
       PokePoints.add(pts, won ? "Word Bowl: solved in " + tries : "Word Bowl: good try");
     }
     if (window.PokeChallenges) PokeChallenges.markPlay(); // counts toward the 7-day bonus
+    if (won && window.PokeAch) {
+      PokeAch.unlock("wb-first");
+      if (s.day.hard) PokeAch.unlock("wb-hard");
+    }
     shareBtn.hidden = false;
     const bonus = TIER_PTS[word.tier] ? " It was a " + TIER_NAME[word.tier] + ", so it paid extra." : "";
     statusEl.textContent = won
