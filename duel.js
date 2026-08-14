@@ -196,7 +196,9 @@
     const hadDone = opp.done;
     if (p.name) opp.name = String(p.name).slice(0, 12);
     if (p.ready) opp.ready = true; // sticky: there's no un-readying
-    if (typeof p.score === "number" && p.score > opp.score) opp.score = p.score;
+    // Not monotonic: a bomb sabotage can knock the score DOWN. Messages are
+    // ordered per sender, and the heartbeat re-syncs within a beat anyway.
+    if (typeof p.score === "number") opp.score = p.score;
     if (p.done) {
       opp.done = true;
       if (p.stats) opp.stats = p.stats;

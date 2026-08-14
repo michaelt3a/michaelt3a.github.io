@@ -879,6 +879,11 @@ function spawnActive() {
     const cfg = DIFFICULTY[state.difficulty] || DIFFICULTY.medium;
     if (cfg.startWidth) width = Math.min(width, cfg.startWidth);
   }
+  // A "shrink" sabotage docks the next block a quarter of its width.
+  if (state.duelShrinkNext) {
+    state.duelShrinkNext = false;
+    width = Math.max(40, Math.round(width * 0.75));
+  }
   const ingredient = nextIngredient();
   state.active = {
     x: slideBounds().min,
@@ -929,6 +934,8 @@ function startGame(difficulty) {
   state.duelNextChargeAt = 8;
   state.duelSpeedDrops = 0;
   state.duelSplat = null;
+  state.duelFrenzyUntil = 0;
+  state.duelShrinkNext = false;
   state.duelSabsSent = 0;
   updateSabBtn();
   spawnActive();
@@ -1223,8 +1230,11 @@ function update(dt) {
   if (!active) return;
 
   const cfg = DIFFICULTY[state.difficulty] || DIFFICULTY.medium;
-  // A "speed" sabotage makes the next few drops slide 45% faster.
-  const speed = (cfg.speed + cfg.ramp * state.score) * (state.duelSpeedDrops > 0 ? 1.45 : 1);
+  // Sabotage speed-ups: "speed" hits the next few drops, "frenzy" warps time
+  // for a few seconds. Capped together so stacking them stays playable.
+  let sabMult = state.duelSpeedDrops > 0 ? 1.45 : 1;
+  if (state.duelFrenzyUntil && performance.now() < state.duelFrenzyUntil) sabMult *= 1.55;
+  const speed = (cfg.speed + cfg.ramp * state.score) * Math.min(sabMult, 2);
 
   active.x += active.dir * speed * dt;
 
@@ -2162,13 +2172,42 @@ function updateSabBtn() {
   sabBtn.disabled = n <= 0;
 }
 
-// Incoming sabotage: annoying for a few seconds, never lethal.
+// A bomb pops the top blocks off the stack, shards and all. Always leaves at
+// least one block, so it hurts without ever ending a run on its own.
+function blowTopBlocks(count, who) {
+  const n = Math.min(count, state.placed.length - 1);
+  for (let i = 0; i < n; i++) {
+    const b = state.placed.pop();
+    const topY = worldTopForIndex(state.placed.length);
+    spawnShard(b.x, topY, b.width / 2, b.color, -1);
+    spawnShard(b.x + b.width / 2, topY, b.width / 2, b.color, 1);
+    spawnLandParticles(b.x, b.x + b.width, topY + BLOCK_H, b.color);
+  }
+  state.shake = 0.8;
+  setScore(state.placed.length);
+  showToast("💣 " + who + " blew " + n + (n === 1 ? " block" : " blocks") + " off your stack!");
+}
+
+// Incoming sabotage: painful for a moment, never lethal.
 function applySabotage(kind, who) {
   if (!state.running || state.paused) return;
+  if (kind === "bomb" && state.placed.length >= 2) {
+    blowTopBlocks(3, who);
+    buzz(80);
+    return;
+  }
   if (kind === "speed") {
     state.duelSpeedDrops = 3;
-    showToast("🧨 " + who + " sped up your block!");
+    showToast("⚡ " + who + " sped up your block!");
+  } else if (kind === "frenzy") {
+    state.duelFrenzyUntil = performance.now() + 7000;
+    showToast("⏩ " + who + " hit fast-forward on your game!");
+  } else if (kind === "shrink") {
+    state.duelShrinkNext = true;
+    showToast("✂️ " + who + " trimmed your next block!");
   } else {
+    // "splat", unknown kinds from newer clients, and bombs that arrived
+    // before there was a stack worth blowing up.
     const blobs = [];
     for (let i = 0; i < 5; i++) {
       blobs.push({
@@ -2268,8 +2307,17 @@ if (isDuelRun) {
     if (!state.running || state.paused || state.duelCharges <= 0) return;
     state.duelCharges--;
     state.duelSabsSent++;
-    PokeDuel.sendSab(Math.random() < 0.5 ? "speed" : "splat");
-    showToast("🧨 Sabotage sent!");
+    // One button, five weapons: the roulette is part of the fun.
+    const kinds = ["bomb", "speed", "splat", "frenzy", "shrink"];
+    const kind = kinds[Math.floor(Math.random() * kinds.length)];
+    PokeDuel.sendSab(kind);
+    showToast({
+      bomb: "💣 Bomb sent!",
+      speed: "⚡ Speed-up sent!",
+      splat: "🥫 Sauce sent!",
+      frenzy: "⏩ Fast-forward sent!",
+      shrink: "✂️ Trim sent!",
+    }[kind]);
     updateSabBtn();
   });
 
