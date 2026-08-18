@@ -145,26 +145,23 @@ body {
   pointer-events: none;
 }
 
+/* The whole card fills with diagonal yellow lines that flow while hovered.
+   The pattern repeats every 26px along its axis, so sliding the background
+   26px x sqrt(2) horizontally loops it seamlessly. */
 .train-barrier {
   position: absolute;
   inset: 0;
   z-index: 3;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  background: rgba(8, 10, 14, 0.4);
+  background-color: rgba(8, 10, 14, 0.45);
+  background-image: repeating-linear-gradient(45deg, transparent 0 18px, #ffd15a 18px 26px);
   opacity: 0;
   transition: opacity 0.16s ease;
   pointer-events: none;
+  animation: train-flow 1s linear infinite;
 }
 
-.train-stripe {
-  display: block;
-  width: 140%;
-  margin-left: -20%;
-  height: 11px;
-  transform: rotate(-12deg);
-  background: repeating-linear-gradient(45deg, #ffd15a 0 14px, #14141a 14px 28px);
+@keyframes train-flow {
+  to { background-position: 36.77px 0; }
 }
 
 .card-training:hover .train-barrier,
@@ -206,6 +203,7 @@ body {
   .card,
   .train-barrier {
     transition-duration: 0.01ms;
+    animation: none;
   }
 }
 
