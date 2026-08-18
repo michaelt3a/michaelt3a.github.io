@@ -1,0 +1,147 @@
+/* Bowl Rush — DOM-based sorter inside the standard game stage. */
+
+.rush-stage {
+  aspect-ratio: auto;
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+}
+
+.rush-play {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem 1.1rem 1.2rem;
+}
+
+.rush-play[hidden] {
+  display: none;
+}
+
+/* Countdown bar across the top of the box */
+.rush-timer {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.rush-timer i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #39a85b, #ffd15a 70%, #ee435b);
+  transform-origin: left center;
+}
+
+/* The ingredient being called out */
+.rush-card {
+  align-self: center;
+  margin: auto 0;
+  min-width: 60%;
+  text-align: center;
+  background: #fff;
+  color: var(--text);
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  padding: 1.4rem 1.6rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+}
+
+.rush-card.pop {
+  animation: rush-pop 0.22s ease;
+}
+
+@keyframes rush-pop {
+  0% { transform: scale(0.92); }
+  60% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.rush-card.shake {
+  animation: rush-shake 0.32s ease;
+}
+
+@keyframes rush-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-9px); }
+  55% { transform: translateX(8px); }
+  80% { transform: translateX(-4px); }
+}
+
+/* Feedback line between card and bins */
+.rush-msg {
+  text-align: center;
+  min-height: 1.3rem;
+  margin: 0.4rem 0 0.6rem;
+  font-weight: 700;
+  color: #cfe0e0;
+  font-size: 0.9rem;
+}
+
+.rush-msg.good { color: #7fd6a1; }
+.rush-msg.bad { color: #ff8fa0; }
+
+/* Station buttons */
+.rush-bins {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+}
+
+.rush-bin {
+  border: none;
+  border-radius: 12px;
+  border-bottom: 4px solid rgba(0, 0, 0, 0.25);
+  background: var(--cat, #888);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.92rem;
+  padding: 0.85rem 0.3rem;
+  cursor: pointer;
+  transition: transform 0.08s ease, filter 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rush-bin:hover {
+  filter: brightness(1.08);
+}
+
+.rush-bin:active {
+  transform: scale(0.95);
+}
+
+.rush-bin.reveal {
+  animation: rush-reveal 0.7s ease;
+}
+
+@keyframes rush-reveal {
+  0%, 100% { box-shadow: none; }
+  30%, 70% { box-shadow: 0 0 0 4px #fff; }
+}
+
+@media (max-width: 640px) {
+  .rush-stage {
+    min-height: 430px;
+  }
+  .rush-bins {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .rush-bin {
+    font-size: 0.82rem;
+    padding: 0.75rem 0.3rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rush-card.pop,
+  .rush-card.shake,
+  .rush-bin.reveal {
+    animation: none;
+  }
+}

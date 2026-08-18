@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bowl Rush - Pokeworks</title>
+  <meta name="description" content="Sort ingredients to their station before the clock runs out." />
+  <link rel="stylesheet" href="styles.css?v=22" />
+  <link rel="stylesheet" href="bowl-rush.css?v=1" />
+  <link rel="stylesheet" href="theme.css?v=8" />
+  <meta name="theme-color" content="#0a1010" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <script src="theme.js?v=6"></script>
+  <script src="sound.js?v=3"></script>
+  <script src="streak.js?v=1"></script>
+</head>
+<body>
+  <a href="index.html" class="back-link">← Minigames</a>
+
+  <div class="game-shell page-content">
+    <header class="hud">
+      <div class="hud-left">
+        <img src="pokeworks-logo-circle-1.png" alt="Pokeworks" class="logo" />
+      </div>
+      <div class="hud-right">
+        <div class="score">
+          <span class="score-label">Best</span>
+          <span id="high-score" class="score-value">0</span>
+        </div>
+        <div class="score">
+          <span class="score-label">Score</span>
+          <span id="score" class="score-value">0</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="stage rush-stage">
+      <div class="rush-play" id="rush-play" hidden>
+        <div class="rush-timer"><i id="rush-timer-fill"></i></div>
+        <div class="rush-card" id="rush-card">Cucumber</div>
+        <p class="rush-msg" id="rush-msg">&nbsp;</p>
+        <div class="rush-bins" id="rush-bins"></div>
+      </div>
+
+      <div id="overlay" class="overlay">
+        <div id="screen-start" class="overlay-panel">
+          <h1 class="overlay-title">Bowl Rush</h1>
+          <p class="overlay-subtitle">
+            The line is slammed. Sort each ingredient to its station before the
+            clock runs out. Wrong station costs 3 seconds.
+          </p>
+          <button id="start-btn" class="btn" type="button">Start</button>
+        </div>
+
+        <div id="screen-gameover" class="overlay-panel hidden">
+          <h1 class="overlay-title">Time!</h1>
+          <p class="overlay-subtitle" id="gameover-subtitle">You sorted 0 ingredients.</p>
+          <p class="gameover-quip" id="points-line" hidden></p>
+          <div class="gameover-actions">
+            <button id="play-again-btn" class="btn" type="button">Play Again</button>
+            <a class="btn btn-secondary" href="index.html">Done</a>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="transitions.js?v=4"></script>
+  <script src="track.js?v=1"></script>
+  <script src="boost.js?v=1"></script>
+  <script src="points.js?v=2"></script>
+  <script src="bowl-rush.js?v=1"></script>
+  <script src="back-guard.js?v=1"></script>
+  <script src="pwa.js?v=1"></script>
+</body>
+</html>
