@@ -229,7 +229,7 @@
       // Exactly one day missed and a shield in the drawer: the streak lives.
       setShields(shieldCount() - 1);
       s.streak.count += 1;
-      toast("🛟 Streak saved", "Insurance covered yesterday. " + s.streak.count + " days and counting.");
+      toast("🛟 Streak saved", "Insurance covered yesterday. Streak: " + s.streak.count + " days.");
     } else {
       s.streak.count = 1;
     }

@@ -71,11 +71,11 @@
       startBtn.style.display = "none";
     } else if (Daily.result()) {
       startSub.textContent =
-        "You've already played today: " + Daily.result().score + " slices. Back tomorrow for a new catch.";
+        "You've already played today: " + Daily.result().score + " slices. Come back tomorrow.";
       startBtn.classList.add("hidden");
       startBtn.style.display = "none";
     } else {
-      startSub.textContent = "Everyone slices this exact catch today. One attempt, so make it count.";
+      startSub.textContent = "Everyone gets the same toss order today. You get one attempt.";
     }
   }
 

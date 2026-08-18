@@ -192,7 +192,7 @@
     if (!list.length) {
       const li = document.createElement("li");
       li.className = "lb-empty";
-      li.textContent = "No scores yet. Be the first!";
+      li.textContent = "No scores yet.";
       listEl.appendChild(li);
       return;
     }

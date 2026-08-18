@@ -97,9 +97,9 @@ const UPGRADES = {
   worker: {
     icon: "🧑‍🍳", name: "Hire cooks",
     desc: [
-      "Eli joins the kitchen and preps other customers' bowls",
-      "CJ makes it a crew of two",
-      "Moe completes the kitchen brigade",
+      "Eli preps other customers' bowls while you work",
+      "CJ joins as a second cook",
+      "Moe joins as a third cook",
     ],
     costs: [250, 700, 1600],
   },
@@ -107,14 +107,14 @@ const UPGRADES = {
     icon: "🧍", name: "Hire waiters",
     desc: [
       "Tess seats waiting guests for you",
-      "Nia makes it two on the floor",
-      "Gus rounds out the front-of-house",
+      "Nia joins as a second waiter",
+      "Gus joins as a third waiter",
     ],
     costs: [220, 600, 1400],
   },
   tables: {
     icon: "🪑", name: "More tables",
-    desc: ["A 4th table for one more customer at a time", "A 5th table for a truly packed house"],
+    desc: ["A 4th table for one more customer at a time", "A 5th table for one more on top of that"],
     costs: [300, 800],
   },
   prices: {
@@ -144,15 +144,15 @@ const UPGRADES = {
   },
   loyalty: {
     icon: "💳", name: "Loyalty program",
-    desc: ["Regulars talk you up, so richer customers arrive sooner", "The word is out, and VIPs seek you out"],
+    desc: ["Richer customers arrive sooner", "VIPs show up more often"],
     costs: [400, 900],
   },
   proficiency: {
     icon: "🎓", name: "Staff training",
     desc: [
-      "A trained crew works faster and starts earning while you are away",
-      "Seasoned pros keep the doors open on their own",
-      "A flawless team runs the whole place hands-off",
+      "The crew works faster and stores start earning while you're away",
+      "Stores earn more while you're away",
+      "Stores earn a lot more while you're away",
     ],
     costs: [500, 1100, 2200],
   },
@@ -942,12 +942,12 @@ function loseCustomer(c) {
 }
 
 // --- Reviews & the star rating (the Secret Shopper toast, behind a counter) --
-const REVIEW_5 = ["Absolute perfection!", "Best bowl in town. Take my money!", "Five stars, no notes.", "Exactly right, and fast."];
-const REVIEW_4 = ["Great bowl, just a bit of a wait.", "Worth it. Would return.", "Solid. Kai's got competition."];
-const REVIEW_3 = ["Decent, but they missed a couple things.", "Almost what I ordered... almost.", "Fine. Just fine."];
-const REVIEW_2 = ["Half my order was missing.", "Not really what I asked for.", "The ticket was more of a suggestion, apparently."];
-const REVIEW_1 = ["Wrong bowl entirely. Yikes.", "Did they even read the ticket?", "I've had better bowls from a vending machine."];
-const REVIEW_LEFT = ["Waited forever and left hungry. Avoid.", "Line didn't move. I'm done.", "Gave up and walked out."];
+const REVIEW_5 = ["Perfect bowl.", "Best bowl in town.", "Exactly what I ordered, and fast.", "Can't fault a thing."];
+const REVIEW_4 = ["Great bowl, just a bit of a wait.", "Worth it. Would return.", "Good bowl, small wait."];
+const REVIEW_3 = ["Decent, but they missed a couple things.", "Not quite what I ordered.", "It was fine."];
+const REVIEW_2 = ["Half my order was missing.", "Not really what I asked for.", "They got my order wrong."];
+const REVIEW_1 = ["Wrong bowl entirely.", "Did they even read the ticket?", "Wrong order and a long wait."];
+const REVIEW_LEFT = ["Waited too long and left.", "Line didn't move. I left.", "Gave up and walked out."];
 
 function pickFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
@@ -1030,7 +1030,7 @@ function cashFloater(money, tip, perfect) {
   f.className = "ou-cash" + (perfect ? " perfect" : "");
   f.innerHTML =
     "+$" + money +
-    (tip >= 1 ? `<small>incl. $${tip} tip${tip >= 8 ? "!" : ""}</small>` : "");
+    (tip >= 1 ? `<small>incl. $${tip} tip</small>` : "");
   bowlWrapEl.appendChild(f);
   setTimeout(() => f.remove(), 1150);
 }
@@ -1270,11 +1270,11 @@ const tutBanner = document.getElementById("ou-tut-banner");
 const tutMsgEl = document.getElementById("ou-tut-msg");
 const tutSkipBtn = document.getElementById("ou-tut-skip-btn");
 const TUT_STEPS = [
-  "👋 Welcome to the line! A guest is waiting at the door. Tap them to seat them at a table.",
-  "Seated! Now build their order — tap the ingredients on their ticket below the counter.",
-  "Keep adding every item on the ticket. Scooped a wrong one? Tap it again to take it back out.",
-  "🎉 Served! Money banks as you go, and serving fast earns bigger tips. Keep your ⭐ rating up.",
-  "Between shifts, open the 🛒 Shop to hire cooks and waiters, add tables, and open new locations — they even run on their own. That's the basics!",
+  "A guest is waiting at the door. Tap them to seat them at a table.",
+  "Seated. Now build their order: tap the ingredients on their ticket below the counter.",
+  "Add every item on the ticket. Scooped a wrong one? Tap it again to take it back out.",
+  "Served. Money banks as you go, and serving fast earns bigger tips. Keep your ⭐ rating up.",
+  "Between shifts, open the 🛒 Shop to hire cooks and waiters, add tables, and open new locations.",
 ];
 function tutorialDone() {
   try { return localStorage.getItem(TUT_KEY) === "1"; } catch (e) { return true; }
@@ -1610,7 +1610,7 @@ function renderShop() {
       "Rent is $" + RENT_PER_SHIFT + " per location, charged once each shift. " +
       "Staffed, well-rated stores earn on their own, even while you're away. " +
       "Bankruptcy: if your bank drops below -$" + Math.abs(BANKRUPT_LINE) + " at the end of a shift, " +
-      "your weakest location closes and the debt is cleared — your other stores, lifetime, and save all stay.";
+      "your weakest location closes and the debt is cleared. Your other stores, lifetime, and save all stay.";
   }
 
   // Store tabs: each location is its own build. Switching is a between-shifts
@@ -1685,7 +1685,7 @@ function renderShop() {
     `<span class="ou-up-icon">🏪</span>` +
     `<span class="ou-up-body"><strong>Open location #${T.stores.length + 1}</strong>` +
     `<small>${ready
-      ? "A fresh store to build, and a permanent +10% chain bonus. Forever."
+      ? "A new store to build, plus a permanent +10% chain bonus."
       : "Max every upgrade in this store to unlock."}</small></span>`;
   const frBtn = document.createElement("button");
   frBtn.type = "button";
@@ -1857,7 +1857,7 @@ if (saveRestoreBtn) {
       return;
     }
     if (importSave(saveCodeEl.value)) {
-      saveMsgEl.textContent = "✓ Restored! Reloading…";
+      saveMsgEl.textContent = "✓ Restored. Reloading…";
       setTimeout(() => location.reload(), 700);
     } else {
       saveMsgEl.textContent = "That code didn't work. Check you copied all of it.";
@@ -2006,7 +2006,7 @@ let pendingBase = "normal"; // which ticket style the popup starts
 function openVariant(base) {
   pendingBase = base;
   variantTitleEl.textContent =
-    (base === "hard" ? "Hidden Recipes" : "Recipes Shown") + ": pick your pace";
+    (base === "hard" ? "Hidden Recipes" : "Recipes Shown") + ": choose a pace";
   screenStart.classList.add("hidden");
   screenVariant.classList.remove("hidden");
 }
@@ -2084,10 +2084,10 @@ if (isDailyRun) {
   } else if (done) {
     if (sub) {
       sub.textContent =
-        "You've already played today: $" + done.score + ". Back tomorrow for a new run.";
+        "You've already played today: $" + done.score + ". Come back tomorrow.";
     }
   } else {
-    if (sub) sub.textContent = "Everyone gets this exact shift today. One attempt, so make it count.";
+    if (sub) sub.textContent = "Everyone gets the same shift today. You get one attempt.";
     if (modes) {
       const go = document.createElement("button");
       go.className = "btn";
@@ -2136,8 +2136,8 @@ if (!isDailyRun) {
   const back = creditOffline();
   const w = document.getElementById("ou-welcome");
   if (w && back) {
-    w.textContent = "👋 Welcome back! Your stores earned $" + back.gain.toLocaleString() +
-      " over " + (back.mins >= 60 ? Math.round(back.mins / 60) + "h" : back.mins + " min") + " away.";
+    w.textContent = "Your stores earned $" + back.gain.toLocaleString() + " while you were away (" +
+      (back.mins >= 60 ? Math.round(back.mins / 60) + "h" : back.mins + " min") + ").";
     w.classList.remove("hidden");
   }
   updateBankDisplays();

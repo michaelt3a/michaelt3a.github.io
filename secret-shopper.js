@@ -661,7 +661,7 @@ const INSPECTOR_QUIZ = [
     { t: "Wash hands and change gloves", good: true },
     { t: "Wipe hands on the apron", good: false },
     { t: "Give the gloves a quick rinse", good: false },
-    { t: "Keep going — it's all fish anyway", good: false },
+    { t: "Keep going, it's all fish anyway", good: false },
   ] },
   { text: "Where does raw protein live in the fridge?", options: [
     { t: "Sealed, on the bottom shelf", good: true },
@@ -673,12 +673,12 @@ const INSPECTOR_QUIZ = [
     { t: "Fresh gloves, clean utensils, flag the order", good: true },
     { t: "Scoop around the shrimp carefully", good: false },
     { t: "Tell them they can pick it out", good: false },
-    { t: "Nothing — the shrimp is cooked", good: false },
+    { t: "Nothing, the shrimp is cooked", good: false },
   ] },
   { text: "The rice is past its hold time. You…", options: [
     { t: "Toss it and start a fresh batch", good: true },
     { t: "Give it a stir and keep serving", good: false },
-    { t: "Taste it — seems fine", good: false },
+    { t: "Taste it, seems fine", good: false },
     { t: "Crank the warmer up", good: false },
   ] },
 ];
@@ -750,7 +750,7 @@ const EVENTS = {
       extraWrap.classList.remove("hidden");
       await enterDoor(extraWrap);
       walkTo(extraWrap, SPOT.wait, 1200);
-      await say(extraBubble, "Hi! There's two of us — two orders!", 1300);
+      await say(extraBubble, "Hi! There's two of us, two orders!", 1300);
       const r = await ask("A PAIR walks in mid-order. Triage!", [
         { t: "“Welcome in! I'll take you both right after this bowl.”", good: true, r: "Perfect. We'll browse the menu!" },
         { t: "Try juggling all three orders at once", good: false, r: "You're already mixing our bowls up..." },
@@ -1250,7 +1250,7 @@ async function runShift(exam) {
   hush();
 
   if (examMode) {
-    note(`📋 PROMOTION EXAM — impress corporate at ${EXAM_PASS_PCT}%+ to make ${R.name}!`);
+    note(`📋 PROMOTION EXAM: score ${EXAM_PASS_PCT}%+ to make ${R.name}.`);
     await wait(2000);
   }
 
@@ -1302,7 +1302,7 @@ function finishShift() {
     if (gTotal > 0 && gEarned === gTotal) career.stats.perfectGuests++;
     if (meta.shopper && !meta.leftEarly && gTotal > 0 && gEarned / gTotal >= 0.8) career.stats.shoppersImpressed++;
     const bits = [`Guest ${g + 1} · ${meta.label} · ${meta.dine ? "Dine-in" : "Takeout"}`];
-    if (meta.shopper) bits.push("🕵️ the secret shopper!");
+    if (meta.shopper) bits.push("🕵️ the secret shopper");
     if (meta.leftEarly) bits.push("stormed out");
     const head = document.createElement("div");
     head.className = "ss-audit-cust";
@@ -1337,14 +1337,14 @@ function finishShift() {
   saveCareer();
 
   gradeEl.textContent =
-    promoted ? `🎉 Exam passed at ${pct}%! Corporate promoted you to ${RANKS[career.rank].name}.` :
-    !isDailyRun && shiftRank > career.rank ? `Exam failed — ${pct}%, and corporate wanted ${EXAM_PASS_PCT}%. Your rep is safe; retake anytime.` :
-    pct === 100 ? "Perfect audit! The secret shopper is telling everyone about you." :
-    pct >= 90 ? "Outstanding! Corporate is framing this one." :
-    pct >= 80 ? "Great shift. The secret shopper left smiling." :
+    promoted ? `Exam passed at ${pct}%. You're now ${RANKS[career.rank].name}.` :
+    !isDailyRun && shiftRank > career.rank ? `Exam failed at ${pct}%. You needed ${EXAM_PASS_PCT}%. Your rep is safe, retake anytime.` :
+    pct === 100 ? "A perfect audit." :
+    pct >= 90 ? "Outstanding shift." :
+    pct >= 80 ? "Great shift." :
     pct >= 60 ? "Decent, but the audit found some gaps." :
-    pct >= 40 ? "Rough shift. Time to reread the training binder." :
-    "Yikes. Corporate wants a word…";
+    pct >= 40 ? "Rough shift." :
+    "Rough shift. The audit found a lot of gaps.";
 
   // Rep line: +gain, then the bar animates from where you were to where you
   // are within the current promotion window.
@@ -1356,9 +1356,9 @@ function finishShift() {
   };
   repGainEl.textContent = `+${gain} ★`;
   repNextEl.textContent =
-    promoted ? `Now ${cur.badge} ${cur.name} — ${career.rep} ★` :
+    promoted ? `Now ${cur.badge} ${cur.name} · ${career.rep} ★` :
     !n ? `${career.rep} ★ · top of the ladder` :
-    career.rep >= n.repNeed ? `Promotion exam unlocked: ${n.name}!` :
+    career.rep >= n.repNeed ? `Promotion exam unlocked: ${n.name}` :
     `${career.rep}/${n.repNeed} ★ to ${n.name}`;
   repLineFill.style.transition = "none";
   repLineFill.style.width = frac(career.rep - gain) * 100 + "%";
@@ -1445,7 +1445,7 @@ function renderCareer() {
   repFillEl.style.width = fill * 100 + "%";
   repLabelEl.textContent =
     !n ? `${career.rep} ★ · top of the ladder` :
-    examReady() ? `Promotion exam unlocked — ${n.name} awaits!` :
+    examReady() ? `Promotion exam unlocked: ${n.name}` :
     `${career.rep}/${n.repNeed} ★ to ${n.name}`;
 
   const s = career.stats;
@@ -1457,7 +1457,7 @@ function renderCareer() {
   overlaySub.textContent =
     `${cur.guests} guests are coming, and ` +
     (cur.shoppers > 1 ? `${cur.shoppers} of them are secret shoppers` : "one of them is the secret shopper") +
-    " — you won't know which. Ace the hospitality audit.";
+    ". You won't know which.";
 
   examBtn.classList.toggle("hidden", !examReady());
   if (n && examReady()) examBtn.textContent = `📋 Promotion Exam: ${n.name}`;
@@ -1477,13 +1477,13 @@ function dailyOverlay() {
     startBtn.hidden = true;
   } else if (done) {
     overlaySub.textContent =
-      "You've already played today: " + done.score + "%. Back tomorrow for a new shift.";
+      "You've already played today: " + done.score + "%. Come back tomorrow.";
     startBtn.hidden = true;
   } else {
     const R = RANKS[DAILY_RANK];
     overlaySub.textContent =
       `Everyone works the same ${R.name} shift today: ${R.guests} guests, one of them ` +
-      "the secret shopper. One attempt, so make it count.";
+      "the secret shopper. You get one attempt.";
     startBtn.hidden = false;
   }
 }

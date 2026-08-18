@@ -15,7 +15,7 @@
     {
       sel: '[data-open="sheet-daily"]',
       title: "🗓 The Daily Challenge",
-      text: "One shared run a day lives behind this button. Everyone gets the same game, one attempt each.",
+      text: "One shared challenge a day. Everyone gets the same game, one attempt each.",
     },
     {
       sel: '[data-open="sheet-you"]',
@@ -25,7 +25,7 @@
     {
       sel: '.pk-corner a[href="shop.html"]',
       title: "🎁 The Rewards Shop",
-      text: "Points add up to discount codes. That's the loop. Have fun!",
+      text: "Points add up to discount codes you can spend here.",
     },
   ];
 

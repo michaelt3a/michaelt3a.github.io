@@ -8,15 +8,15 @@
   const ITEMS = [
     // Perks spend points without handing out a discount.
     { id: "shield", icon: "🛟", title: "Streak insurance", desc: "Covers one missed day of your play streak. Holds one at a time.", cost: 150, kind: "perk" },
-    { id: "pct5", icon: "🏷️", title: "5% off a bowl", desc: "A little thank-you for playing.", cost: 400, code: "POKE-FILLER-5OFF" },
+    { id: "pct5", icon: "🏷️", title: "5% off a bowl", desc: "5% off any bowl.", cost: 400, code: "POKE-FILLER-5OFF" },
     { id: "topping", icon: "🥑", title: "Free topping upgrade", desc: "Add avocado or an extra topping to any bowl.", cost: 550, code: "POKE-FILLER-TOPPING" },
     { id: "drink", icon: "🥤", title: "Free drink", desc: "Any fountain drink with a bowl.", cost: 700, code: "POKE-FILLER-DRINK" },
     { id: "side", icon: "🥟", title: "Free side", desc: "Miso soup, seaweed salad, or chips.", cost: 1200, code: "POKE-FILLER-SIDE" },
-    { id: "pct10", icon: "💸", title: "10% off a bowl", desc: "For the regulars.", cost: 1500, code: "POKE-FILLER-10OFF" },
+    { id: "pct10", icon: "💸", title: "10% off a bowl", desc: "10% off any bowl.", cost: 1500, code: "POKE-FILLER-10OFF" },
     { id: "combo", icon: "🍱", title: "Combo deal", desc: "Bowl, drink, and a side for the price of the bowl.", cost: 2000, code: "POKE-FILLER-COMBO" },
     { id: "bogo", icon: "🍜", title: "BOGO bowl", desc: "Buy one bowl, get one free.", cost: 2500, code: "POKE-FILLER-BOGO" },
     { id: "cater", icon: "🎉", title: "10% off catering", desc: "10% off any catering order.", cost: 3200, code: "POKE-FILLER-CATER" },
-    { id: "bowl", icon: "👑", title: "Free signature bowl", desc: "The big one. Any signature work, on us.", cost: 4000, code: "POKE-FILLER-BOWL" },
+    { id: "bowl", icon: "👑", title: "Free signature bowl", desc: "Any signature bowl, free.", cost: 4000, code: "POKE-FILLER-BOWL" },
   ];
 
   const balEl = document.getElementById("shop-balance");
@@ -42,7 +42,7 @@
       ? data.earned.toLocaleString() + " earned all-time"
       : "Play Bowl Builder or Order Up to start earning.";
     if (window.PokeBoost && PokeBoost.active()) {
-      earnedEl.textContent += " · ⚡ " + PokeBoost.mult() + "x points on right now!";
+      earnedEl.textContent += " · ⚡ " + PokeBoost.mult() + "x points right now";
     }
 
     // Catalog
@@ -57,8 +57,8 @@
         `<div class="shop-item-body"><strong>${item.title}</strong><small>${item.desc}</small></div>` +
         `<button class="shop-buy" type="button" ${afford ? "" : "disabled"}></button>`;
       const btn = card.querySelector(".shop-buy");
-      btn.textContent = held ? "✓ Saved up"
-        : armed === item.id ? "Sure? −" + item.cost
+      btn.textContent = held ? "✓ Held"
+        : armed === item.id ? "Confirm −" + item.cost
         : item.cost.toLocaleString() + " pts";
       if (armed === item.id) btn.classList.add("armed");
       btn.addEventListener("click", () => onBuy(item));
@@ -93,7 +93,7 @@
         const btn = card.querySelector(".shop-buy");
         btn.textContent = isOn ? "✓ On"
           : owned ? "Equip"
-          : armed === "skin-" + sk.id ? "Sure? −" + sk.cost
+          : armed === "skin-" + sk.id ? "Confirm −" + sk.cost
           : sk.cost.toLocaleString() + " pts";
         if (isOn) btn.disabled = true;
         if (armed === "skin-" + sk.id) btn.classList.add("armed");
@@ -223,7 +223,7 @@
           }
         } catch (e) { /* ignore */ }
         renderMail();
-        if (bonused) mailNote.textContent += " +" + MAIL_BONUS + " points added!";
+        if (bonused) mailNote.textContent += " +" + MAIL_BONUS + " points added.";
         return;
       }
       renderMail();

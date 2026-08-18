@@ -264,8 +264,8 @@
         arch.won = won;
         locked = true;
         statusEl.textContent = won
-          ? "🎉 " + arch.word.w + " in " + arch.guesses.length + "! Archive rounds are just for fun."
-          : "It was " + arch.word.w + ". Archive round, no harm done.";
+          ? arch.word.w + " in " + arch.guesses.length + ". No points in archive rounds."
+          : "It was " + arch.word.w + ". No points in archive rounds.";
         archBtn.textContent = "🔄 Another old word";
       } else {
         const leftTries = TRIES - arch.guesses.length;
@@ -312,7 +312,7 @@
     save(s);
     locked = true;
     if (window.PokePoints) {
-      PokePoints.add(pts, won ? "Word Bowl: solved in " + tries : "Word Bowl: good try");
+      PokePoints.add(pts, won ? "Word Bowl: solved in " + tries : "Word Bowl: played");
     }
     if (window.PokeChallenges) PokeChallenges.markPlay(); // counts toward the 7-day bonus
     if (won && window.PokeAch) {
@@ -341,7 +341,7 @@
       ? "You got " + word.w + " in " + s.day.guesses.length + "." +
         (TIER_PTS[word.tier] ? " A " + TIER_NAME[word.tier] + ", so it paid extra." : "") +
         (s.day.hard ? " Hard mode paid a bonus too." : "")
-      : "The word was " + word.w + ". Points for playing, though.";
+      : "The word was " + word.w + ".";
     document.getElementById("wb-end-pts").textContent = "+" + s.day.pts;
     document.getElementById("wb-end-solved").textContent = s.career.solved;
     document.getElementById("wb-end-streak").textContent = s.career.streak;
@@ -455,7 +455,7 @@
     overlayEl.classList.add("hidden");
     shareBtn.hidden = false;
     if (archBtn) archBtn.hidden = false;
-    statusEl.textContent = boot.day.won ? "Solved. Back tomorrow!" : "Out of tries. Back tomorrow!";
+    statusEl.textContent = boot.day.won ? "Solved. New word tomorrow." : "Out of tries. New word tomorrow.";
     showEnd(boot);
   } else if (boot.day.guesses.length) {
     // Mid-game reload: put the board back and keep going.

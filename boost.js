@@ -45,7 +45,7 @@
     const from = Date.parse(b.from + "T00:00:00");
     const to = Date.parse(b.to + "T23:59:59");
     if (isNaN(from) || isNaN(to) || now < from || now > to) return null;
-    return { mult: Math.max(1, Number(b.mult) || 2), label: String(b.label || "Bonus points!") };
+    return { mult: Math.max(1, Number(b.mult) || 2), label: String(b.label || "Bonus points") };
   }
 
   window.PokeBoost = {

@@ -57,7 +57,7 @@
     const GAME_LABELS = { bowl: "Bowl Builder", td: "Topping Drop", ps: "Poke Slice" };
     if (rerunBtn && last && GAME_FILES[last.game] && Date.now() - last.t < 7 * 86400000) {
       rerunBtn.hidden = false;
-      rerunBtn.textContent = "🥊 Run it back: " + (last.opp || "your rival") + " · " + GAME_LABELS[last.game];
+      rerunBtn.textContent = "🥊 Run it back: " + (last.opp || "last opponent") + " · " + GAME_LABELS[last.game];
       rerunBtn.addEventListener("click", function () {
         selectGame(last.game);
         createBtn.click();
@@ -133,7 +133,7 @@
     mine.subscribe(function (status) {
       if (mine !== ch) return; // a newer rebuild took over
       if (status === "SUBSCRIBED") {
-        statusEl.textContent = "Waiting for an opponent… code " + currentCode + " gets them in.";
+        statusEl.textContent = "Waiting for an opponent. Send them the code or the link.";
         clearInterval(pinger);
         pinger = setInterval(function () {
           if (launched || mine !== ch) { clearInterval(pinger); return; }
@@ -187,7 +187,8 @@
   });
 
   shareBtn.addEventListener("click", function () {
-    const text = "Duel me in Bowl Builder! Same blocks, highest stack wins: " + linkInput.value;
+    const labels = { bowl: "Bowl Builder", td: "Topping Drop", ps: "Poke Slice" };
+    const text = "Duel me in " + (labels[selectedGame] || "Bowl Builder") + ": " + linkInput.value;
     if (navigator.share) {
       navigator.share({ text: text }).catch(function () { /* backed out, fine */ });
     } else if (navigator.clipboard && navigator.clipboard.writeText) {

@@ -198,7 +198,7 @@
   function showResult() {
     const a = mine.score;
     const b = opp.score;
-    const title = a > b ? "You win!" : a < b ? escapeHtml(opp.name) + " wins" : "Dead tie";
+    const title = a > b ? "You win!" : a < b ? escapeHtml(opp.name) + " wins" : "Tie";
     const s = seriesAfter(a, b);
     let seriesLine;
     if (s.clinched) {
@@ -206,7 +206,7 @@
       seriesLine =
         '<p class="duel-series win">🏆 ' +
         (winnerMe ? "You take" : escapeHtml(opp.name) + " takes") +
-        " the series " + Math.max(s.me, s.them) + "-" + Math.min(s.me, s.them) + "!</p>";
+        " the series " + Math.max(s.me, s.them) + "-" + Math.min(s.me, s.them) + "</p>";
     } else {
       seriesLine =
         '<p class="duel-series">Series: You ' + s.me + " – " + s.them + " " +
@@ -226,7 +226,7 @@
     panel(
       "<h2>" + title + "</h2>" +
       '<p class="duel-sub">Room ' + code + " · " +
-      ({ td: "same rain, no excuses", ps: "same catch, no excuses" }[PAGE_GAME] || "same blocks, no excuses") +
+      ({ td: "same drops for both", ps: "same fruit for both" }[PAGE_GAME] || "same blocks for both") +
       "</p>" +
       seriesLine +
       '<div class="duel-score-row">' +
@@ -248,10 +248,10 @@
         const url = location.origin + location.pathname.replace(/[^/]*$/, "") + rematchUrl;
         const text =
           (a > b
-            ? "I beat " + opp.name + " " + a + "-" + b + " in " + GAME_LABEL + "! 🥊"
+            ? "I beat " + opp.name + " " + a + "-" + b + " in " + GAME_LABEL + "."
             : a < b
-              ? opp.name + " got me " + b + "-" + a + " in " + GAME_LABEL + ". Avenge me:"
-              : "Dead tie " + a + "-" + b + " with " + opp.name + " in " + GAME_LABEL + "!") +
+              ? opp.name + " beat me " + b + "-" + a + " in " + GAME_LABEL + "."
+              : opp.name + " and I tied " + a + "-" + b + " in " + GAME_LABEL + ".") +
           " Rematch: " + url;
         if (navigator.share) {
           navigator.share({ text: text }).catch(function () { /* backed out, fine */ });
@@ -266,7 +266,7 @@
 
   function showWaiting() {
     panel(
-      '<p class="duel-wait">Your run is in: <b>' + mine.score + "</b> blocks <i>…</i></p>" +
+      '<p class="duel-wait">You finished with <b>' + mine.score + "</b> <i>…</i></p>" +
       '<p class="duel-sub">Waiting for ' + escapeHtml(opp.name) + " to finish. Current score: " + opp.score + "</p>"
     );
   }

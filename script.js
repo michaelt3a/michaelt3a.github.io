@@ -953,25 +953,8 @@ function startGame(difficulty) {
   }
 }
 
-// Quippy remarks shown on game over. Edit these to taste.
-const GAME_OVER_QUIPS = {
-  best: ["New personal best! 🎉", "A new high, nicely done!", "Top of your game!"],
-  none: ["Oof. The bowl deserved better.", "Zero ingredients. Bold strategy.", "Straight to the trash, huh?"],
-  low: ["A humble start.", "Every bowl begins somewhere.", "Room to grow!"],
-  mid: ["Now that's a snack.", "Solid bowl-building!", "Getting the hang of it."],
-  high: ["Chef-level stacking!", "That's a serious bowl.", "The bowl is impressed."],
-  elite: ["Absolute bowl legend.", "Poke perfection!", "Someone give this person a job."],
-};
-
 function pickQuip(score, isNewBest) {
-  let pool;
-  if (isNewBest) pool = GAME_OVER_QUIPS.best;
-  else if (score === 0) pool = GAME_OVER_QUIPS.none;
-  else if (score < 10) pool = GAME_OVER_QUIPS.low;
-  else if (score < 25) pool = GAME_OVER_QUIPS.mid;
-  else if (score < 40) pool = GAME_OVER_QUIPS.high;
-  else pool = GAME_OVER_QUIPS.elite;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return isNewBest ? "New best!" : "";
 }
 
 function endGame() {
@@ -984,7 +967,9 @@ function endGame() {
   const isNewBest = updateHighScore();
   buzz(80);
 
-  gameoverQuip.textContent = pickQuip(state.score, isNewBest);
+  const quip = pickQuip(state.score, isNewBest);
+  gameoverQuip.textContent = quip;
+  gameoverQuip.classList.toggle("hidden", !quip);
   gameoverSubtitle.textContent =
     `You added ${state.score} ingredient${state.score === 1 ? "" : "s"}.`;
 
@@ -2203,12 +2188,12 @@ if (isDailyRun) {
     // Already used today's attempt — show the result rather than a Start button.
     if (sub) {
       sub.textContent =
-        "You've already played today: " + done.score + " blocks. Back tomorrow for a new run.";
+        "You've already played today: " + done.score + " blocks. Come back tomorrow.";
     }
     if (startBtn) startBtn.classList.add("hidden");
   } else if (sub) {
     sub.textContent =
-      "Everyone gets this exact run today. One attempt, so make it count.";
+      "Everyone gets the same run today. You get one attempt.";
   }
   showStartScreen();
 }
@@ -2383,7 +2368,7 @@ if (isDuelRun) {
     nameRow.remove();
     const cdTitle = screenStart.querySelector(".overlay-title");
     const cdSub = screenStart.querySelector(".overlay-subtitle");
-    if (cdSub) cdSub.textContent = "Both players ready. Here we go.";
+    if (cdSub) cdSub.textContent = "Both players ready.";
     let n = 3;
     const tick = () => {
       if (state.running) return; // paranoia: never double-start

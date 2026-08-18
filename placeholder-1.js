@@ -661,7 +661,7 @@ function revealHint() {
   if (!currentRecipe) return;
   const missing = missingIngredients();
   if (!missing.length) {
-    hintPop.innerHTML = "You've got everything this bowl needs!";
+    hintPop.innerHTML = "Nothing is missing. Check the bowl.";
     hintPop.classList.remove("hidden");
     return;
   }
@@ -706,7 +706,7 @@ function checkBowl() {
       bowlArea.classList.add("shake");
       return;
     }
-    feedbackEl.textContent = `${correctGroups} / ${CATEGORIES.length} groups correct. Keep going!`;
+    feedbackEl.textContent = `${correctGroups} / ${CATEGORIES.length} groups correct.`;
     feedbackEl.className = "feedback bad";
     bowlArea.classList.remove("shake");
     void bowlArea.offsetWidth;
@@ -760,7 +760,7 @@ function win() {
   }
   successSub.textContent = hintsUsed
     ? `You built the ${currentRecipe.name} with ${hintsUsed} hint${hintsUsed === 1 ? "" : "s"}.`
-    : `You built the ${currentRecipe.name} with no hints!`;
+    : `You built the ${currentRecipe.name} with no hints.`;
   successEl.classList.remove("hidden");
   SFX.win();
   runConfetti();
@@ -1172,7 +1172,7 @@ function renderResults(perfect, totalMs) {
   const N = run.results.length;
   const allPerfect = perfect === N;
   document.querySelector(".results-title").textContent =
-    allPerfect ? "Perfect Run! 🎉" : "Speedrun Complete!";
+    allPerfect ? "Perfect Run!" : "Speedrun Complete!";
   let summary = `<strong>${perfect} / ${N}</strong> bowls perfect &middot; <strong>${fmtTime(totalMs)}</strong>`;
 
   const best = loadBest();
@@ -1321,10 +1321,10 @@ function dailyOverlay() {
       "Today's challenge is " + Daily.challenge().game.label + ". Head back to the hub for it.";
     speedrunBtn.hidden = true;
   } else if (done) {
-    sub.textContent = "You've already played today: " + done.score + " pts. Back tomorrow for a new run.";
+    sub.textContent = "You've already played today: " + done.score + " pts. Come back tomorrow.";
     speedrunBtn.hidden = true;
   } else {
-    sub.textContent = "Everyone builds today's 9 bowls in the same order. One attempt, so make it count.";
+    sub.textContent = "Everyone builds today's 9 bowls in the same order. You get one attempt.";
     speedrunBtn.querySelector(".speedrun-txt").innerHTML =
       "Start<small>Build all 9 bowls, timed.</small>";
     speedrunBtn.hidden = false;

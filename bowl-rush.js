@@ -82,12 +82,12 @@
       startBtn.style.display = "none";
     } else if (Daily.result()) {
       startSub.textContent =
-        "You've already played today: " + Daily.result().score + " sorted. Back tomorrow for a new line.";
+        "You've already played today: " + Daily.result().score + " sorted. Come back tomorrow.";
       startBtn.classList.add("hidden");
       startBtn.style.display = "none";
     } else {
       startSub.textContent =
-        "Everyone sorts this exact line today. One attempt, so make it count. Wrong tub costs 3 seconds.";
+        "Everyone gets the same line today. You get one attempt. A wrong tub costs 3 seconds.";
     }
   }
 

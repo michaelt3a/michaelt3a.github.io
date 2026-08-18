@@ -175,7 +175,7 @@
       let prog = "";
       if (!got && PROGRESS[d.id]) {
         const [cur, goal] = PROGRESS[d.id]();
-        if (cur > 0) prog = `<em class="ach-prog">${Math.min(cur, goal)}/${goal} so far</em>`;
+        if (cur > 0) prog = `<em class="ach-prog">${Math.min(cur, goal)}/${goal}</em>`;
       }
       const item = document.createElement("div");
       item.className = "ach-item" + (got ? " unlocked" : " locked");

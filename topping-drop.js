@@ -70,11 +70,11 @@
       startBtn.style.display = "none";
     } else if (Daily.result()) {
       startSub.textContent =
-        "You've already played today: " + Daily.result().score + " catches. Back tomorrow for a new rain.";
+        "You've already played today: " + Daily.result().score + " catches. Come back tomorrow.";
       startBtn.classList.add("hidden");
       startBtn.style.display = "none";
     } else {
-      startSub.textContent = "Everyone gets this exact rain today. One attempt, so make it count.";
+      startSub.textContent = "Everyone gets the same drops today. You get one attempt.";
     }
   }
 
