@@ -1,8 +1,8 @@
-/* Bowl Rush — DOM-based sorter inside the standard game stage. */
+/* Bowl Rush — ingredients ride a conveyor; drag each into its station tub. */
 
 .rush-stage {
   aspect-ratio: auto;
-  min-height: 480px;
+  min-height: 520px;
   display: flex;
   flex-direction: column;
 }
@@ -11,7 +11,6 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   padding: 1rem 1.1rem 1.2rem;
 }
 
@@ -36,48 +35,71 @@
   transform-origin: left center;
 }
 
-/* The ingredient being called out */
-.rush-card {
-  align-self: center;
-  margin: auto 0;
-  min-width: 60%;
-  text-align: center;
+/* The play field: the belt strip up top, open air below for dragging.
+   Ingredient chips are positioned absolutely within this element. */
+.rush-field {
+  position: relative;
+  flex: 1;
+  margin-top: 0.9rem;
+  min-height: 190px;
+}
+
+.rush-beltline {
+  position: absolute;
+  top: 8px;
+  left: -1.1rem;
+  right: -1.1rem;
+  height: 64px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0 26px, rgba(255, 255, 255, 0.03) 26px 52px),
+    rgba(0, 0, 0, 0.18);
+  border-top: 2px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.14);
+  background-size: 52px 100%, auto;
+  animation: belt-roll 1.1s linear infinite;
+}
+
+@keyframes belt-roll {
+  to { background-position: 52px 0, 0 0; }
+}
+
+/* Ingredient chips riding the belt (and being dragged) */
+.rush-item {
+  position: absolute;
+  z-index: 5;
   background: #fff;
   color: var(--text);
-  font-size: clamp(1.5rem, 5vw, 2.2rem);
   font-weight: 800;
-  letter-spacing: -0.01em;
-  padding: 1.4rem 1.6rem;
-  border-radius: 16px;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
 
-.rush-card.pop {
-  animation: rush-pop 0.22s ease;
+.rush-item.drag {
+  z-index: 9;
+  cursor: grabbing;
+  transform: scale(1.08) rotate(-2deg);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  pointer-events: none; /* so drop targets hit-test under the chip */
 }
 
-@keyframes rush-pop {
-  0% { transform: scale(0.92); }
-  60% { transform: scale(1.04); }
-  100% { transform: scale(1); }
+.rush-item.gone {
+  transition: transform 0.18s ease, opacity 0.18s ease;
+  transform: scale(0.4);
+  opacity: 0;
 }
 
-.rush-card.shake {
-  animation: rush-shake 0.32s ease;
-}
-
-@keyframes rush-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-9px); }
-  55% { transform: translateX(8px); }
-  80% { transform: translateX(-4px); }
-}
-
-/* Feedback line between card and bins */
+/* Feedback line between field and tubs */
 .rush-msg {
   text-align: center;
   min-height: 1.3rem;
-  margin: 0.4rem 0 0.6rem;
+  margin: 0.35rem 0 0.55rem;
   font-weight: 700;
   color: #cfe0e0;
   font-size: 0.9rem;
@@ -86,7 +108,7 @@
 .rush-msg.good { color: #7fd6a1; }
 .rush-msg.bad { color: #ff8fa0; }
 
-/* Station buttons */
+/* Station tubs */
 .rush-bins {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -94,26 +116,36 @@
 }
 
 .rush-bin {
-  border: none;
-  border-radius: 12px;
-  border-bottom: 4px solid rgba(0, 0, 0, 0.25);
-  background: var(--cat, #888);
+  border: 2.5px solid var(--cat, #888);
+  border-radius: 12px 12px 8px 8px;
+  background: var(--cat-soft, rgba(255, 255, 255, 0.08));
   color: #fff;
   font: inherit;
   font-weight: 800;
-  font-size: 0.92rem;
-  padding: 0.85rem 0.3rem;
-  cursor: pointer;
-  transition: transform 0.08s ease, filter 0.12s ease;
+  font-size: 0.88rem;
+  padding: 1.05rem 0.3rem 0.85rem;
+  text-align: center;
+  position: relative;
+  transition: transform 0.1s ease, background 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.rush-bin:hover {
-  filter: brightness(1.08);
+/* The tub's lip */
+.rush-bin::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  right: 8px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--cat, #888);
+  opacity: 0.9;
 }
 
-.rush-bin:active {
-  transform: scale(0.95);
+.rush-bin.hot {
+  transform: scale(1.07);
+  background: var(--cat-hot, rgba(255, 255, 255, 0.2));
 }
 
 .rush-bin.reveal {
@@ -127,20 +159,25 @@
 
 @media (max-width: 640px) {
   .rush-stage {
-    min-height: 430px;
+    min-height: 470px;
   }
   .rush-bins {
     grid-template-columns: repeat(3, 1fr);
   }
   .rush-bin {
+    font-size: 0.78rem;
+    padding: 0.9rem 0.3rem 0.7rem;
+  }
+  .rush-item {
     font-size: 0.82rem;
-    padding: 0.75rem 0.3rem;
+    padding: 0.5rem 0.75rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rush-card.pop,
-  .rush-card.shake,
+  .rush-beltline {
+    animation: none;
+  }
   .rush-bin.reveal {
     animation: none;
   }

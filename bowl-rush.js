@@ -1,8 +1,9 @@
-// Bowl Rush — sort each called-out ingredient to its station (Base, Protein,
-// Mix-ins, Sauce, Toppings) before the 60-second clock runs out. A wrong
-// station costs 3 seconds. The ingredient list mirrors Signature Works;
-// Avocado is left out because it legitimately lives in two categories.
-// Points are stingy on purpose: only a new personal best pays, capped.
+// Bowl Rush — ingredients ride a conveyor across the box; drag each one into
+// its station tub (Base, Protein, Mix-ins, Sauce, Toppings) before it rolls
+// off the end. Wrong tub costs 3 seconds; a chip that escapes breaks your
+// streak. The list mirrors Signature Works; Avocado is left out because it
+// legitimately lives in two categories. Points are stingy on purpose: only a
+// new personal best pays, capped per run.
 (function () {
   const CATS = [
     { name: "Base", color: "#c9a97a" },
@@ -29,13 +30,14 @@
 
   const ROUND_SECS = 60;
   const WRONG_PENALTY = 3;
+  const BELT_Y = 22; // chip row inside the belt strip
   const BEST_KEY = "pokeworks-rush-best";
 
-  const playEl = document.getElementById("rush-play");
-  const cardEl = document.getElementById("rush-card");
+  const fieldEl = document.getElementById("rush-field");
   const msgEl = document.getElementById("rush-msg");
   const binsEl = document.getElementById("rush-bins");
   const fillEl = document.getElementById("rush-timer-fill");
+  const playEl = document.getElementById("rush-play");
   const overlay = document.getElementById("overlay");
   const screenStart = document.getElementById("screen-start");
   const screenOver = document.getElementById("screen-gameover");
@@ -54,48 +56,33 @@
     score: 0,
     streak: 0,
     timeLeft: ROUND_SECS,
-    order: [], // shuffled indexes into DECK
-    pos: 0,
-    current: null,
+    items: [], // {el, x, y, w, name, cat, dragging, offX, offY}
+    spawnIn: 0.6,
+    lastName: "",
     lastTime: 0,
-    locked: false, // brief input lock while a wrong answer is revealed
   };
 
-  // Station buttons, colored like the Signature Works palette.
+  // Station tubs, colored like the Signature Works palette. Alpha-suffixed
+  // hexes feed the tub fill and its drag-hover glow.
   for (const c of CATS) {
-    const b = document.createElement("button");
+    const b = document.createElement("div");
     b.className = "rush-bin";
-    b.type = "button";
+    b.dataset.cat = c.name;
     b.style.setProperty("--cat", c.color);
+    b.style.setProperty("--cat-soft", c.color + "3d");
+    b.style.setProperty("--cat-hot", c.color + "8c");
     b.textContent = c.name;
-    b.addEventListener("click", () => answer(c.name, b));
     binsEl.appendChild(b);
   }
+  const binByName = (n) => [...binsEl.children].find((b) => b.dataset.cat === n);
 
-  function shuffle(a) {
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
+  function elapsed() { return ROUND_SECS - state.timeLeft; }
+  // The belt hurries up as the round wears on.
+  function beltSpeed() {
+    const traverse = Math.max(8.5 - elapsed() * 0.05, 5.5); // seconds across
+    return (fieldEl.clientWidth + 170) / traverse;
   }
-
-  function nextItem() {
-    if (state.pos >= state.order.length) {
-      const last = state.current;
-      state.order = shuffle(DECK.map((_, i) => i));
-      // Don't show the same ingredient twice in a row across the reshuffle.
-      if (last && DECK[state.order[0]].name === last.name) {
-        [state.order[0], state.order[1]] = [state.order[1], state.order[0]];
-      }
-      state.pos = 0;
-    }
-    state.current = DECK[state.order[state.pos++]];
-    cardEl.textContent = state.current.name;
-    cardEl.classList.remove("pop", "shake");
-    void cardEl.offsetWidth; // restart the animation
-    cardEl.classList.add("pop");
-  }
+  function spawnEvery() { return Math.max(2.3 - elapsed() * 0.02, 1.2); }
 
   function setScore(n) {
     state.score = n;
@@ -107,12 +94,108 @@
     msgEl.className = "rush-msg" + (tone ? " " + tone : "");
   }
 
-  function answer(catName, btn) {
-    if (!state.running || state.locked || !state.current) return;
-    if (catName === state.current.cat) {
+  function pickIngredient() {
+    let it;
+    do { it = DECK[Math.floor(Math.random() * DECK.length)]; }
+    while (it.name === state.lastName);
+    state.lastName = it.name;
+    return it;
+  }
+
+  // --- Chips on the belt -----------------------------------------------------
+  function spawn() {
+    const ing = pickIngredient();
+    const el = document.createElement("div");
+    el.className = "rush-item";
+    el.textContent = ing.name;
+    fieldEl.appendChild(el);
+    const item = {
+      el: el,
+      x: -el.offsetWidth - 6,
+      y: BELT_Y,
+      w: el.offsetWidth,
+      name: ing.name,
+      cat: ing.cat,
+      dragging: false,
+      offX: 0,
+      offY: 0,
+    };
+    place(item);
+    wireDrag(item);
+    state.items.push(item);
+  }
+
+  function place(it) {
+    it.el.style.left = it.x + "px";
+    it.el.style.top = it.y + "px";
+  }
+
+  function removeItem(it, popAway) {
+    const i = state.items.indexOf(it);
+    if (i >= 0) state.items.splice(i, 1);
+    if (popAway) {
+      it.el.classList.add("gone");
+      setTimeout(() => it.el.remove(), 200);
+    } else {
+      it.el.remove();
+    }
+  }
+
+  function hotBinAt(cx, cy) {
+    const el = document.elementFromPoint(cx, cy);
+    return el ? el.closest(".rush-bin") : null;
+  }
+  function clearHot() {
+    for (const b of binsEl.children) b.classList.remove("hot");
+  }
+
+  function wireDrag(it) {
+    it.el.addEventListener("pointerdown", (e) => {
+      if (!state.running || state.paused) return;
+      e.preventDefault();
+      it.dragging = true;
+      const rect = fieldEl.getBoundingClientRect();
+      it.offX = e.clientX - rect.left - it.x;
+      it.offY = e.clientY - rect.top - it.y;
+      it.el.classList.add("drag");
+      try { it.el.setPointerCapture(e.pointerId); } catch (err) { /* synthetic or stale pointer */ }
+    });
+    it.el.addEventListener("pointermove", (e) => {
+      if (!it.dragging) return;
+      const rect = fieldEl.getBoundingClientRect();
+      it.x = e.clientX - rect.left - it.offX;
+      it.y = e.clientY - rect.top - it.offY;
+      place(it);
+      clearHot();
+      const bin = hotBinAt(e.clientX, e.clientY);
+      if (bin) bin.classList.add("hot");
+    });
+    const drop = (e) => {
+      if (!it.dragging) return;
+      // Hit-test BEFORE restoring the chip's pointer-events, or the chip
+      // itself is what elementFromPoint finds and every drop bounces back.
+      const bin = hotBinAt(e.clientX, e.clientY);
+      it.dragging = false;
+      it.el.classList.remove("drag");
+      clearHot();
+      if (bin) {
+        answer(it, bin.dataset.cat);
+      } else {
+        // Nowhere useful: hop back onto the belt where it left off.
+        it.y = BELT_Y;
+        it.x = Math.min(it.x, fieldEl.clientWidth - 20);
+        place(it);
+      }
+    };
+    it.el.addEventListener("pointerup", drop);
+    it.el.addEventListener("pointercancel", drop);
+  }
+
+  function answer(it, catName) {
+    if (!state.running) return;
+    if (catName === it.cat) {
       state.streak++;
       let gain = 1;
-      // Every 5 in a row pays a small bonus and says so.
       if (state.streak % 5 === 0) {
         gain += 2;
         say("🔥 " + state.streak + " in a row! +" + gain, "good");
@@ -120,52 +203,45 @@
         say("+1", "good");
       }
       setScore(state.score + gain);
-      nextItem();
+      removeItem(it, true);
     } else {
       state.streak = 0;
       state.timeLeft = Math.max(0, state.timeLeft - WRONG_PENALTY);
-      say(state.current.name + " goes to " + state.current.cat + ". -" + WRONG_PENALTY + "s", "bad");
-      cardEl.classList.remove("pop", "shake");
-      void cardEl.offsetWidth;
-      cardEl.classList.add("shake");
-      if (navigator.vibrate) { try { navigator.vibrate(35); } catch (e) { /* ignore */ } }
-      // Flash the right station, hold input a beat, then move on.
-      const bins = [...binsEl.children];
-      const right = bins.find((b) => b.textContent === state.current.cat);
+      say(it.name + " goes to " + it.cat + ". -" + WRONG_PENALTY + "s", "bad");
+      const right = binByName(it.cat);
       if (right) {
         right.classList.remove("reveal");
         void right.offsetWidth;
         right.classList.add("reveal");
       }
-      state.locked = true;
-      setTimeout(() => {
-        state.locked = false;
-        if (state.running) nextItem();
-      }, 650);
+      if (navigator.vibrate) { try { navigator.vibrate(35); } catch (e) { /* ignore */ } }
+      removeItem(it, true);
     }
   }
 
+  // --- Round flow --------------------------------------------------------------
   function startGame() {
+    for (const it of state.items) it.el.remove();
+    state.items = [];
     state.running = true;
     state.paused = false;
-    state.locked = false;
     setScore(0);
     state.streak = 0;
     state.timeLeft = ROUND_SECS;
-    state.order = shuffle(DECK.map((_, i) => i));
-    state.pos = 0;
-    state.current = null;
+    state.spawnIn = 0.5;
+    state.lastName = "";
     state.lastTime = 0;
-    say(" ");
+    say(" ");
     playEl.hidden = false;
     overlay.classList.add("hidden");
-    nextItem();
     if (window.PokeStreak) PokeStreak.mark();
     if (window.PokeTrack) PokeTrack.hit("play", "rush");
   }
 
   function endGame() {
     state.running = false;
+    for (const it of state.items) it.el.remove();
+    state.items = [];
     playEl.hidden = true;
     overSub.textContent =
       "You sorted " + state.score + " ingredient" + (state.score === 1 ? "" : "s") + ".";
@@ -205,9 +281,31 @@
       if (!state.lastTime) state.lastTime = t;
       const dt = Math.min((t - state.lastTime) / 1000, 0.05);
       state.lastTime = t;
+
       state.timeLeft -= dt;
       fillEl.style.transform = "scaleX(" + Math.max(0, state.timeLeft / ROUND_SECS) + ")";
-      if (state.timeLeft <= 0) endGame();
+      if (state.timeLeft <= 0) { endGame(); requestAnimationFrame(frame); return; }
+
+      state.spawnIn -= dt;
+      if (state.spawnIn <= 0) {
+        spawn();
+        state.spawnIn = spawnEvery();
+      }
+
+      const speed = beltSpeed();
+      const edge = fieldEl.clientWidth;
+      for (let i = state.items.length - 1; i >= 0; i--) {
+        const it = state.items[i];
+        if (it.dragging) continue;
+        it.x += speed * dt;
+        place(it);
+        if (it.x > edge + 10) {
+          // Rolled off the end: no time lost, but the streak is gone.
+          if (state.streak > 0) say("Missed " + it.name + "!", "bad");
+          state.streak = 0;
+          removeItem(it, false);
+        }
+      }
     }
     requestAnimationFrame(frame);
   }

@@ -6,7 +6,7 @@
   <title>Bowl Rush - Pokeworks</title>
   <meta name="description" content="Sort ingredients to their station before the clock runs out." />
   <link rel="stylesheet" href="styles.css?v=22" />
-  <link rel="stylesheet" href="bowl-rush.css?v=1" />
+  <link rel="stylesheet" href="bowl-rush.css?v=2" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -39,7 +39,10 @@
     <main class="stage rush-stage">
       <div class="rush-play" id="rush-play" hidden>
         <div class="rush-timer"><i id="rush-timer-fill"></i></div>
-        <div class="rush-card" id="rush-card">Cucumber</div>
+        <!-- Ingredients ride this belt; drag them off into the tubs below -->
+        <div class="rush-field" id="rush-field">
+          <div class="rush-beltline" aria-hidden="true"></div>
+        </div>
         <p class="rush-msg" id="rush-msg">&nbsp;</p>
         <div class="rush-bins" id="rush-bins"></div>
       </div>
@@ -48,8 +51,9 @@
         <div id="screen-start" class="overlay-panel">
           <h1 class="overlay-title">Bowl Rush</h1>
           <p class="overlay-subtitle">
-            The line is slammed. Sort each ingredient to its station before the
-            clock runs out. Wrong station costs 3 seconds.
+            The line is slammed. Ingredients ride the conveyor; drag each one
+            into its station tub before it rolls off the end. A wrong tub
+            costs 3 seconds.
           </p>
           <button id="start-btn" class="btn" type="button">Start</button>
         </div>
@@ -71,7 +75,7 @@
   <script src="track.js?v=1"></script>
   <script src="boost.js?v=1"></script>
   <script src="points.js?v=2"></script>
-  <script src="bowl-rush.js?v=1"></script>
+  <script src="bowl-rush.js?v=4"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>
