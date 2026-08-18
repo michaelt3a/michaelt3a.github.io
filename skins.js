@@ -7,11 +7,11 @@
   // body/inner color the Topping Drop bowl; bb colors Bowl Builder's ceramic;
   // rim is the accent lip on both (null = no accent).
   const SKINS = [
-    { id: "classic", icon: "🥣", title: "Classic", desc: "The house bowl.", cost: 0, body: "#ffffff", inner: "#e8eef0", bb: "#e9dcc6", rim: null },
-    { id: "goldrim", icon: "🏆", title: "Gold Rim", desc: "A little shine on the lip.", cost: 800, body: "#ffffff", inner: "#e8eef0", bb: "#e9dcc6", rim: "#ffd15a" },
-    { id: "matte", icon: "🖤", title: "Matte Black", desc: "For serious stackers.", cost: 1500, body: "#2e3338", inner: "#4a525a", bb: "#2e3338", rim: null },
-    { id: "sakura", icon: "🌸", title: "Sakura", desc: "Soft pink, big spring energy.", cost: 1500, body: "#ffd9e2", inner: "#f2b6c5", bb: "#f7c9d4", rim: null },
-    { id: "seafoam", icon: "🌊", title: "Seafoam", desc: "Beach day, every day.", cost: 2500, body: "#cdf1e9", inner: "#9fdccf", bb: "#bfe8df", rim: "#22b2b4" },
+    { id: "classic", icon: "🥣", title: "Classic", desc: "The standard bowl.", cost: 0, body: "#ffffff", inner: "#e8eef0", bb: "#e9dcc6", rim: null },
+    { id: "goldrim", icon: "🏆", title: "Gold Rim", desc: "White bowl with a gold rim.", cost: 800, body: "#ffffff", inner: "#e8eef0", bb: "#e9dcc6", rim: "#ffd15a" },
+    { id: "matte", icon: "🖤", title: "Matte Black", desc: "Black bowl.", cost: 1500, body: "#2e3338", inner: "#4a525a", bb: "#2e3338", rim: null },
+    { id: "sakura", icon: "🌸", title: "Sakura", desc: "Pink bowl.", cost: 1500, body: "#ffd9e2", inner: "#f2b6c5", bb: "#f7c9d4", rim: null },
+    { id: "seafoam", icon: "🌊", title: "Seafoam", desc: "Teal bowl with a darker rim.", cost: 2500, body: "#cdf1e9", inner: "#9fdccf", bb: "#bfe8df", rim: "#22b2b4" },
   ];
 
   function load() {

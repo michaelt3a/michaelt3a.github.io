@@ -15,7 +15,7 @@
     { id: "pct10", icon: "💸", title: "10% off a bowl", desc: "For the regulars.", cost: 1500, code: "POKE-FILLER-10OFF" },
     { id: "combo", icon: "🍱", title: "Combo deal", desc: "Bowl, drink, and a side for the price of the bowl.", cost: 2000, code: "POKE-FILLER-COMBO" },
     { id: "bogo", icon: "🍜", title: "BOGO bowl", desc: "Buy one bowl, get one free.", cost: 2500, code: "POKE-FILLER-BOGO" },
-    { id: "cater", icon: "🎉", title: "10% off catering", desc: "Feeding the office? That works too.", cost: 3200, code: "POKE-FILLER-CATER" },
+    { id: "cater", icon: "🎉", title: "10% off catering", desc: "10% off any catering order.", cost: 3200, code: "POKE-FILLER-CATER" },
     { id: "bowl", icon: "👑", title: "Free signature bowl", desc: "The big one. Any signature work, on us.", cost: 4000, code: "POKE-FILLER-BOWL" },
   ];
 
