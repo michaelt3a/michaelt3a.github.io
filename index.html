@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=49" />
+  <link rel="stylesheet" href="menu.css?v=50" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -446,10 +446,10 @@
   <script src="track.js?v=1"></script>
   <script src="points.js?v=2"></script>
   <script src="mail-sync.js?v=2"></script>
-  <script src="challenges.js?v=8"></script>
-  <script src="hub-leaderboard.js?v=12"></script>
+  <script src="challenges.js?v=9"></script>
+  <script src="hub-leaderboard.js?v=13"></script>
   <script src="wordfilter.js?v=1"></script>
-  <script src="player-card.js?v=11"></script>
+  <script src="player-card.js?v=12"></script>
   <script src="backup.js?v=1"></script>
   <script src="daily-card.js?v=8"></script>
   <script>
@@ -476,6 +476,7 @@
         '<p class="ch-note">' + (ps > 1 ? ps + " days in a row. " : "") +
         'Finish these to earn points for the <a href="shop.html">Rewards Shop</a>. ' +
         "New set every day.</p>";
+      const canSwap = PokeChallenges.canReroll && PokeChallenges.canReroll();
       for (const g of PokeChallenges.active()) {
         html += '<h3 class="ch-game">' + esc(g.label) + "</h3>";
         for (const q of g.quests) {
@@ -484,6 +485,10 @@
             '<div class="ch-row' + (q.done ? " done" : "") + '">' +
             '<div class="ch-info"><span class="ch-label">' + esc(q.label) + "</span>" +
             '<div class="ch-bar"><i style="width:' + (q.done ? 100 : pct) + '%"></i></div></div>' +
+            (canSwap && !q.done
+              ? '<button class="ch-swap" type="button" data-game="' + g.game + '" data-quest="' + q.id +
+                '" title="Swap for a different quest. One swap a day." aria-label="Swap this quest">↻</button>'
+              : "") +
             '<span class="ch-pts">' + (q.done ? "✓" : "+" + q.pts) + "</span>" +
             "</div>";
         }
@@ -491,8 +496,14 @@
       html +=
         '<p class="ch-note ch-note-foot">Bonuses: +' + PokeChallenges.DAILY_PTS +
         " daily challenge · +" + PokeChallenges.TOP_PTS + " topping yesterday's board · +" +
-        PokeChallenges.STREAK_PTS + " every " + PokeChallenges.STREAK_DAYS + "-day streak.</p>";
+        PokeChallenges.STREAK_PTS + " every " + PokeChallenges.STREAK_DAYS + "-day streak." +
+        (canSwap ? " Tap ↻ to swap one quest a day." : "") + "</p>";
       body.innerHTML = html;
+      body.querySelectorAll(".ch-swap").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (PokeChallenges.reroll(btn.dataset.game, btn.dataset.quest)) buildChallenges();
+        });
+      });
     }
 
     // Double the signature-bowl strip so its -50% scroll loops seamlessly.

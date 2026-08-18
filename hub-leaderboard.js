@@ -43,13 +43,18 @@
   // Boards default to the current month so every month is a fresh race;
   // All-time is one tap away. Rows carry created_at, so a "season" is just a
   // date filter, no schema changes.
-  let seasonMode = "month"; // "month" | "all"
+  let seasonMode = "month"; // "month" | "last" | "all"
   function monthStartISO(offsetMonths) {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth() + (offsetMonths || 0), 1).toISOString();
   }
   function seasonFilter() {
-    return seasonMode === "month" ? "&created_at=gte." + monthStartISO(0) : "";
+    if (seasonMode === "month") return "&created_at=gte." + monthStartISO(0);
+    if (seasonMode === "last") {
+      // Last month's finished season: from its first day up to this month's.
+      return "&created_at=gte." + monthStartISO(-1) + "&created_at=lt." + monthStartISO(0);
+    }
+    return "";
   }
   function monthKey(offsetMonths) {
     const d = new Date();
@@ -220,7 +225,11 @@
       seasons = document.createElement("div");
       seasons.className = "hlb-seasons";
       const label = new Date().toLocaleDateString(undefined, { month: "long" });
-      for (const [mode, text] of [["month", label], ["all", "All-time"]]) {
+      const prev = new Date();
+      prev.setDate(1);
+      prev.setMonth(prev.getMonth() - 1);
+      const prevLabel = prev.toLocaleDateString(undefined, { month: "long" });
+      for (const [mode, text] of [["month", label], ["last", prevLabel], ["all", "All-time"]]) {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "hlb-season" + (mode === seasonMode ? " active" : "");

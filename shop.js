@@ -29,6 +29,7 @@
   let armed = null; // item id
   let armedTimer = 0;
   let justRedeemed = false; // scroll-and-glow the new code on the next render
+  let justBoughtSkin = null; // buying equips it; this line says so, with a door to the game
 
   function fmtDate(t) {
     const d = new Date(t);
@@ -100,6 +101,21 @@
         btn.addEventListener("click", () => onSkin(sk));
         skinsEl.appendChild(card);
       }
+      // Fresh purchase: it's already on, so say where to go see it.
+      const oldNote = document.querySelector(".shop-skin-note");
+      if (oldNote) oldNote.remove();
+      if (justBoughtSkin) {
+        const links = {
+          bowl: '<a href="bowl-builder.html">Bowl Builder</a> or <a href="topping-drop.html">Topping Drop</a>',
+          blade: '<a href="poke-slice.html">Poke Slice</a>',
+          belt: '<a href="bowl-rush.html">Bowl Rush</a>',
+        };
+        const note = document.createElement("p");
+        note.className = "shop-mail-sub shop-skin-note";
+        note.innerHTML = "✓ " + justBoughtSkin.title + " equipped. You'll see it in your next " +
+          links[justBoughtSkin.slot] + " run.";
+        skinsEl.after(note);
+      }
     }
 
     // Owned codes
@@ -150,7 +166,8 @@
     clearTimeout(armedTimer);
     armed = null;
     if (PokePoints.spend(sk.cost, "Bowl skin: " + sk.title)) {
-      PokeSkins.own(sk.id);
+      PokeSkins.own(sk.id); // buying equips it right away
+      justBoughtSkin = sk;
       if (window.PokeTrack) PokeTrack.hit("redeem", "skin-" + sk.id);
     }
     render();

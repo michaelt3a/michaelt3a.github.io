@@ -270,6 +270,47 @@
     );
   }
 
+  // Lifetime numbers: the arcade totals challenges.js accumulates per run,
+  // plus the games that keep their own career records.
+  function careerBlock() {
+    const t = lsJson("pokeworks-career-totals") || {};
+    const fmtN = (n) => Number(n || 0).toLocaleString();
+    const rows = [];
+    const arcade = [
+      ["bowl", "Bowl Builder", "#ee435b", "blocks stacked"],
+      ["td", "Topping Drop", "#f5c542", "toppings caught"],
+      ["br", "Bowl Rush", "#8f6ef0", "ingredients sorted"],
+      ["ps", "Poke Slice", "#39a85b", "pieces sliced"],
+    ];
+    for (const [id, label, color, unit] of arcade) {
+      const g = t[id];
+      if (!g || !g.score) continue;
+      rows.push([label, color, fmtN(g.score) + " " + unit + (g.runs ? " · " + fmtN(g.runs) + " run" + (g.runs === 1 ? "" : "s") : "")]);
+    }
+    const ou = lsJson("pokeworks-orderup-tycoon");
+    if (ou && ou.life && (ou.life.earned || ou.life.served)) {
+      rows.push(["Order Up", "#fd9f27",
+        "$" + fmtN(Math.round(ou.life.earned)) + " earned · " + fmtN(ou.life.served) + " served"]);
+    }
+    const ss = lsJson("pokeworks-shopper-career");
+    if (ss && ss.shifts) {
+      rows.push(["Secret Shopper", "#7c5cff",
+        fmtN(ss.shifts) + " shift" + (ss.shifts === 1 ? "" : "s") + " · " + fmtN(ss.rep) + " ★"]);
+    }
+    if (!rows.length) return "";
+    return (
+      '<div class="pc-ach"><span class="pc-ach-top"><strong>Career totals</strong></span></div>' +
+      '<div class="pc-stats pc-totals">' +
+      rows.map(([label, color, val]) =>
+        '<div class="pc-stat" style="--g:' + color + '">' +
+        '<span class="pc-stat-game">' + label + "</span>" +
+        '<span class="pc-stat-val">' + escapeHtml(val) + "</span>" +
+        '<span class="pc-stat-rank"></span></div>'
+      ).join("") +
+      "</div>"
+    );
+  }
+
   function achProgress() {
     const defs = (window.PokeAch && PokeAch.DEFS) || [];
     const map = lsJson("pokeworks-achievements") || {};
@@ -351,7 +392,8 @@
       "</span></span></div>" +
       calendarBlock() +
       pointsBlock() +
-      '<div class="pc-stats">' + rows + "</div>";
+      '<div class="pc-stats">' + rows + "</div>" +
+      careerBlock();
 
     const input = bodyEl.querySelector("#pc-name-input");
     const commit = function () {

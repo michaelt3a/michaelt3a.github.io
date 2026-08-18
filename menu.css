@@ -1497,6 +1497,24 @@ body.sheet-lock {
   font-variant-numeric: tabular-nums;
 }
 
+/* One-a-day quest swap button on each row. */
+.ch-swap {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--chip-line);
+  background: none;
+  color: var(--on-dark-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.ch-swap:hover {
+  color: var(--on-dark);
+  border-color: var(--on-dark-muted);
+}
+
 /* ---------------- Duel lobby ---------------- */
 .duel {
   max-width: 460px;

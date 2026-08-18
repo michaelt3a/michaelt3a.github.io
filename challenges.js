@@ -135,12 +135,15 @@
         date: Daily.today(),
         progress: {},
         done: {},
+        swaps: {},
+        rerollUsed: false,
         claims: prune(s.claims || {}),
         streak: s.streak || { last: null, count: 0 },
       };
       save(s);
     }
     if (!s.streak) s.streak = { last: null, count: 0 };
+    if (!s.swaps) s.swaps = {};
     return s;
   }
   function save(s) {
@@ -168,7 +171,7 @@
   // --- Today's set (seeded, same for everyone) ----------------------------
   // Draws PICKS[tier] from each tier without repeats — a seeded partial
   // Fisher–Yates, so adding pool entries later can't reshuffle other tiers.
-  function todaysSet(game) {
+  function baseSet(game) {
     const rng = Daily.stream("quests:" + game);
     const set = [];
     for (const tier of ["starter", "mid", "hard"]) {
@@ -181,6 +184,55 @@
       }
     }
     return set;
+  }
+  // The seeded set, with any personal reroll applied on top.
+  function todaysSet(game) {
+    const s = load();
+    return baseSet(game).map((q) => {
+      const inId = s.swaps[q.id];
+      if (!inId) return q;
+      return POOLS[game].find((p) => p.id === inId) || q;
+    });
+  }
+
+  // One reroll a day: swap a quest you don't want for another of the same
+  // tier from that game's pool. Progress on the old quest is left behind.
+  function canReroll() {
+    return !load().rerollUsed;
+  }
+  function reroll(game, questId) {
+    if (!POOLS[game]) return null;
+    const s = load();
+    if (s.rerollUsed || s.done[questId]) return null;
+    const current = todaysSet(game);
+    const cur = current.find((q) => q.id === questId);
+    if (!cur) return null;
+    const inUse = new Set(current.map((q) => q.id));
+    const options = POOLS[game].filter((p) => p.tier === cur.tier && !inUse.has(p.id));
+    if (!options.length) return null;
+    const pick = options[Math.floor(Math.random() * options.length)];
+    // Swaps are keyed by the seeded quest's id, so find which base slot this is.
+    const base = baseSet(game).find((q) => (s.swaps[q.id] || q.id) === questId);
+    if (!base) return null;
+    s.swaps[base.id] = pick.id;
+    s.rerollUsed = true;
+    save(s);
+    return pick;
+  }
+
+  // --- Lifetime totals (shown on the profile card) -------------------------
+  // Accumulated here because every customer game already reports each run.
+  const TOTALS_KEY = "pokeworks-career-totals";
+  function bumpTotals(game, metrics) {
+    try {
+      const t = JSON.parse(localStorage.getItem(TOTALS_KEY)) || {};
+      const g = t[game] || (t[game] = {});
+      for (const k of ["runs", "score", "served", "money", "seconds"]) {
+        const v = Number(metrics[k]) || 0;
+        if (v > 0) g[k] = (g[k] || 0) + v;
+      }
+      localStorage.setItem(TOTALS_KEY, JSON.stringify(t));
+    } catch (e) { /* ignore */ }
   }
 
   // --- Earning -------------------------------------------------------------
@@ -252,6 +304,7 @@
   function report(game, metrics) {
     if (!POOLS[game]) return;
     markPlay();
+    bumpTotals(game, metrics);
     const s = load();
     for (const q of todaysSet(game)) {
       if (s.done[q.id]) continue;
@@ -368,6 +421,7 @@
 
   window.PokeChallenges = {
     report, active, markPlay, playStreak,
+    reroll, canReroll,
     checkDailyAward, checkTopBonus,
     awardPts: award, claimOnce, shieldCount, addShield,
     DAILY_PTS, TOP_PTS, STREAK_PTS, STREAK_DAYS,

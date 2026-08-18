@@ -5,14 +5,19 @@
 // Bowl's green).
 (function () {
   const SB = window.POKEWORKS_SUPABASE || {};
-  const DAYS = 14;
+  const DAYS = 30;
   // Fixed identity order: stacking, legend, and table columns all use it.
+  // Arcade hues are re-stepped off their brand colors so none collide with
+  // the originals (rush moves purple -> magenta, slice green -> teal).
   const GAMES = [
     { id: "bowl", label: "Bowl Builder", color: "#e05264" },
     { id: "sw", label: "Signature Works", color: "#3a87c8" },
     { id: "ou", label: "Order Up", color: "#bd7f21" },
     { id: "ss", label: "Secret Shopper", color: "#8f6ef0" },
     { id: "wb", label: "Word Bowl", color: "#4a9e58" },
+    { id: "topping", label: "Topping Drop", color: "#e0bb3c" },
+    { id: "rush", label: "Bowl Rush", color: "#c9679f" },
+    { id: "slice", label: "Poke Slice", color: "#2fa8a0" },
   ];
 
   const chartEl = document.getElementById("st-chart");
@@ -87,8 +92,8 @@
         bar.appendChild(seg);
       }
       const lab = document.createElement("small");
-      // Sparse labels: first, last, and every other day between.
-      lab.textContent = i % 2 === 0 || i === isoDays.length - 1 ? shortDay(iso) : "";
+      // Sparse labels: every 5th day plus the last.
+      lab.textContent = i % 5 === 0 || i === isoDays.length - 1 ? shortDay(iso) : "";
       col.appendChild(bar);
       col.appendChild(lab);
       col.addEventListener("mousemove", function (e) { showTip(e, iso, days[iso]); });

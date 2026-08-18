@@ -393,7 +393,10 @@
     state.items = [];
     playEl.hidden = true;
     overSub.textContent =
-      "You sorted " + state.score + " ingredient" + (state.score === 1 ? "" : "s") + ".";
+      "You sorted " + state.score + " ingredient" + (state.score === 1 ? "" : "s") + "." +
+      (state.score < best && best - state.score <= 5
+        ? " " + (best - state.score) + " short of your best (" + best + ")."
+        : "");
     pointsLine.hidden = true;
     lbEntry.classList.add("hidden");
     lbDone.classList.add("hidden");

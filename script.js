@@ -967,6 +967,7 @@ function endGame() {
   updatePauseBtn();
   clearPowerups();
 
+  const prevBest = state.highScore;
   const isNewBest = updateHighScore();
   buzz(80);
 
@@ -974,7 +975,10 @@ function endGame() {
   gameoverQuip.textContent = quip;
   gameoverQuip.classList.toggle("hidden", !quip);
   gameoverSubtitle.textContent =
-    `You added ${state.score} ingredient${state.score === 1 ? "" : "s"}.`;
+    `You added ${state.score} ingredient${state.score === 1 ? "" : "s"}.` +
+    (!isNewBest && state.score < prevBest && prevBest - state.score <= 5
+      ? ` ${prevBest - state.score} short of your best (${prevBest}).`
+      : "");
 
   // Run stats.
   const gsPerfects = document.getElementById("gs-perfects");

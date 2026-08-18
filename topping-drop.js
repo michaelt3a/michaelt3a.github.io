@@ -311,7 +311,10 @@
       return;
     }
     overSub.textContent =
-      "You caught " + state.score + " topping" + (state.score === 1 ? "" : "s") + ".";
+      "You caught " + state.score + " topping" + (state.score === 1 ? "" : "s") + "." +
+      (state.score < best && best - state.score <= 5
+        ? " " + (best - state.score) + " short of your best (" + best + ")."
+        : "");
     pointsLine.hidden = true;
     lbEntry.classList.add("hidden");
     lbDone.classList.add("hidden");
