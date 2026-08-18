@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=41" />
+  <link rel="stylesheet" href="menu.css?v=42" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -39,6 +39,7 @@
       </svg>
     </button>
     <a class="corner-btn" href="shop.html" aria-label="Rewards Shop">
+      <span class="corner-pts" id="corner-pts" hidden>0</span>
       <!-- storefront with a striped awning -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="4.5" y="10.5" width="15" height="9.5" rx="1" fill="#e6f3fb" stroke="#3f3c66" stroke-width="1.5" />
@@ -71,7 +72,7 @@
          One flat grid, neal.fun style: every game is a single banner tile
          with its name on the art. Training games carry a Training chip and
          raise a caution barrier on hover; they still open on click. -->
-    <div class="cards" data-latest="topping-drop">
+    <div class="cards" data-latest="poke-slice">
           <a class="card" data-game="bowl-builder" href="bowl-builder.html">
             <div class="card-icon icon-bowl">
               <!-- A block hovers over the ingredient stack, ghost line and all. -->
@@ -240,6 +241,26 @@
             <span class="card-name">Bowl Rush</span>
           </a>
 
+          <a class="card" data-game="poke-slice" href="poke-slice.html">
+            <div class="card-icon icon-slice">
+              <!-- The catch mid-toss, one swoosh cutting through on a loop. -->
+              <svg viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <g font-size="30" text-anchor="middle">
+                  <text x="110" y="54" transform="rotate(-14 110 54)">🐟</text>
+                  <text x="212" y="40" transform="rotate(8 212 40)">🍣</text>
+                  <text x="300" y="66" transform="rotate(-6 300 66)">🥑</text>
+                  <text x="347" y="32" font-size="24" transform="rotate(12 347 32)">🧨</text>
+                  <text x="62" y="94" font-size="24" transform="rotate(10 62 94)">🍤</text>
+                </g>
+                <g class="psl-swoosh" stroke="#ffffff" stroke-linecap="round">
+                  <line x1="60" y1="96" x2="252" y2="24" stroke-width="5" />
+                  <line x1="92" y1="99" x2="242" y2="43" stroke-width="2.5" opacity="0.5" />
+                </g>
+              </svg>
+            </div>
+            <span class="card-name">Poke Slice</span>
+          </a>
+
           <a class="card card-training" data-game="signature-works" href="placeholder-1.html">
             <div class="card-icon icon-signature">
               <!-- The 9 real signature bowls on a slow conveyor; the strip is
@@ -403,12 +424,12 @@
   <script src="achievements.js?v=9"></script>
   <!-- daily.js first: hub-leaderboard.js registers today's board from it,
        and challenges.js draws today's quest set from its seeded streams -->
-  <script src="daily.js?v=5"></script>
+  <script src="daily.js?v=6"></script>
   <script src="boost.js?v=1"></script>
   <script src="track.js?v=1"></script>
   <script src="points.js?v=2"></script>
   <script src="mail-sync.js?v=2"></script>
-  <script src="challenges.js?v=4"></script>
+  <script src="challenges.js?v=5"></script>
   <script src="hub-leaderboard.js?v=10"></script>
   <script src="wordfilter.js?v=1"></script>
   <script src="player-card.js?v=9"></script>
@@ -527,6 +548,37 @@
       el.classList.remove("open");
       document.body.classList.remove("sheet-lock");
       setTimeout(() => { el.hidden = true; }, 200);
+      refreshDots(); // a name may have been set, or the daily played
+    }
+
+    // Corner tray status: a dot on 🗓 until today's daily is played, a dot on
+    // 👤 until a name exists, and the live points balance under 🎁.
+    function refreshDots() {
+      const set = (btn, on) => {
+        let d = btn.querySelector(".corner-dot");
+        if (on && !d) {
+          d = document.createElement("span");
+          d.className = "corner-dot";
+          btn.appendChild(d);
+        } else if (!on && d) {
+          d.remove();
+        }
+      };
+      set(document.querySelector('[data-open="sheet-daily"]'), !(window.Daily && Daily.result()));
+      set(document.querySelector('[data-open="sheet-you"]'), !(window.PlayerCard && PlayerCard.getName()));
+    }
+    refreshDots();
+    window.addEventListener("pageshow", refreshDots); // back from a game
+
+    {
+      const pts = document.getElementById("corner-pts");
+      const paint = () => {
+        const n = PokePoints.balance();
+        pts.hidden = n <= 0;
+        pts.textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n);
+      };
+      PokePoints.onChange(paint);
+      paint();
     }
 
     for (const btn of document.querySelectorAll("[data-open]")) {

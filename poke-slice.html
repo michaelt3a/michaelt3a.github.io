@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bowl Rush - Pokeworks</title>
-  <meta name="description" content="Sort ingredients to their station before the clock runs out." />
+  <title>Poke Slice - Pokeworks</title>
+  <meta name="description" content="Swipe to slice the fresh catch." />
   <link rel="stylesheet" href="styles.css?v=22" />
-  <link rel="stylesheet" href="bowl-rush.css?v=3" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -36,42 +35,27 @@
       </div>
     </header>
 
-    <main class="stage rush-stage">
-      <div class="rush-play" id="rush-play" hidden>
-        <div class="rush-timer"><i id="rush-timer-fill"></i></div>
-        <!-- Ingredients ride this belt; drag them off into the tubs below -->
-        <div class="rush-field" id="rush-field">
-          <div class="rush-conveyor" aria-hidden="true">
-            <span class="belt"></span>
-            <span class="roller left"></span>
-            <span class="roller right"></span>
-            <span class="leg left"></span>
-            <span class="leg right"></span>
-          </div>
-        </div>
-        <p class="rush-msg" id="rush-msg">&nbsp;</p>
-        <div class="rush-bins" id="rush-bins"></div>
-      </div>
+    <main class="stage">
+      <canvas id="game" class="game-canvas" width="800" height="600"></canvas>
 
       <div id="overlay" class="overlay">
         <div id="screen-start" class="overlay-panel">
-          <h1 class="overlay-title" id="start-title">Bowl Rush</h1>
+          <h1 class="overlay-title" id="start-title">Poke Slice</h1>
           <p class="overlay-subtitle" id="start-subtitle">
-            The line is slammed. Ingredients ride the conveyor; drag each one
-            into its station tub before it rolls off the end. A wrong tub
-            costs 3 seconds.
+            Swipe to slice the fresh catch. Letting food drop or slicing
+            dynamite costs a heart; three hearts per shift.
           </p>
           <button id="start-btn" class="btn" type="button">Start</button>
         </div>
 
-        <!-- 3-2-1 before the belt starts -->
+        <!-- 3-2-1 before the first toss -->
         <div id="screen-count" class="overlay-panel hidden">
           <h1 class="overlay-title" id="count-num">3</h1>
         </div>
 
         <div id="screen-gameover" class="overlay-panel hidden">
-          <h1 class="overlay-title">Time!</h1>
-          <p class="overlay-subtitle" id="gameover-subtitle">You sorted 0 ingredients.</p>
+          <h1 class="overlay-title">Shift Over!</h1>
+          <p class="overlay-subtitle" id="gameover-subtitle">You sliced 0 pieces.</p>
           <p class="gameover-quip" id="points-line" hidden></p>
           <!-- Daily runs post to the day's board -->
           <div id="lb-entry" class="lb-entry hidden">
@@ -98,7 +82,7 @@
   <script src="boost.js?v=1"></script>
   <script src="points.js?v=2"></script>
   <script src="wordfilter.js?v=1"></script>
-  <script src="bowl-rush.js?v=5"></script>
+  <script src="poke-slice.js?v=1"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

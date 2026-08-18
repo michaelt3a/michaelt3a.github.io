@@ -47,6 +47,43 @@ body {
   text-decoration: none;
 }
 
+/* Corner tray status: nudge dots and the points balance. */
+.pk-corner .corner-btn {
+  position: relative;
+}
+
+.corner-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #0a1010;
+  pointer-events: none;
+}
+
+:root[data-theme="light"] .corner-dot {
+  border-color: #f3efe6;
+}
+
+.corner-pts {
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffd15a;
+  color: #4a3a00;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0.14rem 0.42rem;
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 /* Drawn icons inside corner buttons (daily calendar, shop awning). */
 .corner-btn svg {
   width: 22px;
@@ -342,6 +379,21 @@ body {
   to { transform: translateX(500px); }
 }
 
+.icon-slice {
+  background: linear-gradient(135deg, #39a85b, #ee435b);
+}
+/* The blade swoosh flashes through the toss. */
+.psl-swoosh {
+  animation: psl-swoosh 2.8s ease-in-out infinite;
+  opacity: 0;
+}
+@keyframes psl-swoosh {
+  0%, 52% { opacity: 0; transform: translate(-14px, 6px); }
+  62% { opacity: 1; }
+  78% { opacity: 0.9; transform: translate(22px, -8px); }
+  90%, 100% { opacity: 0; transform: translate(30px, -12px); }
+}
+
 .icon-shopper {
   background: linear-gradient(135deg, #7c5cff, #ee435b);
 }
@@ -357,7 +409,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bbi-float, .oui-coin, .oui-coin2, .ssi-lens, .tdi-fall, .bri-slide { animation: none; }
+  .bbi-float, .oui-coin, .oui-coin2, .ssi-lens, .tdi-fall, .bri-slide, .psl-swoosh { animation: none; }
 }
 
 .icon-placeholder {

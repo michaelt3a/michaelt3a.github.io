@@ -1,8 +1,11 @@
 // Topping Drop — a catcher. Ingredients rain from the top of the box; slide
 // the bowl to catch the good ones. Losing a heart happens two ways: catching
 // a fork or rogue chili, or letting good food hit the floor. Three hearts a
-// run. Points are stingy on purpose: only a new personal best earns any,
-// one point per block of improvement, capped per run.
+// run, and stray hearts fall to heal you (normal runs only).
+//
+// Daily mode (?daily=1): the rain is seeded from the date so everyone gets
+// the same run, hearts don't fall, it's one attempt, and the score posts to
+// the day's board instead of paying personal-best points.
 (function () {
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -11,21 +14,55 @@
 
   const overlay = document.getElementById("overlay");
   const screenStart = document.getElementById("screen-start");
+  const screenCount = document.getElementById("screen-count");
   const screenOver = document.getElementById("screen-gameover");
+  const startTitle = document.getElementById("start-title");
+  const startSub = document.getElementById("start-subtitle");
+  const startBtn = document.getElementById("start-btn");
+  const countNum = document.getElementById("count-num");
   const scoreEl = document.getElementById("score");
   const bestEl = document.getElementById("high-score");
   const overSub = document.getElementById("gameover-subtitle");
   const pointsLine = document.getElementById("points-line");
+  const playAgainBtn = document.getElementById("play-again-btn");
+  const lbEntry = document.getElementById("lb-entry");
+  const lbName = document.getElementById("lb-name");
+  const lbSave = document.getElementById("lb-save-btn");
+  const lbDone = document.getElementById("lb-done");
 
   const BEST_KEY = "pokeworks-topping-best";
+  const NAME_KEY = "pokeworks-lb-name";
   const GOOD = ["🍣", "🥑", "🥒", "🍤", "🌽", "🥭", "🧅"];
   const BAD = ["🍴", "🌶️"];
-  const BOWL_HALF = 68; // catch window either side of the bowl's center
-  const BOWL_Y = 540; // rim height in world pixels
+  const BOWL_HALF = 68;
+  const BOWL_Y = 540;
+
+  // Daily plumbing: this page load is a live daily run only if the link says
+  // so, it's actually Topping Drop's day, and today's attempt isn't spent.
+  const wantsDaily = !!(window.Daily && Daily.isRun());
+  const isDaily = wantsDaily && Daily.isTodaysGame("td") && !Daily.result();
+  let rng = Math.random; // swapped for the seeded stream on daily runs
 
   let best = 0;
   try { best = parseInt(localStorage.getItem(BEST_KEY), 10) || 0; } catch (e) { /* ignore */ }
   bestEl.textContent = String(best);
+
+  if (wantsDaily) {
+    startTitle.textContent = "🗓 Daily Challenge";
+    if (!Daily.isTodaysGame("td")) {
+      startSub.textContent =
+        "Today's challenge is " + Daily.challenge().game.label + ". Head back to the hub for it.";
+      startBtn.classList.add("hidden");
+      startBtn.style.display = "none";
+    } else if (Daily.result()) {
+      startSub.textContent =
+        "You've already played today: " + Daily.result().score + " catches. Back tomorrow for a new rain.";
+      startBtn.classList.add("hidden");
+      startBtn.style.display = "none";
+    } else {
+      startSub.textContent = "Everyone gets this exact rain today. One attempt, so make it count.";
+    }
+  }
 
   const state = {
     running: false,
@@ -34,13 +71,13 @@
     lives: 3,
     combo: 0,
     elapsed: 0,
-    items: [], // {x, y, vy, spin, glyph, bad}
+    items: [],
     bowlX: W / 2,
     targetX: W / 2,
     spawnIn: 0,
     lastTime: 0,
-    flash: 0, // red edge flash after catching something bad
-    floaters: [], // little "+❤️" pops
+    flash: 0,
+    floaters: [],
   };
 
   function setScore(n) {
@@ -48,15 +85,15 @@
     scoreEl.textContent = String(n);
   }
 
-  // Difficulty ramp: everything keys off seconds played.
   function fallSpeed() { return Math.min(150 + state.elapsed * 4.5, 330); }
   function spawnEvery() { return Math.max(0.9 - state.elapsed * 0.008, 0.4); }
   function badChance() { return Math.min(0.16 + state.elapsed * 0.002, 0.3); }
 
   function spawn() {
-    // A stray heart now and then while you're hurt; catch it to heal. It
-    // falls a touch slower than food so it's genuinely catchable.
-    if (state.lives < 3 && Math.random() < 0.08) {
+    // Stray hearts heal in normal runs. Daily runs skip them entirely (and
+    // draw nothing extra from the stream) so the seeded rain stays identical
+    // for every player.
+    if (!isDaily && state.lives < 3 && Math.random() < 0.08) {
       state.items.push({
         x: 60 + Math.random() * (W - 120),
         y: -30,
@@ -68,14 +105,18 @@
       });
       return;
     }
-    const bad = Math.random() < badChance();
+    // Fixed draw order (x, speed, spin, bad?, which) keeps daily runs in sync.
+    const x = 60 + rng() * (W - 120);
+    const vy = fallSpeed() * (0.85 + rng() * 0.3);
+    const spin = (rng() - 0.5) * 2.4;
+    const bad = rng() < badChance();
     const list = bad ? BAD : GOOD;
     state.items.push({
-      x: 60 + Math.random() * (W - 120),
+      x: x,
       y: -30,
-      vy: fallSpeed() * (0.85 + Math.random() * 0.3),
-      spin: (Math.random() - 0.5) * 2.4,
-      glyph: list[Math.floor(Math.random() * list.length)],
+      vy: vy,
+      spin: spin,
+      glyph: list[Math.floor(rng() * list.length)],
       bad: bad,
     });
   }
@@ -93,38 +134,92 @@
     state.lastTime = 0;
     state.flash = 0;
     state.floaters = [];
+    rng = isDaily ? Daily.stream("td:spawn") : Math.random;
     overlay.classList.add("hidden");
     if (window.PokeStreak) PokeStreak.mark();
-    if (window.PokeTrack) PokeTrack.hit("play", "topping");
+    if (window.PokeTrack) PokeTrack.hit(isDaily ? "daily" : "play", "topping");
+  }
+
+  // 3-2-1 so your hand is on the bowl before the rain starts.
+  let counting = false;
+  function runCountdown() {
+    if (counting || state.running) return;
+    counting = true;
+    screenStart.classList.add("hidden");
+    screenOver.classList.add("hidden");
+    screenCount.classList.remove("hidden");
+    overlay.classList.remove("hidden");
+    let n = 3;
+    countNum.textContent = "3";
+    const tick = setInterval(() => {
+      n--;
+      if (n > 0) { countNum.textContent = String(n); return; }
+      clearInterval(tick);
+      counting = false;
+      screenCount.classList.add("hidden");
+      startGame();
+    }, 750);
+  }
+
+  function loadLbName() {
+    try { return localStorage.getItem(NAME_KEY) || ""; } catch (e) { return ""; }
   }
 
   function endGame() {
     state.running = false;
     overSub.textContent =
       "You caught " + state.score + " topping" + (state.score === 1 ? "" : "s") + ".";
-    // Points only for pushing your personal best, capped so runs can't farm.
-    let pts = 0;
-    if (state.score > best) {
-      pts = Math.min(20, state.score - best);
-      best = state.score;
-      try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* ignore */ }
-      bestEl.textContent = String(best);
-      if (window.PokePoints) PokePoints.add(pts, "Topping Drop: new best " + best);
-    }
-    if (pts > 0) {
-      pointsLine.hidden = false;
-      pointsLine.textContent = "🏆 New best! +" + pts + " points";
+    pointsLine.hidden = true;
+    lbEntry.classList.add("hidden");
+    lbDone.classList.add("hidden");
+
+    if (isDaily) {
+      // One attempt: post to the day's board; the +50 pts land via the hub.
+      Daily.complete(state.score);
+      playAgainBtn.hidden = true;
+      lbName.value = loadLbName();
+      lbEntry.classList.remove("hidden");
     } else {
-      pointsLine.hidden = true;
+      playAgainBtn.hidden = false;
+      let pts = 0;
+      if (state.score > best) {
+        pts = Math.min(20, state.score - best);
+        best = state.score;
+        try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* ignore */ }
+        bestEl.textContent = String(best);
+        if (window.PokePoints) PokePoints.add(pts, "Topping Drop: new best " + best);
+      }
+      if (pts > 0) {
+        pointsLine.hidden = false;
+        pointsLine.textContent = "🏆 New best! +" + pts + " points";
+      }
     }
     screenStart.classList.add("hidden");
     screenOver.classList.remove("hidden");
     overlay.classList.remove("hidden");
   }
 
+  async function submitDaily() {
+    let name = (lbName.value || "").trim().slice(0, 12);
+    if (!name) { lbName.focus(); return; }
+    if (window.PokeFilter && !PokeFilter.ok(name)) {
+      lbName.value = "";
+      lbName.placeholder = "Pick another name";
+      return;
+    }
+    try { localStorage.setItem(NAME_KEY, name); } catch (e) { /* ignore */ }
+    lbSave.disabled = true;
+    try { await Daily.submit(name, state.score); } catch (e) { /* local mirror already saved */ }
+    lbSave.disabled = false;
+    lbEntry.classList.add("hidden");
+    lbDone.classList.remove("hidden");
+  }
+  lbSave.addEventListener("click", submitDaily);
+  lbName.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); submitDaily(); }
+  });
+
   // --- Input: the bowl tracks the pointer -----------------------------------
-  // Listening on the whole window keeps tracking alive when the pointer
-  // wanders past the box edge, so the bowl never stalls mid-chase.
   function trackPointer(e) {
     if (!state.running) return;
     const rect = canvas.getBoundingClientRect();
@@ -133,13 +228,9 @@
   window.addEventListener("pointermove", trackPointer);
   window.addEventListener("pointerdown", trackPointer);
 
-  document.getElementById("start-btn").addEventListener("click", startGame);
-  document.getElementById("play-again-btn").addEventListener("click", () => {
-    screenOver.classList.add("hidden");
-    startGame();
-  });
+  startBtn.addEventListener("click", runCountdown);
+  playAgainBtn.addEventListener("click", runCountdown);
 
-  // A backgrounded tab freezes rather than losing you the run.
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && state.running) { state.paused = true; state.lastTime = 0; }
     else state.paused = false;
@@ -153,8 +244,6 @@
       spawn();
       state.spawnIn = spawnEvery();
     }
-    // Tight tracking: the bowl basically rides the cursor, with just enough
-    // smoothing left to keep it from feeling jittery.
     state.bowlX += (state.targetX - state.bowlX) * Math.min(1, dt * 34);
     state.bowlX = Math.max(70, Math.min(W - 70, state.bowlX));
 
@@ -182,7 +271,6 @@
         state.items.splice(i, 1);
         // A missed heart is a shame, not a punishment.
         if (!it.bad && !it.heart) {
-          // Dropped food costs a heart, same as catching junk.
           state.combo = 0;
           state.lives--;
           state.flash = 0.35;
@@ -221,7 +309,6 @@
   function render() {
     ctx.clearRect(0, 0, W, H);
 
-    // falling items
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     for (const it of state.items) {
@@ -235,7 +322,6 @@
 
     drawBowl();
 
-    // lives, top-left
     ctx.font = "26px system-ui, sans-serif";
     ctx.textAlign = "left";
     for (let i = 0; i < 3; i++) {
@@ -244,7 +330,6 @@
     }
     ctx.globalAlpha = 1;
 
-    // rising "+❤️" pops
     ctx.textAlign = "center";
     for (const f of state.floaters) {
       ctx.save();
@@ -254,7 +339,6 @@
       ctx.restore();
     }
 
-    // combo tag once it's worth bragging about
     if (state.combo >= 5) {
       ctx.font = "700 20px system-ui, sans-serif";
       ctx.fillStyle = "#ffd15a";
@@ -262,7 +346,6 @@
       ctx.fillText("x" + state.combo + " streak", state.bowlX, BOWL_Y - 34);
     }
 
-    // red edge flash after a bad catch
     if (state.flash > 0) {
       ctx.save();
       ctx.globalAlpha = state.flash * 1.6;

@@ -32,6 +32,14 @@
   const WRONG_PENALTY = 3;
   const BELT_Y = 22; // chip row inside the belt strip
   const BEST_KEY = "pokeworks-rush-best";
+  const NAME_KEY = "pokeworks-lb-name";
+
+  // Daily plumbing: a live daily run only if the link says so, it's actually
+  // Bowl Rush's day, and today's attempt isn't spent. The deck order comes
+  // from the day's seeded stream so everyone sorts the same sequence.
+  const wantsDaily = !!(window.Daily && Daily.isRun());
+  const isDaily = wantsDaily && Daily.isTodaysGame("br") && !Daily.result();
+  let rng = Math.random;
 
   const fieldEl = document.getElementById("rush-field");
   const msgEl = document.getElementById("rush-msg");
@@ -49,6 +57,35 @@
   let best = 0;
   try { best = parseInt(localStorage.getItem(BEST_KEY), 10) || 0; } catch (e) { /* ignore */ }
   bestEl.textContent = String(best);
+
+  const screenCount = document.getElementById("screen-count");
+  const countNum = document.getElementById("count-num");
+  const startTitle = document.getElementById("start-title");
+  const startSub = document.getElementById("start-subtitle");
+  const startBtn = document.getElementById("start-btn");
+  const playAgainBtn = document.getElementById("play-again-btn");
+  const lbEntry = document.getElementById("lb-entry");
+  const lbName = document.getElementById("lb-name");
+  const lbSave = document.getElementById("lb-save-btn");
+  const lbDone = document.getElementById("lb-done");
+
+  if (wantsDaily) {
+    startTitle.textContent = "🗓 Daily Challenge";
+    if (!Daily.isTodaysGame("br")) {
+      startSub.textContent =
+        "Today's challenge is " + Daily.challenge().game.label + ". Head back to the hub for it.";
+      startBtn.classList.add("hidden");
+      startBtn.style.display = "none";
+    } else if (Daily.result()) {
+      startSub.textContent =
+        "You've already played today: " + Daily.result().score + " sorted. Back tomorrow for a new line.";
+      startBtn.classList.add("hidden");
+      startBtn.style.display = "none";
+    } else {
+      startSub.textContent =
+        "Everyone sorts this exact line today. One attempt, so make it count. Wrong tub costs 3 seconds.";
+    }
+  }
 
   const state = {
     running: false,
@@ -96,7 +133,7 @@
 
   function pickIngredient() {
     let it;
-    do { it = DECK[Math.floor(Math.random() * DECK.length)]; }
+    do { it = DECK[Math.floor(rng() * DECK.length)]; }
     while (it.name === state.lastName);
     state.lastName = it.name;
     return it;
@@ -234,8 +271,34 @@
     say(" ");
     playEl.hidden = false;
     overlay.classList.add("hidden");
+    rng = isDaily ? Daily.stream("br:deck") : Math.random;
     if (window.PokeStreak) PokeStreak.mark();
-    if (window.PokeTrack) PokeTrack.hit("play", "rush");
+    if (window.PokeTrack) PokeTrack.hit(isDaily ? "daily" : "play", "rush");
+  }
+
+  // 3-2-1 so your hand is over the belt before chips start rolling.
+  let counting = false;
+  function runCountdown() {
+    if (counting || state.running) return;
+    counting = true;
+    screenStart.classList.add("hidden");
+    screenOver.classList.add("hidden");
+    screenCount.classList.remove("hidden");
+    overlay.classList.remove("hidden");
+    let n = 3;
+    countNum.textContent = "3";
+    const tick = setInterval(() => {
+      n--;
+      if (n > 0) { countNum.textContent = String(n); return; }
+      clearInterval(tick);
+      counting = false;
+      screenCount.classList.add("hidden");
+      startGame();
+    }, 750);
+  }
+
+  function loadLbName() {
+    try { return localStorage.getItem(NAME_KEY) || ""; } catch (e) { return ""; }
   }
 
   function endGame() {
@@ -245,30 +308,58 @@
     playEl.hidden = true;
     overSub.textContent =
       "You sorted " + state.score + " ingredient" + (state.score === 1 ? "" : "s") + ".";
-    let pts = 0;
-    if (state.score > best) {
-      pts = Math.min(20, state.score - best);
-      best = state.score;
-      try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* ignore */ }
-      bestEl.textContent = String(best);
-      if (window.PokePoints) PokePoints.add(pts, "Bowl Rush: new best " + best);
-    }
-    if (pts > 0) {
-      pointsLine.hidden = false;
-      pointsLine.textContent = "🏆 New best! +" + pts + " points";
+    pointsLine.hidden = true;
+    lbEntry.classList.add("hidden");
+    lbDone.classList.add("hidden");
+
+    if (isDaily) {
+      // One attempt: post to the day's board; the +50 pts land via the hub.
+      Daily.complete(state.score);
+      playAgainBtn.hidden = true;
+      lbName.value = loadLbName();
+      lbEntry.classList.remove("hidden");
     } else {
-      pointsLine.hidden = true;
+      playAgainBtn.hidden = false;
+      let pts = 0;
+      if (state.score > best) {
+        pts = Math.min(20, state.score - best);
+        best = state.score;
+        try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* ignore */ }
+        bestEl.textContent = String(best);
+        if (window.PokePoints) PokePoints.add(pts, "Bowl Rush: new best " + best);
+      }
+      if (pts > 0) {
+        pointsLine.hidden = false;
+        pointsLine.textContent = "🏆 New best! +" + pts + " points";
+      }
     }
     screenStart.classList.add("hidden");
     screenOver.classList.remove("hidden");
     overlay.classList.remove("hidden");
   }
 
-  document.getElementById("start-btn").addEventListener("click", startGame);
-  document.getElementById("play-again-btn").addEventListener("click", () => {
-    screenOver.classList.add("hidden");
-    startGame();
+  async function submitDaily() {
+    let name = (lbName.value || "").trim().slice(0, 12);
+    if (!name) { lbName.focus(); return; }
+    if (window.PokeFilter && !PokeFilter.ok(name)) {
+      lbName.value = "";
+      lbName.placeholder = "Pick another name";
+      return;
+    }
+    try { localStorage.setItem(NAME_KEY, name); } catch (e) { /* ignore */ }
+    lbSave.disabled = true;
+    try { await Daily.submit(name, state.score); } catch (e) { /* local mirror already saved */ }
+    lbSave.disabled = false;
+    lbEntry.classList.add("hidden");
+    lbDone.classList.remove("hidden");
+  }
+  lbSave.addEventListener("click", submitDaily);
+  lbName.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); submitDaily(); }
   });
+
+  startBtn.addEventListener("click", runCountdown);
+  playAgainBtn.addEventListener("click", runCountdown);
 
   // A backgrounded tab freezes the clock rather than eating the round.
   document.addEventListener("visibilitychange", () => {

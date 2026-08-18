@@ -40,15 +40,29 @@
 
       <div id="overlay" class="overlay">
         <div id="screen-start" class="overlay-panel">
-          <h1 class="overlay-title">Topping Drop</h1>
-          <p class="overlay-subtitle">Slide the bowl across the screen and catch the toppings.</p>
+          <h1 class="overlay-title" id="start-title">Topping Drop</h1>
+          <p class="overlay-subtitle" id="start-subtitle">Slide the bowl across the screen and catch the toppings.</p>
           <button id="start-btn" class="btn" type="button">Start</button>
+        </div>
+
+        <!-- 3-2-1 before the rain starts -->
+        <div id="screen-count" class="overlay-panel hidden">
+          <h1 class="overlay-title" id="count-num">3</h1>
         </div>
 
         <div id="screen-gameover" class="overlay-panel hidden">
           <h1 class="overlay-title">Shift Over!</h1>
           <p class="overlay-subtitle" id="gameover-subtitle">You caught 0 toppings.</p>
           <p class="gameover-quip" id="points-line" hidden></p>
+          <!-- Daily runs post to the day's board -->
+          <div id="lb-entry" class="lb-entry hidden">
+            <p class="lb-entry-msg">🗓 Post today's challenge score!</p>
+            <div class="lb-entry-row">
+              <input id="lb-name" class="lb-input" type="text" maxlength="12" placeholder="Your name" autocomplete="off" />
+              <button id="lb-save-btn" class="btn" type="button">Save</button>
+            </div>
+          </div>
+          <p id="lb-done" class="lb-entry-msg lb-done hidden">✓ Saved! See today's board on the hub.</p>
           <div class="gameover-actions">
             <button id="play-again-btn" class="btn" type="button">Play Again</button>
             <a class="btn btn-secondary" href="index.html">Done</a>
@@ -59,10 +73,13 @@
   </div>
 
   <script src="transitions.js?v=4"></script>
+  <script src="supabase-config.js?v=2"></script>
+  <script src="daily.js?v=6"></script>
   <script src="track.js?v=1"></script>
   <script src="boost.js?v=1"></script>
   <script src="points.js?v=2"></script>
-  <script src="topping-drop.js?v=3"></script>
+  <script src="wordfilter.js?v=1"></script>
+  <script src="topping-drop.js?v=4"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

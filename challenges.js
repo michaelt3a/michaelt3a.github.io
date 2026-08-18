@@ -15,7 +15,7 @@
   const TOP_PTS = 150;    // being #1 on yesterday's daily board
   const STREAK_PTS = 200; // every 7th day in a row with a customer game played
   const STREAK_DAYS = 7;
-  const CUSTOMER = { bowl: true, ou: true };
+  const CUSTOMER = { bowl: true, ou: true, td: true, br: true, ps: true };
   // How many challenges each game rolls per day, by tier.
   const PICKS = { starter: 1, mid: 2, hard: 2 };
 
