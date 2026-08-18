@@ -13,17 +13,17 @@
 
   const STEPS = [
     {
-      sel: ".dc",
+      sel: '[data-open="sheet-daily"]',
       title: "🗓 The Daily Challenge",
-      text: "One shared run a day. Everyone gets the same game, one attempt each.",
+      text: "One shared run a day lives behind this button. Everyone gets the same game, one attempt each.",
     },
     {
-      sel: '[data-open="sheet-ch"]',
-      title: "🎯 Daily challenges",
-      text: "Fresh goals in the customer games every day. Finish them to earn points.",
+      sel: '[data-open="sheet-you"]',
+      title: "👤 Your profile",
+      text: "Set your name here, plus stats, achievements, boards, and the day's point challenges.",
     },
     {
-      sel: ".shop-strip",
+      sel: '.pk-corner a[href="shop.html"]',
       title: "🎁 The Rewards Shop",
       text: "Points add up to discount codes. That's the loop. Have fun!",
     },
