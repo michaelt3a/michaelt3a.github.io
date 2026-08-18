@@ -395,6 +395,23 @@ body {
   border-color: var(--accent);
 }
 
+/* Pause: a round icon button inside the box, above the overlay so it can
+   resume too. Bottom-right stays clear of the combo ring and badges. */
+#pause-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 17;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 /* Game over quip */
 .gameover-quip {
   color: var(--accent);

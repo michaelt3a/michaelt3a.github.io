@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bowl Builder - Pokeworks</title>
   <meta name="description" content="Pokeworks Bowl Builder minigame." />
-  <link rel="stylesheet" href="styles.css?v=21" />
+  <link rel="stylesheet" href="styles.css?v=22" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -108,12 +108,12 @@
         </div>
       </div>
 
+      <!-- Pause lives in the box's corner; icon flips to ▶ while paused -->
+      <button id="pause-btn" class="control-btn" type="button" aria-label="Pause" style="display:none">⏸</button>
     </main>
 
-    <!-- Controls below the box -->
-    <div class="controls">
-      <button id="pause-btn" class="control-btn" type="button">⏸ Pause</button>
-    </div>
+    <!-- Duel controls (Ready, Sabotage) land below the box -->
+    <div class="controls"></div>
   </div>
 
   <script src="transitions.js?v=4"></script>
@@ -127,7 +127,7 @@
   <script src="challenges.js?v=4"></script>
   <script src="wordfilter.js?v=1"></script>
   <script src="duel.js?v=6"></script>
-  <script src="script.js?v=33"></script>
+  <script src="script.js?v=34"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

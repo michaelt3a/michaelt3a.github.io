@@ -827,7 +827,10 @@ function updateCombo() {
 
 function updatePauseBtn() {
   const manualPaused = state.running && state.paused && !screenPaused.classList.contains("hidden");
-  pauseBtn.textContent = manualPaused ? "▶ Resume" : "⏸ Pause";
+  pauseBtn.textContent = manualPaused ? "▶" : "⏸";
+  pauseBtn.setAttribute("aria-label", manualPaused ? "Resume" : "Pause");
+  // Only during play; on the menus it would just float over the overlay.
+  pauseBtn.style.display = state.running ? "" : "none";
 }
 
 function pauseGame() {
