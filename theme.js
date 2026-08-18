@@ -34,6 +34,28 @@
 
   apply(initial()); // before paint
 
+  // The starfield picks a new color each day, same for everyone: orange,
+  // pink, purple, yellow, blue, then around again. The pattern is the same
+  // sparkle tile as bg-pattern.svg, rebuilt inline with the day's color;
+  // theme.css falls back to the teal file if this never runs.
+  (function () {
+    var COLORS = ["#fd9f27", "#ff6fa5", "#8f6ef0", "#ffd15a", "#4aa8ff"];
+    var day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
+    var color = COLORS[day % COLORS.length];
+    var SPARK = 'M0,-6 L1.1,-1.1 L6,0 L1.1,1.1 L0,6 L-1.1,1.1 L-6,0 L-1.1,-1.1 Z';
+    var sparks = [[34, 40, 1.35], [150, 30, 0.9], [101, 72, 0.65], [60, 108, 1.15], [168, 96, 0.75], [28, 150, 0.85], [122, 138, 1.4], [174, 166, 0.6], [84, 180, 0.95]];
+    var dots = [[94, 26, 1.5], [136, 96, 1.3], [46, 72, 1.2], [160, 132, 1.4], [70, 150, 1.1], [186, 56, 1.3], [112, 186, 1.2]];
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><g fill="' + color + '" opacity="0.55">';
+    for (var i = 0; i < sparks.length; i++) {
+      svg += '<path d="' + SPARK + '" transform="translate(' + sparks[i][0] + ',' + sparks[i][1] + ') scale(' + sparks[i][2] + ')"/>';
+    }
+    for (var j = 0; j < dots.length; j++) {
+      svg += '<circle cx="' + dots[j][0] + '" cy="' + dots[j][1] + '" r="' + dots[j][2] + '"/>';
+    }
+    svg += "</g></svg>";
+    root.style.setProperty("--star-pattern", 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")');
+  })();
+
   function corner() {
     var c = document.getElementById("pk-corner");
     if (!c) {

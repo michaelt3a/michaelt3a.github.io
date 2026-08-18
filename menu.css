@@ -61,59 +61,119 @@ body {
   margin: 0;
 }
 
-/* Game groups: customer games up top, training games below. */
-.game-groups {
-  display: grid;
-  gap: 1.6rem;
-}
-
-.group-title {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin: 0 0 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--on-dark-muted);
-}
-
-/* A rule line carries the label across the full width. */
-.group-title::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, currentColor, transparent);
-  opacity: 0.35;
-}
-
-/* Cards */
+/* Cards: one flat neal.fun-style grid. Every game is a single banner tile
+   with its name sitting on the art; no sections, no descriptions. */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.25rem;
 }
 
 .card {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  display: block;
   background: var(--panel);
-  border: 1px solid transparent;
-  border-radius: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .card-icon {
-  height: 130px;
+  height: 150px;
+}
+
+/* The game's name, resting on a soft scrim so it reads over any art. */
+.card-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.6rem 0.9rem 0.6rem;
+  background: linear-gradient(transparent, rgba(6, 10, 12, 0.78));
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* Training games: a quiet chip all the time, a caution barrier on hover.
+   The barrier is a heads-up, not a lock; the card still opens. */
+.train-chip {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #14141a;
+  background: #ffd15a;
+  padding: 0.26rem 0.55rem;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.train-barrier {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.7rem;
+  background: rgba(8, 10, 14, 0.55);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+  pointer-events: none;
+}
+
+.train-stripe {
+  display: block;
+  width: 120%;
+  height: 13px;
+  transform: rotate(-3deg);
+  background: repeating-linear-gradient(45deg, #ffd15a 0 14px, #14141a 14px 28px);
+}
+.train-stripe:last-child {
+  transform: rotate(3deg);
+}
+
+.train-msg {
+  background: #fff;
+  color: #1f2b2b;
+  font-weight: 800;
+  font-size: 0.92rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.card-training:hover .train-barrier,
+.card-training:focus-visible .train-barrier {
+  opacity: 1;
+}
+.card-training:hover {
+  border-color: #ffd15a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .train-barrier {
+    transition-duration: 0.01ms;
+  }
 }
 
 /* Scene banners: each card draws its game as an inline SVG over its brand
@@ -225,21 +285,6 @@ body {
   background: linear-gradient(135deg, #eef4f4, #dbe8e8);
 }
 
-.card-body {
-  padding: 1.1rem 1.2rem 1.3rem;
-}
-
-.card-title {
-  margin: 0 0 0.35rem;
-  font-size: 1.25rem;
-}
-
-.card-desc {
-  margin: 0 0 0.9rem;
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
 .badge {
   display: inline-block;
   font-size: 0.72rem;
@@ -250,22 +295,15 @@ body {
   border-radius: 999px;
 }
 
-.badge-play {
-  background: none;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-}
-
-.badge-soon {
-  background: #e7efef;
-  color: var(--muted);
-}
-
-/* The freshest game wears this (data-latest on .cards picks which). */
+/* The freshest game wears this in its banner corner (data-latest picks which). */
 .badge-new {
-  margin-left: 0.4rem;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
   background: linear-gradient(180deg, #ffe9a8, #f5c542);
   color: #6a4c00;
+  pointer-events: none;
 }
 
 /* --------------------------------------------------------- daily challenge */

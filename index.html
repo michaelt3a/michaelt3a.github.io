@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=31" />
-  <link rel="stylesheet" href="theme.css?v=7" />
+  <link rel="stylesheet" href="menu.css?v=32" />
+  <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <script src="theme.js?v=4"></script>
+  <script src="theme.js?v=5"></script>
   <script src="sound.js?v=3"></script>
   <script src="streak.js?v=1"></script>
 </head>
@@ -36,11 +36,11 @@
     </a>
 
     <!-- data-latest names the game whose card wears the ✨ Updated tag.
-         Move it whenever a game ships an update. -->
-    <div class="game-groups" data-latest="word-bowl">
-      <section class="game-group">
-        <h2 class="group-title">Customer Games</h2>
-        <div class="cards">
+         Move it whenever a game ships an update.
+         One flat grid, neal.fun style: every game is a single banner tile
+         with its name on the art. Training games carry a Training chip and
+         raise a caution barrier on hover; they still open on click. -->
+    <div class="cards" data-latest="word-bowl">
           <a class="card" data-game="bowl-builder" href="bowl-builder.html">
             <div class="card-icon icon-bowl">
               <!-- A block hovers over the ingredient stack, ghost line and all. -->
@@ -60,11 +60,7 @@
                 <ellipse cx="202" cy="100" rx="62" ry="7" fill="#e8eef0" />
               </svg>
             </div>
-            <div class="card-body">
-              <h3 class="card-title">Bowl Builder</h3>
-              <p class="card-desc">Stack ingredients into the perfect poke bowl.</p>
-              <span class="badge badge-play">Play</span>
-            </div>
+            <span class="card-name">Bowl Builder</span>
           </a>
 
           <a class="card" data-game="order-up" href="order-up.html">
@@ -115,11 +111,7 @@
                 <ellipse cx="255" cy="75" rx="10" ry="3.5" fill="#ee435b" />
               </svg>
             </div>
-            <div class="card-body">
-              <h3 class="card-title">Order Up</h3>
-              <p class="card-desc">Fill customer orders before they leave.</p>
-              <span class="badge badge-play">Play</span>
-            </div>
+            <span class="card-name">Order Up</span>
           </a>
 
           <a class="card" data-game="word-bowl" href="word-bowl.html">
@@ -150,19 +142,10 @@
                 </g>
               </svg>
             </div>
-            <div class="card-body">
-              <h3 class="card-title">Word Bowl</h3>
-              <p class="card-desc">Guess the day's word in six tries.</p>
-              <span class="badge badge-play">Play</span>
-            </div>
+            <span class="card-name">Word Bowl</span>
           </a>
-        </div>
-      </section>
 
-      <section class="game-group">
-        <h2 class="group-title">Training Games</h2>
-        <div class="cards">
-          <a class="card" data-game="signature-works" href="placeholder-1.html">
+          <a class="card card-training" data-game="signature-works" href="placeholder-1.html">
             <div class="card-icon icon-signature">
               <!-- The 9 real signature bowls on a slow conveyor; the strip is
                    duplicated by script below so the loop is seamless. -->
@@ -178,14 +161,16 @@
                 <img src="sig-bowl-9.avif" alt="" loading="lazy" decoding="async" />
               </div>
             </div>
-            <div class="card-body">
-              <h3 class="card-title">Signature Works</h3>
-              <p class="card-desc">Build the 9 signature bowls from memory.</p>
-              <span class="badge badge-play">Play</span>
+            <span class="card-name">Signature Works</span>
+            <span class="train-chip">Training</span>
+            <div class="train-barrier" aria-hidden="true">
+              <span class="train-stripe"></span>
+              <span class="train-msg">🚧 Crew training zone</span>
+              <span class="train-stripe"></span>
             </div>
           </a>
 
-          <a class="card" data-game="secret-shopper" href="secret-shopper.html">
+          <a class="card card-training" data-game="secret-shopper" href="secret-shopper.html">
             <div class="card-icon icon-shopper">
               <!-- Three guests, one secret shopper — the magnifying glass keeps looking. -->
               <svg viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -227,14 +212,14 @@
                 </g>
               </svg>
             </div>
-            <div class="card-body">
-              <h3 class="card-title">Secret Shopper</h3>
-              <p class="card-desc">Ace every step of the secret shopper's visit.</p>
-              <span class="badge badge-play">Play</span>
+            <span class="card-name">Secret Shopper</span>
+            <span class="train-chip">Training</span>
+            <div class="train-barrier" aria-hidden="true">
+              <span class="train-stripe"></span>
+              <span class="train-msg">🚧 Crew training zone</span>
+              <span class="train-stripe"></span>
             </div>
           </a>
-        </div>
-      </section>
     </div>
 
     <div class="hub-actions">
@@ -368,10 +353,10 @@
       strip.innerHTML += strip.innerHTML;
     }
 
-    // Tag the most recently updated game (see data-latest on .game-groups).
+    // Tag the most recently updated game (see data-latest on .cards).
     {
-      const groups = document.querySelector(".game-groups");
-      const latest = groups.querySelector('.card[data-game="' + groups.dataset.latest + '"] .card-body');
+      const grid = document.querySelector(".cards[data-latest]");
+      const latest = grid.querySelector('.card[data-game="' + grid.dataset.latest + '"]');
       if (latest) {
         const tag = document.createElement("span");
         tag.className = "badge badge-new";

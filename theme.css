@@ -35,8 +35,10 @@
    A translucent wash of the page colour sits over it in light mode — simpler
    than a positioned overlay, which would fight body's background propagation. */
 body {
+  /* theme.js sets --star-pattern to the day's star color; the teal file is
+     only the no-JS fallback. */
   background-image: linear-gradient(var(--pattern-wash), var(--pattern-wash)),
-    url("bg-pattern.svg");
+    var(--star-pattern, url("bg-pattern.svg"));
   background-size: auto, 200px auto;
   transition: background-color 0.45s ease, color 0.45s ease;
 }
