@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Duel - Pokeworks</title>
   <meta name="description" content="Challenge a friend to a live Bowl Builder duel." />
-  <link rel="stylesheet" href="menu.css?v=42" />
+  <link rel="stylesheet" href="menu.css?v=43" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <script src="theme.js?v=6"></script>
@@ -23,6 +23,14 @@
       <!-- Step 1: name -->
       <label class="duel-label" for="duel-name">Your name</label>
       <input id="duel-name" class="duel-input" type="text" maxlength="12" placeholder="Your name" autocomplete="off" />
+
+      <!-- Step 2: which game (the host's pick travels to the guest) -->
+      <label class="duel-label">Game</label>
+      <div class="duel-games" id="duel-games">
+        <button class="duel-game active" type="button" data-game="bowl">Bowl Builder</button>
+        <button class="duel-game" type="button" data-game="td">Topping Drop</button>
+        <button class="duel-game" type="button" data-game="ps">Poke Slice</button>
+      </div>
 
       <!-- Create or join -->
       <div class="duel-actions" id="duel-actions">
@@ -48,6 +56,6 @@
   </main>
 
   <script src="supabase-config.js?v=2"></script>
-  <script src="duel-lobby.js?v=5"></script>
+  <script src="duel-lobby.js?v=6"></script>
 </body>
 </html>

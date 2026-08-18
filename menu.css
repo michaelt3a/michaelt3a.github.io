@@ -99,6 +99,85 @@ body {
   margin-top: 1.1rem;
 }
 
+/* Duel lobby: which game are we playing? */
+.duel-games {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.9rem;
+}
+
+.duel-game {
+  background: var(--chip);
+  border: 1.5px solid var(--chip-line);
+  color: var(--on-dark-muted);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.duel-game.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* The profile's month-at-a-glance streak calendar. */
+.pc-cal {
+  margin: 0.9rem 0;
+  padding: 0.8rem 0.9rem;
+  background: var(--chip);
+  border: 1px solid var(--chip-line);
+  border-radius: 12px;
+}
+
+.pc-cal-title {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+  margin-bottom: 0.55rem;
+}
+
+.pc-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.pc-cal-dow {
+  text-align: center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--on-dark-muted);
+  opacity: 0.7;
+}
+
+.pc-cal-day {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--on-dark-muted);
+}
+
+.pc-cal-day.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.pc-cal-day.today {
+  box-shadow: inset 0 0 0 1.5px var(--gold);
+}
+
 /* Fixed footer row of the profile sheet; theme.js drops its switch here. */
 .sheet-foot {
   display: flex;

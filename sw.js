@@ -3,7 +3,7 @@
 // Deliberately conservative about staleness: page loads go to the network
 // first so a deploy always lands, and assets are served from cache but
 // refreshed in the background. Bump VERSION on release to drop old caches.
-const VERSION = "v80";
+const VERSION = "v81";
 const CACHE = "pokeworks-" + VERSION;
 
 const SHELL = [
@@ -43,6 +43,10 @@ const SHELL = [
   "./word-bowl-dict.js",
   "./poke-slice.html",
   "./poke-slice.js",
+  "./arcade-sfx.js",
+  "./duel.js",
+  "./duel-lobby.js",
+  "./duel.html",
   "./topping-drop.html",
   "./topping-drop.js",
   "./bowl-rush.html",

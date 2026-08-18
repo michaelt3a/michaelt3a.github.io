@@ -41,13 +41,26 @@
   // so, it's actually Topping Drop's day, and today's attempt isn't spent.
   const wantsDaily = !!(window.Daily && Daily.isRun());
   const isDaily = wantsDaily && Daily.isTodaysGame("td") && !Daily.result();
-  let rng = Math.random; // swapped for the seeded stream on daily runs
+  // Duel plumbing (?duel=CODE): the room code seeds the rain so both players
+  // fight the same drops; duel.js owns the realtime side.
+  const isDuel = !wantsDaily && !!(window.PokeDuel && PokeDuel.active);
+  let rng = Math.random; // swapped for a seeded stream on daily and duel runs
+
+  function sfx(name) {
+    if (window.ArcadeSfx && ArcadeSfx[name]) { try { ArcadeSfx[name](); } catch (e) { /* ignore */ } }
+  }
 
   let best = 0;
   try { best = parseInt(localStorage.getItem(BEST_KEY), 10) || 0; } catch (e) { /* ignore */ }
   bestEl.textContent = String(best);
 
-  if (wantsDaily) {
+  if (isDuel) {
+    startTitle.textContent = "Duel";
+    startSub.textContent =
+      "Same rain for both of you; most catches wins. Every 10 catches loads a sabotage. " +
+      "Hit Ready; the countdown starts when you both have.";
+    startBtn.textContent = "✓ Ready";
+  } else if (wantsDaily) {
     startTitle.textContent = "🗓 Daily Challenge";
     if (!Daily.isTodaysGame("td")) {
       startSub.textContent =
@@ -70,6 +83,7 @@
     score: 0,
     lives: 3,
     combo: 0,
+    bestCombo: 0,
     elapsed: 0,
     items: [],
     bowlX: W / 2,
@@ -78,11 +92,69 @@
     lastTime: 0,
     flash: 0,
     floaters: [],
+    // duel bits
+    duelCharges: 0,
+    duelNextChargeAt: 10,
+    duelSabsSent: 0,
+    forkDebt: 0, // incoming "forks" sabotage queues junk into the rain
+    sabSpeedUntil: 0, // incoming "speed" sabotage: faster falls until this time
   };
+
+  function say(text) {
+    state.floaters.push({ text: text, x: W / 2, y: 110, life: 1.2 });
+  }
 
   function setScore(n) {
     state.score = n;
     scoreEl.textContent = String(n);
+    if (isDuel && state.running) {
+      PokeDuel.sendScore(n);
+      if (n >= state.duelNextChargeAt) {
+        state.duelNextChargeAt += 10;
+        if (state.duelCharges < 2) {
+          state.duelCharges++;
+          say("🧨 Sabotage loaded!");
+          sfx("chime");
+        }
+        updateSabBtn();
+      }
+    }
+  }
+
+  // --- Duel chrome: the sabotage button below the box ------------------------
+  let sabBtn = null;
+  function updateSabBtn() {
+    if (!sabBtn) return;
+    sabBtn.textContent = "🧨 Sabotage ×" + state.duelCharges;
+    sabBtn.disabled = state.duelCharges <= 0;
+  }
+  if (isDuel) {
+    const controls = document.querySelector(".controls");
+    sabBtn = document.createElement("button");
+    sabBtn.className = "control-btn duel-sab";
+    sabBtn.type = "button";
+    controls.appendChild(sabBtn);
+    updateSabBtn();
+    sabBtn.addEventListener("click", () => {
+      if (!state.running || state.paused || state.duelCharges <= 0) return;
+      state.duelCharges--;
+      state.duelSabsSent++;
+      PokeDuel.sendSab(Math.random() < 0.5 ? "speed" : "forks");
+      say("🧨 Sabotage sent!");
+      updateSabBtn();
+    });
+    PokeDuel.onSab((kind, who) => {
+      if (!state.running || state.paused) return;
+      if (kind === "speed") {
+        state.sabSpeedUntil = state.elapsed + 6;
+        say("⚡ " + who + " sped up the rain!");
+      } else {
+        state.forkDebt += 3;
+        say("🍴 " + who + " threw forks!");
+      }
+      sfx("thunk");
+      if (navigator.vibrate) { try { navigator.vibrate(30); } catch (e) { /* ignore */ } }
+    });
   }
 
   function fallSpeed() { return Math.min(150 + state.elapsed * 4.5, 330); }
@@ -90,10 +162,25 @@
   function badChance() { return Math.min(0.16 + state.elapsed * 0.002, 0.3); }
 
   function spawn() {
-    // Stray hearts heal in normal runs. Daily runs skip them entirely (and
+    // A "forks" sabotage jumps the queue with junk. These draw from
+    // Math.random, not the seeded stream: sabotage is what makes duel runs
+    // diverge, and that's the point.
+    if (isDuel && state.forkDebt > 0) {
+      state.forkDebt--;
+      state.items.push({
+        x: 60 + Math.random() * (W - 120),
+        y: -30,
+        vy: fallSpeed() * (0.9 + Math.random() * 0.2),
+        spin: (Math.random() - 0.5) * 2.4,
+        glyph: "🍴",
+        bad: true,
+      });
+      return;
+    }
+    // Stray hearts heal in normal runs. Daily and duel runs skip them (and
     // draw nothing extra from the stream) so the seeded rain stays identical
     // for every player.
-    if (!isDaily && state.lives < 3 && Math.random() < 0.08) {
+    if (!isDaily && !isDuel && state.lives < 3 && Math.random() < 0.08) {
       state.items.push({
         x: 60 + Math.random() * (W - 120),
         y: -30,
@@ -124,9 +211,9 @@
   function startGame() {
     state.running = true;
     state.paused = false;
-    setScore(0);
     state.lives = 3;
     state.combo = 0;
+    state.bestCombo = 0;
     state.elapsed = 0;
     state.items = [];
     state.bowlX = state.targetX = W / 2;
@@ -134,7 +221,14 @@
     state.lastTime = 0;
     state.flash = 0;
     state.floaters = [];
-    rng = isDaily ? Daily.stream("td:spawn") : Math.random;
+    state.duelCharges = 0;
+    state.duelNextChargeAt = 10;
+    state.duelSabsSent = 0;
+    state.forkDebt = 0;
+    state.sabSpeedUntil = 0;
+    updateSabBtn();
+    setScore(0);
+    rng = isDaily ? Daily.stream("td:spawn") : isDuel ? PokeDuel.stream("td:spawn") : Math.random;
     overlay.classList.add("hidden");
     if (window.PokeStreak) PokeStreak.mark();
     if (window.PokeTrack) PokeTrack.hit(isDaily ? "daily" : "play", "topping");
@@ -151,12 +245,14 @@
     overlay.classList.remove("hidden");
     let n = 3;
     countNum.textContent = "3";
+    sfx("tick");
     const tick = setInterval(() => {
       n--;
-      if (n > 0) { countNum.textContent = String(n); return; }
+      if (n > 0) { countNum.textContent = String(n); sfx("tick"); return; }
       clearInterval(tick);
       counting = false;
       screenCount.classList.add("hidden");
+      sfx("go");
       startGame();
     }, 750);
   }
@@ -167,6 +263,28 @@
 
   function endGame() {
     state.running = false;
+    sfx("over");
+    // Feed the run into today's shop challenges (points for the Rewards Shop).
+    if (window.PokeChallenges) {
+      PokeChallenges.report("td", {
+        score: state.score,
+        combo: state.bestCombo,
+        seconds: state.elapsed,
+        runs: 1,
+      });
+    }
+    // A duel skips the normal game-over screen: duel.js paints the waiting
+    // panel, then the stats face-off once both runs end.
+    if (isDuel) {
+      PokeDuel.finish(state.score, {
+        rows: [
+          ["Catches", state.score],
+          ["Best streak", state.bestCombo],
+          ["Sabotages", state.duelSabsSent],
+        ],
+      });
+      return;
+    }
     overSub.textContent =
       "You caught " + state.score + " topping" + (state.score === 1 ? "" : "s") + ".";
     pointsLine.hidden = true;
@@ -228,7 +346,21 @@
   window.addEventListener("pointermove", trackPointer);
   window.addEventListener("pointerdown", trackPointer);
 
-  startBtn.addEventListener("click", runCountdown);
+  // In a duel the Start button is the Ready button: the countdown fires on
+  // both screens once both players have pressed it.
+  startBtn.addEventListener("click", () => {
+    if (!isDuel) { runCountdown(); return; }
+    if (startBtn.disabled) return;
+    startBtn.disabled = true;
+    startBtn.textContent = "Waiting for opponent…";
+    PokeDuel.setReady();
+  });
+  if (isDuel) {
+    PokeDuel.onBothReady(() => {
+      startBtn.style.display = "none";
+      runCountdown();
+    });
+  }
   playAgainBtn.addEventListener("click", runCountdown);
 
   document.addEventListener("visibilitychange", () => {
@@ -247,22 +379,27 @@
     state.bowlX += (state.targetX - state.bowlX) * Math.min(1, dt * 34);
     state.bowlX = Math.max(70, Math.min(W - 70, state.bowlX));
 
+    const speedMult = state.sabSpeedUntil > state.elapsed ? 1.45 : 1;
     for (let i = state.items.length - 1; i >= 0; i--) {
       const it = state.items[i];
-      it.y += it.vy * dt;
+      it.y += it.vy * dt * speedMult;
       if (it.y >= BOWL_Y - 14 && it.y <= BOWL_Y + 26 && Math.abs(it.x - state.bowlX) <= BOWL_HALF) {
         state.items.splice(i, 1);
         if (it.heart) {
           state.lives = Math.min(3, state.lives + 1);
           state.floaters.push({ text: "+❤️", x: state.bowlX, y: BOWL_Y - 46, life: 0.9 });
+          sfx("chime");
         } else if (it.bad) {
           state.lives--;
           state.combo = 0;
           state.flash = 0.35;
+          sfx("thunk");
           if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) { /* ignore */ } }
           if (state.lives <= 0) { endGame(); return; }
         } else {
           state.combo++;
+          if (state.combo > state.bestCombo) state.bestCombo = state.combo;
+          sfx("pop");
           setScore(state.score + 1);
         }
         continue;
@@ -274,6 +411,7 @@
           state.combo = 0;
           state.lives--;
           state.flash = 0.35;
+          sfx("thunk");
           if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) { /* ignore */ } }
           if (state.lives <= 0) { endGame(); return; }
         }

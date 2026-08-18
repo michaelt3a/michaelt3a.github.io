@@ -19,11 +19,16 @@
   }
 
   function load() {
+    let s = null;
     try {
-      const s = JSON.parse(localStorage.getItem(KEY));
-      if (s && typeof s.count === "number") return s;
+      const parsed = JSON.parse(localStorage.getItem(KEY));
+      if (parsed && typeof parsed.count === "number") s = parsed;
     } catch (e) { /* fall through */ }
-    return { last: null, count: 0, best: 0 };
+    if (!s) s = { last: null, count: 0, best: 0 };
+    // Day-by-day history feeds the profile's streak calendar. It starts
+    // whenever this version first runs; older days are simply unknown.
+    if (!Array.isArray(s.days)) s.days = s.last ? [s.last] : [];
+    return s;
   }
   function save(s) {
     try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* ignore */ }
@@ -48,10 +53,17 @@
     s.count = s.last === yesterday() ? (s.count || 0) + 1 : 1;
     s.last = t;
     if (s.count > (s.best || 0)) s.best = s.count;
+    if (!s.days.includes(t)) {
+      s.days.push(t);
+      if (s.days.length > 200) s.days = s.days.slice(-200);
+    }
     save(s);
     if (s.count >= 7 && window.PokeAch) PokeAch.unlock("meta-streak7");
     return get();
   }
 
-  window.PokeStreak = { mark, get };
+  // Every day (YYYY-MM-DD) with at least one game played, oldest first.
+  function days() { return load().days.slice(); }
+
+  window.PokeStreak = { mark, get, days };
 })();

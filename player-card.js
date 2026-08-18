@@ -169,6 +169,37 @@
         };
       },
     },
+    // The arcade three keep local bests only; no boards, so no rank line.
+    {
+      id: "td",
+      label: "Topping Drop",
+      color: "#f5c542",
+      noRank: true,
+      best() {
+        const n = lsNum("pokeworks-topping-best");
+        return n ? { value: n + " catches", n: n } : null;
+      },
+    },
+    {
+      id: "br",
+      label: "Bowl Rush",
+      color: "#8f6ef0",
+      noRank: true,
+      best() {
+        const n = lsNum("pokeworks-rush-best");
+        return n ? { value: n + " sorted", n: n } : null;
+      },
+    },
+    {
+      id: "ps",
+      label: "Poke Slice",
+      color: "#39a85b",
+      noRank: true,
+      best() {
+        const n = lsNum("pokeworks-slice-best");
+        return n ? { value: n + " slices", n: n } : null;
+      },
+    },
     {
       id: "ss",
       label: "Secret Shopper",
@@ -193,6 +224,34 @@
   function streakText(s) {
     if (!s.count) return s.best ? "Best streak " + s.best + " days" : "No streak yet";
     return s.count + " day" + (s.count === 1 ? "" : "s") + " in a row";
+  }
+
+  // This month at a glance: a dot per day, filled on days with a game played.
+  function calendarBlock() {
+    if (!window.PokeStreak || !PokeStreak.days) return "";
+    const played = new Set(PokeStreak.days());
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const firstDow = new Date(y, m, 1).getDay(); // 0 = Sunday
+    const todayD = now.getDate();
+    const monthName = now.toLocaleString("default", { month: "long" });
+    let cells = "";
+    for (const w of ["S", "M", "T", "W", "T", "F", "S"]) {
+      cells += '<span class="pc-cal-dow">' + w + "</span>";
+    }
+    for (let i = 0; i < firstDow; i++) cells += "<span></span>";
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+      const cls =
+        "pc-cal-day" + (played.has(key) ? " on" : "") + (d === todayD ? " today" : "");
+      cells += '<span class="' + cls + '">' + d + "</span>";
+    }
+    return (
+      '<div class="pc-cal"><span class="pc-cal-title">' + monthName + " " + y + "</span>" +
+      '<div class="pc-cal-grid">' + cells + "</div></div>"
+    );
   }
 
   // Rewards Shop wallet, when points.js is on the page (it is on the hub).
@@ -290,6 +349,7 @@
       '<span class="pc-hint">' +
       (st.best ? "Longest run: " + st.best + " day" + (st.best === 1 ? "" : "s") : "Play on back-to-back days to build one.") +
       "</span></span></div>" +
+      calendarBlock() +
       pointsBlock() +
       '<div class="pc-stats">' + rows + "</div>";
 

@@ -14,6 +14,11 @@
   const params = new URLSearchParams(location.search);
   const code = (params.get("duel") || "").toUpperCase();
   const active = /^[A-Z2-9]{4}$/.test(code);
+  // Which game this page is: duels run in Bowl Builder, Topping Drop and
+  // Poke Slice. Rematch links carry it so both lobbies preselect the game.
+  const PAGE_GAME = /topping-drop/.test(location.pathname) ? "td"
+    : /poke-slice/.test(location.pathname) ? "ps"
+    : "bowl";
   // Editable until the player hits Ready: the ready screen has a name box,
   // and every heartbeat carries the latest name, so the other side stays
   // current.
@@ -133,13 +138,24 @@
   }
 
   function statRows() {
-    const rows = [
-      ["Blocks", mine.score, opp.score],
-      ["Perfect drops", mine.stats.perfects, opp.stats ? opp.stats.perfects : "?"],
-      ["Best combo", mine.stats.combo, opp.stats ? opp.stats.combo : "?"],
-      ["Power-ups", mine.stats.powerups, opp.stats ? opp.stats.powerups : "?"],
-      ["Sabotages", mine.stats.sabs, opp.stats ? opp.stats.sabs : "?"],
-    ];
+    let rows;
+    if (mine.stats && Array.isArray(mine.stats.rows)) {
+      // Generic face-off: the game hands over [label, value] pairs and the
+      // opponent's are matched up by position.
+      const theirs = opp.stats && Array.isArray(opp.stats.rows) ? opp.stats.rows : [];
+      rows = mine.stats.rows.map(function (r, i) {
+        return [r[0], r[1], theirs[i] ? theirs[i][1] : "?"];
+      });
+    } else {
+      // Bowl Builder's original shape.
+      rows = [
+        ["Blocks", mine.score, opp.score],
+        ["Perfect drops", mine.stats.perfects, opp.stats ? opp.stats.perfects : "?"],
+        ["Best combo", mine.stats.combo, opp.stats ? opp.stats.combo : "?"],
+        ["Power-ups", mine.stats.powerups, opp.stats ? opp.stats.powerups : "?"],
+        ["Sabotages", mine.stats.sabs, opp.stats ? opp.stats.sabs : "?"],
+      ];
+    }
     return rows.map(function (r) {
       const a = Number(r[1]) || 0;
       const b = Number(r[2]) || 0;
@@ -155,14 +171,16 @@
     const title = a > b ? "You win!" : a < b ? escapeHtml(opp.name) + " wins" : "Dead tie";
     panel(
       "<h2>" + title + "</h2>" +
-      '<p class="duel-sub">Room ' + code + " · same blocks, no excuses</p>" +
+      '<p class="duel-sub">Room ' + code + " · " +
+      ({ td: "same rain, no excuses", ps: "same catch, no excuses" }[PAGE_GAME] || "same blocks, no excuses") +
+      "</p>" +
       '<div class="duel-score-row">' +
       '<span><b class="' + (a >= b ? "w" : "l") + '">' + a + "</b><br><small>" + escapeHtml(myName) + "</small></span>" +
       '<span class="vs">—</span>' +
       '<span><b class="' + (b >= a ? "w" : "l") + '">' + b + "</b><br><small>" + escapeHtml(opp.name) + "</small></span></div>" +
       '<table class="duel-stats"><tr><th></th><th>' + escapeHtml(myName) + "</th><th>" + escapeHtml(opp.name) + "</th></tr>" +
       statRows() + "</table>" +
-      '<a href="duel.html?room=' + nextCode(code) + '">Rematch</a>' +
+      '<a href="duel.html?room=' + nextCode(code) + '&game=' + PAGE_GAME + '">Rematch</a>' +
       '<a class="quiet" href="index.html">Done</a>'
     );
   }

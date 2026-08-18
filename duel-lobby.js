@@ -31,6 +31,25 @@
     return (nameInput.value || "").trim().slice(0, 12) || "Player";
   }
 
+  // --- Which game ------------------------------------------------------------
+  // The room creator's pick wins; the guest's lobby adopts it from the hello
+  // exchange. Rematch links carry ?game so both sides preselect the same one.
+  const GAME_FILES = { bowl: "bowl-builder.html", td: "topping-drop.html", ps: "poke-slice.html" };
+  const gamesEl = document.getElementById("duel-games");
+  let selectedGame = "bowl";
+  let isCreator = false;
+  function selectGame(id) {
+    if (!GAME_FILES[id]) return;
+    selectedGame = id;
+    for (const b of gamesEl.querySelectorAll(".duel-game")) {
+      b.classList.toggle("active", b.dataset.game === id);
+    }
+  }
+  gamesEl.addEventListener("click", function (e) {
+    const b = e.target.closest(".duel-game");
+    if (b && !launched) selectGame(b.dataset.game);
+  });
+
   // The realtime client library loads on demand; nobody else pays for it.
   let libPromise = null;
   function lib() {
@@ -63,12 +82,14 @@
   let ch = null;
   const myId = Math.floor(Math.random() * 1e9);
 
-  function launch(oppName) {
+  function launch(oppName, oppGame) {
     if (launched) return;
     launched = true;
+    // The creator's game wins; a guest adopts whatever the hello carried.
+    if (!isCreator && GAME_FILES[oppGame]) selectGame(oppGame);
     statusEl.textContent = "Opponent found: " + oppName + ". Starting…";
     setTimeout(function () {
-      location.href = "bowl-builder.html?duel=" + currentCode + "&dn=" + encodeURIComponent(myName());
+      location.href = GAME_FILES[selectedGame] + "?duel=" + currentCode + "&dn=" + encodeURIComponent(myName());
     }, 1500);
   }
 
@@ -91,8 +112,8 @@
     let pinger = 0;
     mine.on("broadcast", { event: "hello" }, function (m) {
       if (!m.payload || m.payload.id === myId) return;
-      mine.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName() } });
-      launch(m.payload.name || "Player");
+      mine.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName(), game: selectedGame } });
+      launch(m.payload.name || "Player", m.payload.game);
     });
     mine.subscribe(function (status) {
       if (mine !== ch) return; // a newer rebuild took over
@@ -101,7 +122,7 @@
         clearInterval(pinger);
         pinger = setInterval(function () {
           if (launched || mine !== ch) { clearInterval(pinger); return; }
-          mine.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName() } });
+          mine.send({ type: "broadcast", event: "hello", payload: { id: myId, name: myName(), game: selectedGame } });
         }, 900);
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
         clearInterval(pinger);
@@ -133,6 +154,7 @@
 
   // --- Buttons -------------------------------------------------------------
   createBtn.addEventListener("click", function () {
+    isCreator = true;
     openRoom(makeCode());
   });
 
@@ -172,8 +194,11 @@
   });
 
   // Arriving through a shared link prefills the code but waits for the Join
-  // click, so the guest gets a moment to set their name first.
-  const room = new URLSearchParams(location.search).get("room");
+  // click, so the guest gets a moment to set their name first. Rematch links
+  // also carry the game so both sides preselect the same one.
+  const qs = new URLSearchParams(location.search);
+  const room = qs.get("room");
+  if (qs.get("game")) selectGame(qs.get("game"));
   if (room && /^[A-Z2-9]{4}$/i.test(room)) {
     codeInput.value = room.toUpperCase();
     joinBtn.textContent = "Join " + room.toUpperCase();

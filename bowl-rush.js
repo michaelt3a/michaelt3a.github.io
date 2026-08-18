@@ -41,6 +41,10 @@
   const isDaily = wantsDaily && Daily.isTodaysGame("br") && !Daily.result();
   let rng = Math.random;
 
+  function sfx(name) {
+    if (window.ArcadeSfx && ArcadeSfx[name]) { try { ArcadeSfx[name](); } catch (e) { /* ignore */ } }
+  }
+
   const fieldEl = document.getElementById("rush-field");
   const msgEl = document.getElementById("rush-msg");
   const binsEl = document.getElementById("rush-bins");
@@ -92,6 +96,7 @@
     paused: false,
     score: 0,
     streak: 0,
+    bestStreak: 0,
     timeLeft: ROUND_SECS,
     items: [], // {el, x, y, w, name, cat, dragging, offX, offY}
     spawnIn: 0.6,
@@ -232,12 +237,15 @@
     if (!state.running) return;
     if (catName === it.cat) {
       state.streak++;
+      if (state.streak > state.bestStreak) state.bestStreak = state.streak;
       let gain = 1;
       if (state.streak % 5 === 0) {
         gain += 2;
         say("🔥 " + state.streak + " in a row! +" + gain, "good");
+        sfx("chime");
       } else {
         say("+1", "good");
+        sfx("pop");
       }
       setScore(state.score + gain);
       removeItem(it, true);
@@ -245,6 +253,7 @@
       state.streak = 0;
       state.timeLeft = Math.max(0, state.timeLeft - WRONG_PENALTY);
       say(it.name + " goes to " + it.cat + ". -" + WRONG_PENALTY + "s", "bad");
+      sfx("thunk");
       const right = binByName(it.cat);
       if (right) {
         right.classList.remove("reveal");
@@ -264,6 +273,7 @@
     state.paused = false;
     setScore(0);
     state.streak = 0;
+    state.bestStreak = 0;
     state.timeLeft = ROUND_SECS;
     state.spawnIn = 0.5;
     state.lastName = "";
@@ -287,12 +297,14 @@
     overlay.classList.remove("hidden");
     let n = 3;
     countNum.textContent = "3";
+    sfx("tick");
     const tick = setInterval(() => {
       n--;
-      if (n > 0) { countNum.textContent = String(n); return; }
+      if (n > 0) { countNum.textContent = String(n); sfx("tick"); return; }
       clearInterval(tick);
       counting = false;
       screenCount.classList.add("hidden");
+      sfx("go");
       startGame();
     }, 750);
   }
@@ -303,6 +315,16 @@
 
   function endGame() {
     state.running = false;
+    sfx("over");
+    // Feed the round into today's shop challenges (points for the Rewards Shop).
+    if (window.PokeChallenges) {
+      PokeChallenges.report("br", {
+        score: state.score,
+        streak: state.bestStreak,
+        seconds: elapsed(),
+        runs: 1,
+      });
+    }
     for (const it of state.items) it.el.remove();
     state.items = [];
     playEl.hidden = true;

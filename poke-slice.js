@@ -39,13 +39,26 @@
 
   const wantsDaily = !!(window.Daily && Daily.isRun());
   const isDaily = wantsDaily && Daily.isTodaysGame("ps") && !Daily.result();
+  // Duel plumbing (?duel=CODE): the room code seeds the waves so both players
+  // slice the same toss order; duel.js owns the realtime side.
+  const isDuel = !wantsDaily && !!(window.PokeDuel && PokeDuel.active);
   let rng = Math.random;
+
+  function sfx(name) {
+    if (window.ArcadeSfx && ArcadeSfx[name]) { try { ArcadeSfx[name](); } catch (e) { /* ignore */ } }
+  }
 
   let best = 0;
   try { best = parseInt(localStorage.getItem(BEST_KEY), 10) || 0; } catch (e) { /* ignore */ }
   bestEl.textContent = String(best);
 
-  if (wantsDaily) {
+  if (isDuel) {
+    startTitle.textContent = "Duel";
+    startSub.textContent =
+      "Same toss order for both of you; most slices wins. Every 12 slices loads a sabotage. " +
+      "Hit Ready; the countdown starts when you both have.";
+    startBtn.textContent = "✓ Ready";
+  } else if (wantsDaily) {
     startTitle.textContent = "🗓 Daily Challenge";
     if (!Daily.isTodaysGame("ps")) {
       startSub.textContent =
@@ -80,18 +93,80 @@
     sparks: [], // explosion debris
     slicing: false,
     strokeSlices: 0,
+    bestStroke: 0,
     waveIn: 0.9,
     lastTime: 0,
     flash: 0,
     shake: 0,
+    // duel bits
+    duelCharges: 0,
+    duelNextChargeAt: 12,
+    duelSabsSent: 0,
+    bombDebt: 0, // incoming "bombs" sabotage forces dynamite into the waves
+    frenzyUntil: 0, // incoming "frenzy" sabotage: double-speed waves until this time
   };
+
+  function say(text) {
+    state.floaters.push({ text: text, x: W / 2, y: 90, life: 1.2 });
+  }
 
   function setScore(n) {
     state.score = n;
     scoreEl.textContent = String(n);
+    if (isDuel && state.running) {
+      PokeDuel.sendScore(n);
+      if (n >= state.duelNextChargeAt) {
+        state.duelNextChargeAt += 12;
+        if (state.duelCharges < 2) {
+          state.duelCharges++;
+          say("🧨 Sabotage loaded!");
+          sfx("chime");
+        }
+        updateSabBtn();
+      }
+    }
   }
 
-  function waveEvery() { return Math.max(1.6 - state.elapsed * 0.012, 0.85); }
+  // --- Duel chrome: the sabotage button below the box ------------------------
+  let sabBtn = null;
+  function updateSabBtn() {
+    if (!sabBtn) return;
+    sabBtn.textContent = "🧨 Sabotage ×" + state.duelCharges;
+    sabBtn.disabled = state.duelCharges <= 0;
+  }
+  if (isDuel) {
+    const controls = document.querySelector(".controls");
+    sabBtn = document.createElement("button");
+    sabBtn.className = "control-btn duel-sab";
+    sabBtn.type = "button";
+    controls.appendChild(sabBtn);
+    updateSabBtn();
+    sabBtn.addEventListener("click", () => {
+      if (!state.running || state.paused || state.duelCharges <= 0) return;
+      state.duelCharges--;
+      state.duelSabsSent++;
+      PokeDuel.sendSab(Math.random() < 0.5 ? "bombs" : "frenzy");
+      say("🧨 Sabotage sent!");
+      updateSabBtn();
+    });
+    PokeDuel.onSab((kind, who) => {
+      if (!state.running || state.paused) return;
+      if (kind === "bombs") {
+        state.bombDebt += 2;
+        say("🧨 " + who + " tossed dynamite!");
+      } else {
+        state.frenzyUntil = state.elapsed + 6;
+        say("⏩ " + who + " hit frenzy!");
+      }
+      sfx("thunk");
+      if (navigator.vibrate) { try { navigator.vibrate(30); } catch (e) { /* ignore */ } }
+    });
+  }
+
+  function waveEvery() {
+    const base = Math.max(1.6 - state.elapsed * 0.012, 0.85);
+    return state.frenzyUntil > state.elapsed ? base / 2 : base;
+  }
   function bombChance() { return Math.min(0.12 + state.elapsed * 0.002, 0.22); }
 
   function tossOne() {
@@ -114,6 +189,22 @@
     });
   }
 
+  // A "bombs" sabotage rides outside the seeded stream: sabotage is what
+  // makes duel runs diverge, and that's the point.
+  function tossSabBomb() {
+    const x = 100 + Math.random() * (W - 200);
+    state.items.push({
+      x: x,
+      y: H + 30,
+      vx: (W / 2 - x) * (0.35 + Math.random() * 0.3),
+      vy: -(820 + Math.random() * 180),
+      rot: 0,
+      vrot: (x < W / 2 ? 1 : -1) * 1.6,
+      glyph: BOMB,
+      bomb: true,
+    });
+  }
+
   function wave() {
     // Both extra-item rolls are always drawn, even when unused, to keep the
     // seeded stream in lockstep.
@@ -123,6 +214,10 @@
     if (roll2 < Math.min(0.25 + state.elapsed * 0.01, 0.7)) count++;
     if (state.elapsed > 20 && roll3 < 0.3) count++;
     for (let i = 0; i < count; i++) tossOne();
+    while (state.bombDebt > 0) {
+      state.bombDebt--;
+      tossSabBomb();
+    }
   }
 
   function startGame() {
@@ -140,11 +235,18 @@
     state.sparks = [];
     state.slicing = false;
     state.strokeSlices = 0;
+    state.bestStroke = 0;
     state.waveIn = 0.7;
     state.lastTime = 0;
     state.flash = 0;
     state.shake = 0;
-    rng = isDaily ? Daily.stream("ps:wave") : Math.random;
+    state.duelCharges = 0;
+    state.duelNextChargeAt = 12;
+    state.duelSabsSent = 0;
+    state.bombDebt = 0;
+    state.frenzyUntil = 0;
+    updateSabBtn();
+    rng = isDaily ? Daily.stream("ps:wave") : isDuel ? PokeDuel.stream("ps:wave") : Math.random;
     overlay.classList.add("hidden");
     if (window.PokeStreak) PokeStreak.mark();
     if (window.PokeTrack) PokeTrack.hit(isDaily ? "daily" : "play", "slice");
@@ -161,12 +263,14 @@
     overlay.classList.remove("hidden");
     let n = 3;
     countNum.textContent = "3";
+    sfx("tick");
     const tick = setInterval(() => {
       n--;
-      if (n > 0) { countNum.textContent = String(n); return; }
+      if (n > 0) { countNum.textContent = String(n); sfx("tick"); return; }
       clearInterval(tick);
       counting = false;
       screenCount.classList.add("hidden");
+      sfx("go");
       startGame();
     }, 750);
   }
@@ -177,6 +281,28 @@
 
   function endGame() {
     state.running = false;
+    sfx("over");
+    // Feed the run into today's shop challenges (points for the Rewards Shop).
+    if (window.PokeChallenges) {
+      PokeChallenges.report("ps", {
+        score: state.score,
+        combo: state.bestStroke,
+        seconds: state.elapsed,
+        runs: 1,
+      });
+    }
+    // A duel skips the normal game-over screen: duel.js paints the waiting
+    // panel, then the stats face-off once both runs end.
+    if (isDuel) {
+      PokeDuel.finish(state.score, {
+        rows: [
+          ["Slices", state.score],
+          ["Best stroke", state.bestStroke],
+          ["Sabotages", state.duelSabsSent],
+        ],
+      });
+      return;
+    }
     overSub.textContent =
       "You sliced " + state.score + " piece" + (state.score === 1 ? "" : "s") + ".";
     pointsLine.hidden = true;
@@ -228,7 +354,21 @@
     if (e.key === "Enter") { e.preventDefault(); submitDaily(); }
   });
 
-  startBtn.addEventListener("click", runCountdown);
+  // In a duel the Start button is the Ready button: the countdown fires on
+  // both screens once both players have pressed it.
+  startBtn.addEventListener("click", () => {
+    if (!isDuel) { runCountdown(); return; }
+    if (startBtn.disabled) return;
+    startBtn.disabled = true;
+    startBtn.textContent = "Waiting for opponent…";
+    PokeDuel.setReady();
+  });
+  if (isDuel) {
+    PokeDuel.onBothReady(() => {
+      startBtn.style.display = "none";
+      runCountdown();
+    });
+  }
   playAgainBtn.addEventListener("click", runCountdown);
 
   document.addEventListener("visibilitychange", () => {
@@ -284,11 +424,14 @@
       if (it.bomb) {
         state.lives--;
         explode(it.x, it.y);
+        sfx("boom");
         if (navigator.vibrate) { try { navigator.vibrate(60); } catch (e) { /* ignore */ } }
         state.floaters.push({ text: "💥", x: it.x, y: it.y - 20, life: 0.8 });
         if (state.lives <= 0) { endGame(); return; }
       } else {
         state.strokeSlices++;
+        if (state.strokeSlices > state.bestStroke) state.bestStroke = state.strokeSlices;
+        sfx("swish");
         setScore(state.score + 1);
         // Two REAL halves: each piece is the glyph clipped along the cut
         // line, drifting apart perpendicular to the blade.
@@ -338,6 +481,7 @@
     state.slicing = false;
     // 3+ in one stroke pays the whole stroke again as a combo bonus.
     if (state.running && state.strokeSlices >= 3) {
+      sfx("chime");
       setScore(state.score + state.strokeSlices);
       const last = state.trail[state.trail.length - 1];
       state.floaters.push({
@@ -374,6 +518,7 @@
           // Fresh fish on the floor: that's a heart.
           state.lives--;
           state.flash = 0.35;
+          sfx("thunk");
           if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) { /* ignore */ } }
           if (state.lives <= 0) { endGame(); return; }
         }

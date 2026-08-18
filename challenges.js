@@ -68,8 +68,59 @@
       { id: "ou-serve20", tier: "hard", metric: "served", mode: "max", goal: 20, pts: 90, label: "Serve 20 customers in one shift" },
       { id: "ou-perfect8", tier: "hard", metric: "perfects", mode: "max", goal: 8, pts: 90, label: "Serve 8 perfect bowls in one shift" },
     ],
+    td: [
+      // starters — momentum, not skill
+      { id: "td-runs3", tier: "starter", metric: "runs", mode: "sum", goal: 3, pts: 20, label: "Finish 3 Topping Drop runs" },
+      { id: "td-score10", tier: "starter", metric: "score", mode: "max", goal: 10, pts: 20, label: "Catch 10 toppings in one run" },
+      { id: "td-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Catch toppings for 5 minutes" },
+      // mid — a decent run gets there
+      { id: "td-score25", tier: "mid", metric: "score", mode: "max", goal: 25, pts: 40, label: "Catch 25 toppings in one run" },
+      { id: "td-score35", tier: "mid", metric: "score", mode: "max", goal: 35, pts: 40, label: "Catch 35 toppings in one run" },
+      { id: "td-combo10", tier: "mid", metric: "combo", mode: "max", goal: 10, pts: 40, label: "Catch 10 in a row without a drop" },
+      { id: "td-runs6", tier: "mid", metric: "runs", mode: "sum", goal: 6, pts: 40, label: "Finish 6 Topping Drop runs" },
+      // hard — a genuinely good run
+      { id: "td-score50", tier: "hard", metric: "score", mode: "max", goal: 50, pts: 75, label: "Catch 50 toppings in one run" },
+      { id: "td-score65", tier: "hard", metric: "score", mode: "max", goal: 65, pts: 90, label: "Catch 65 toppings in one run" },
+      { id: "td-combo18", tier: "hard", metric: "combo", mode: "max", goal: 18, pts: 75, label: "Catch 18 in a row without a drop" },
+      { id: "td-combo25", tier: "hard", metric: "combo", mode: "max", goal: 25, pts: 90, label: "Catch 25 in a row without a drop" },
+    ],
+    br: [
+      // starters
+      { id: "br-runs2", tier: "starter", metric: "runs", mode: "sum", goal: 2, pts: 20, label: "Work 2 Bowl Rush lines" },
+      { id: "br-score15", tier: "starter", metric: "score", mode: "max", goal: 15, pts: 20, label: "Sort 15 ingredients in one line" },
+      { id: "br-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Work the conveyor for 5 minutes" },
+      // mid
+      { id: "br-score25", tier: "mid", metric: "score", mode: "max", goal: 25, pts: 40, label: "Sort 25 ingredients in one line" },
+      { id: "br-score32", tier: "mid", metric: "score", mode: "max", goal: 32, pts: 40, label: "Sort 32 ingredients in one line" },
+      { id: "br-streak10", tier: "mid", metric: "streak", mode: "max", goal: 10, pts: 40, label: "Sort 10 in a row without a miss" },
+      { id: "br-runs4", tier: "mid", metric: "runs", mode: "sum", goal: 4, pts: 40, label: "Work 4 Bowl Rush lines" },
+      // hard
+      { id: "br-score42", tier: "hard", metric: "score", mode: "max", goal: 42, pts: 75, label: "Sort 42 ingredients in one line" },
+      { id: "br-score50", tier: "hard", metric: "score", mode: "max", goal: 50, pts: 90, label: "Sort 50 ingredients in one line" },
+      { id: "br-streak20", tier: "hard", metric: "streak", mode: "max", goal: 20, pts: 75, label: "Sort 20 in a row without a miss" },
+      { id: "br-streak28", tier: "hard", metric: "streak", mode: "max", goal: 28, pts: 90, label: "Sort 28 in a row without a miss" },
+    ],
+    ps: [
+      // starters
+      { id: "ps-runs3", tier: "starter", metric: "runs", mode: "sum", goal: 3, pts: 20, label: "Finish 3 Poke Slice runs" },
+      { id: "ps-score10", tier: "starter", metric: "score", mode: "max", goal: 10, pts: 20, label: "Slice 10 pieces in one run" },
+      { id: "ps-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Slice for 5 minutes" },
+      // mid
+      { id: "ps-score25", tier: "mid", metric: "score", mode: "max", goal: 25, pts: 40, label: "Slice 25 pieces in one run" },
+      { id: "ps-score35", tier: "mid", metric: "score", mode: "max", goal: 35, pts: 40, label: "Slice 35 pieces in one run" },
+      { id: "ps-combo3", tier: "mid", metric: "combo", mode: "max", goal: 3, pts: 40, label: "Slice 3 in a single stroke" },
+      { id: "ps-runs6", tier: "mid", metric: "runs", mode: "sum", goal: 6, pts: 40, label: "Finish 6 Poke Slice runs" },
+      // hard
+      { id: "ps-score55", tier: "hard", metric: "score", mode: "max", goal: 55, pts: 75, label: "Slice 55 pieces in one run" },
+      { id: "ps-score70", tier: "hard", metric: "score", mode: "max", goal: 70, pts: 90, label: "Slice 70 pieces in one run" },
+      { id: "ps-combo5", tier: "hard", metric: "combo", mode: "max", goal: 5, pts: 75, label: "Slice 5 in a single stroke" },
+      { id: "ps-combo6", tier: "hard", metric: "combo", mode: "max", goal: 6, pts: 90, label: "Slice 6 in a single stroke" },
+    ],
   };
-  const GAME_LABEL = { bowl: "Bowl Builder", ou: "Order Up" };
+  const GAME_LABEL = {
+    bowl: "Bowl Builder", ou: "Order Up",
+    td: "Topping Drop", br: "Bowl Rush", ps: "Poke Slice",
+  };
 
   // --- Per-day state -------------------------------------------------------
   function load() {
