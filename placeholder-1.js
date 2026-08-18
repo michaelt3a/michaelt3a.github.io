@@ -775,7 +775,12 @@ function win() {
 let confetti = [];
 let confettiRAF = 0;
 
+// OS-level "reduce motion" skips the confetti bursts (the CSS shakes honor it too).
+const REDUCED_MOTION =
+  window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 function runConfetti() {
+  if (REDUCED_MOTION) return;
   // Match the (now full-screen) overlay so confetti fills the viewport.
   scCanvas.width = successEl.clientWidth;
   scCanvas.height = successEl.clientHeight;
@@ -1108,6 +1113,7 @@ function finishSpeedrun() {
 let rConfettiRAF = 0;
 
 function runResultsConfetti() {
+  if (REDUCED_MOTION) return;
   const cv = document.getElementById("results-confetti");
   cv.width = window.innerWidth;
   cv.height = window.innerHeight;

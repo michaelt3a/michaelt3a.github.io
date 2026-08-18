@@ -114,6 +114,24 @@
   60% { transform: translateX(-5px); }
   80% { transform: translateX(5px); }
 }
+@media (prefers-reduced-motion: reduce) {
+  .wb-row.shake { animation: none; }
+}
+
+/* High contrast mode: orange/blue instead of green/gold, for red-green
+   colorblind players. Toggled from the start screen; body carries the class. */
+body.wb-contrast .wb-tile.good,
+body.wb-contrast .wb-key.good {
+  background: #f5793a;
+  border-color: #f5793a;
+  color: #fff;
+}
+body.wb-contrast .wb-tile.near,
+body.wb-contrast .wb-key.near {
+  background: #85c0f9;
+  border-color: #85c0f9;
+  color: #06283f;
+}
 
 /* Completion screen */
 .wb-panel {

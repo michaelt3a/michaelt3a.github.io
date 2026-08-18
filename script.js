@@ -75,6 +75,9 @@ const LANE_HALF = W / ZOOM_IN / 2; // horizontal slide range that stays on scree
 const LAND_DUR = 0.18; // seconds of the landing squash animation
 const GRAVITY = 1400; // world px/sec^2 for particles & falling shards
 const PERFECT_TOLERANCE = 4; // overlap within this many px of full width counts as "perfect"
+// OS-level "reduce motion" turns off the camera shake.
+const REDUCED_MOTION =
+  window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // The bowl, in world coordinates. It's a clear container: the rim is the
 // opening, the floor is where the first ingredient rests.
@@ -1195,7 +1198,7 @@ function dropActive() {
     addFloater(state.combo > 1 ? `Perfect x${state.combo}!` : "Perfect!", "#fd9f27", midX, topY);
   } else {
     playLand();
-    state.shake = Math.max(state.shake, 0.14); // rough landing rattles the camera
+    if (!REDUCED_MOTION) state.shake = Math.max(state.shake, 0.14); // rough landing rattles the camera
     if (comboSaved) {
       playSave();
       showToast("🍚 Combo saved!");
@@ -2220,7 +2223,7 @@ function blowTopBlocks(count, who) {
     spawnShard(b.x + b.width / 2, topY, b.width / 2, b.color, 1);
     spawnLandParticles(b.x, b.x + b.width, topY + BLOCK_H, b.color);
   }
-  state.shake = 0.8;
+  if (!REDUCED_MOTION) state.shake = 0.8;
   setScore(state.placed.length);
   showToast("💣 " + who + " blew " + n + (n === 1 ? " block" : " blocks") + " off your stack!");
 }

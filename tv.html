@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pokeworks Board</title>
+  <meta name="description" content="In-store leaderboard display for the Pokeworks minigames." />
+  <meta name="robots" content="noindex" />
+  <script src="theme.js?v=7"></script>
+  <style>
+    /* Standalone kiosk page: always dark, styled for a TV across the room.
+       theme.js supplies the day's --star-pattern / --star-color; everything
+       else is defined here so the display never depends on a theme toggle. */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      background: #0a1010 var(--star-pattern, url("bg-pattern.svg"));
+      color: #f7f3ea;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4vw;
+      padding: 4vh 5vw;
+    }
+    #pk-corner { display: none; } /* no theme switch on the TV */
+
+    /* Left: the rotating board */
+    .board {
+      flex: 1.35;
+      max-width: 780px;
+      background: rgba(10, 16, 16, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 22px;
+      padding: 3.2vh 2.6vw;
+      min-height: 78vh;
+      display: flex;
+      flex-direction: column;
+      transition: opacity 0.45s ease;
+    }
+    .board.fade { opacity: 0; }
+    .board-kicker {
+      color: var(--star-color, #ffd15a);
+      font-size: 2.4vh;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .board-title {
+      font-size: 4.6vh;
+      font-weight: 800;
+      margin: 0.6vh 0 0.4vh;
+    }
+    .board-sub { color: rgba(247, 243, 234, 0.6); font-size: 2.2vh; }
+    .rows { margin-top: 2.6vh; flex: 1; display: flex; flex-direction: column; gap: 1.1vh; }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 1.4vw;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 1.2vh 1.4vw;
+      font-size: 2.9vh;
+      font-weight: 700;
+    }
+    .row .rank { width: 2.2em; color: rgba(247, 243, 234, 0.55); font-variant-numeric: tabular-nums; }
+    .row.r1 .rank { color: #ffd15a; }
+    .row.r2 .rank { color: #cfd6dd; }
+    .row.r3 .rank { color: #d8925b; }
+    .row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row .stat { font-variant-numeric: tabular-nums; color: var(--star-color, #ffd15a); }
+    .row.empty { justify-content: center; color: rgba(247, 243, 234, 0.5); font-weight: 600; }
+    .dots { display: flex; gap: 0.7vw; justify-content: center; margin-top: 2vh; }
+    .dot { width: 1.2vh; height: 1.2vh; border-radius: 50%; background: rgba(255, 255, 255, 0.18); }
+    .dot.on { background: var(--star-color, #ffd15a); }
+
+    /* Right: logo, tagline, QR, clock */
+    .side {
+      flex: 1;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 2.4vh;
+    }
+    .side .logo { width: 14vh; height: 14vh; }
+    .tagline { font-size: 3vh; font-weight: 700; }
+    .tagline small { display: block; margin-top: 0.6vh; font-size: 2.1vh; font-weight: 600; color: rgba(247, 243, 234, 0.6); }
+    .qr-card { background: #fff; border-radius: 18px; padding: 2vh; }
+    .qr-card img { display: block; width: 26vh; height: 26vh; }
+    .scan { font-size: 2.4vh; font-weight: 700; color: var(--star-color, #ffd15a); }
+    .clock { font-size: 5vh; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .date { font-size: 2.1vh; color: rgba(247, 243, 234, 0.6); margin-top: -1.6vh; }
+  </style>
+</head>
+<body>
+  <main class="board" id="board">
+    <div class="board-kicker" id="b-kicker">Today's Daily Challenge</div>
+    <h1 class="board-title" id="b-title">…</h1>
+    <div class="board-sub" id="b-sub"></div>
+    <div class="rows" id="b-rows"></div>
+    <div class="dots" id="b-dots"></div>
+  </main>
+
+  <aside class="side">
+    <img class="logo" src="pokeworks-logo-circle-1.png" alt="Pokeworks" />
+    <div class="tagline">play fun minigames for rewards!<small>daily challenges · leaderboards · discount codes</small></div>
+    <div class="qr-card"><img src="qr-site.svg" alt="QR code to the minigames site" /></div>
+    <div class="scan">Scan to play</div>
+    <div class="clock" id="clock">--:--</div>
+    <div class="date" id="date"></div>
+  </aside>
+
+  <script src="supabase-config.js?v=2"></script>
+  <script src="daily.js?v=6"></script>
+  <script>
+    // The store display: cycles today's daily board and this month's season
+    // boards, refetching each time a panel comes around. Reloads itself hourly
+    // so deploys and the midnight game change land without anyone touching it.
+    (function () {
+      const SB = window.POKEWORKS_SUPABASE || {};
+      const useSupabase =
+        !!SB.url && !!SB.anonKey && !/YOUR_/.test(SB.url) && !/YOUR_/.test(SB.anonKey);
+
+      function esc(s) {
+        return String(s).replace(/[&<>"']/g, (c) =>
+          ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      }
+      function fmtTime(ms) {
+        const t = Math.max(0, ms);
+        const m = Math.floor(t / 60000);
+        const s = Math.floor((t % 60000) / 1000);
+        return m + ":" + String(s).padStart(2, "0") + "." + Math.floor((t % 1000) / 100);
+      }
+      async function sbGet(path) {
+        const res = await fetch(SB.url + "/rest/v1/" + path, {
+          headers: { apikey: SB.anonKey, Authorization: "Bearer " + SB.anonKey },
+        });
+        if (!res.ok) throw new Error("Supabase " + res.status);
+        return res.json();
+      }
+      function monthStartISO() {
+        const d = new Date();
+        return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+      }
+      // Best-per-name, assuming rows arrive sorted best-first.
+      function dedupe(rows) {
+        const seen = new Set();
+        const out = [];
+        for (const e of rows) {
+          const k = String(e.name).trim().toLowerCase();
+          if (seen.has(k)) continue;
+          seen.add(k);
+          out.push(e);
+        }
+        return out;
+      }
+      // Month first; if nobody has posted yet this month, fall back to all-time
+      // so the screen never sits empty for the first days of a month.
+      async function seasonRows(table, select, order) {
+        if (!useSupabase) return { rows: [], when: "this month" };
+        const base = table + "?select=" + select + "&order=" + order + "&limit=500";
+        const month = await sbGet(base + "&created_at=gte." + monthStartISO());
+        if (month.length) return { rows: month, when: "this month" };
+        return { rows: await sbGet(base), when: "all-time" };
+      }
+      // Scores across difficulties/modes aren't comparable, so show the one
+      // mode people actually play: whichever has the most rows.
+      function busiest(rows, field) {
+        const count = {};
+        for (const e of rows) count[e[field]] = (count[e[field]] || 0) + 1;
+        let top = null;
+        for (const k of Object.keys(count)) if (top === null || count[k] > count[top]) top = k;
+        return top;
+      }
+
+      const monthName = new Date().toLocaleDateString(undefined, { month: "long" });
+      const PANELS = [
+        {
+          kicker: "Today's Daily Challenge",
+          title: () => Daily.challenge().game.label,
+          stat: (e) => e.score + " " + Daily.challenge().game.unit,
+          fetch: async () => ({
+            list: await Daily.board(),
+            sub: "One shared run. Everyone plays the same game today.",
+          }),
+        },
+        {
+          kicker: monthName + " season",
+          title: () => "Bowl Builder",
+          stat: (e) => e.score + " blocks",
+          fetch: async () => {
+            const r = await seasonRows("bowl_scores", "name,score,difficulty", "score.desc");
+            const d = busiest(r.rows, "difficulty");
+            if (!d) return { list: [], sub: "Top stacks " + r.when };
+            const label = { easy: "Easy", medium: "Medium", impossible: "Impossible" }[d] || d;
+            return {
+              list: dedupe(r.rows.filter((e) => e.difficulty === d)),
+              sub: label + " · top stacks " + r.when,
+            };
+          },
+        },
+        {
+          kicker: monthName + " season",
+          title: () => "Order Up",
+          stat: (e) => "$" + e.score,
+          fetch: async () => {
+            const r = await seasonRows("orderup_scores", "name,score,mode", "score.desc");
+            const m = busiest(r.rows, "mode");
+            if (!m) return { list: [], sub: "Biggest banks " + r.when };
+            const label = { normal: "Full Shift", hard: "Full Shift · Hard", "normal-rush": "Rush", "hard-rush": "Rush · Hard" }[m] || m;
+            return {
+              list: dedupe(r.rows.filter((e) => e.mode === m)),
+              sub: label + " · biggest banks " + r.when,
+            };
+          },
+        },
+        {
+          kicker: monthName + " season",
+          title: () => "Signature Works",
+          stat: (e) => e.perfect + "/9 · " + fmtTime(e.ms),
+          fetch: async () => {
+            const r = await seasonRows("sigworks_speedruns", "name,perfect,ms", "perfect.desc,ms.asc");
+            return { list: dedupe(r.rows), sub: "Speedrun · best runs " + r.when };
+          },
+        },
+      ];
+
+      const boardEl = document.getElementById("board");
+      const kickerEl = document.getElementById("b-kicker");
+      const titleEl = document.getElementById("b-title");
+      const subEl = document.getElementById("b-sub");
+      const rowsEl = document.getElementById("b-rows");
+      const dotsEl = document.getElementById("b-dots");
+      dotsEl.innerHTML = PANELS.map(() => '<span class="dot"></span>').join("");
+
+      let idx = -1;
+      async function showNext() {
+        idx = (idx + 1) % PANELS.length;
+        const p = PANELS[idx];
+        let list = [];
+        let sub = "";
+        try {
+          const r = await p.fetch();
+          list = r.list.slice(0, 10);
+          sub = r.sub;
+        } catch (e) { list = []; }
+        boardEl.classList.add("fade");
+        setTimeout(() => {
+          kickerEl.textContent = p.kicker;
+          titleEl.textContent = p.title();
+          subEl.textContent = sub;
+          rowsEl.innerHTML = list.length
+            ? list.map((e, i) =>
+                '<div class="row r' + (i + 1) + '">' +
+                '<span class="rank">#' + (i + 1) + "</span>" +
+                '<span class="name">' + esc(e.name) + "</span>" +
+                '<span class="stat">' + p.stat(e) + "</span></div>"
+              ).join("")
+            : '<div class="row empty">No scores posted yet. Scan the code and be on this board.</div>';
+          for (let i = 0; i < dotsEl.children.length; i++) {
+            dotsEl.children[i].classList.toggle("on", i === idx);
+          }
+          boardEl.classList.remove("fade");
+        }, 460);
+      }
+      showNext();
+      setInterval(showNext, 12000);
+
+      // Clock + date, and the hourly self-reload.
+      const clockEl = document.getElementById("clock");
+      const dateEl = document.getElementById("date");
+      function tick() {
+        const d = new Date();
+        clockEl.textContent = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        dateEl.textContent = d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+      }
+      tick();
+      setInterval(tick, 15000);
+      setTimeout(() => location.reload(), 3600000);
+    })();
+  </script>
+</body>
+</html>

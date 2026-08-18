@@ -366,7 +366,9 @@
   function shareText() {
     const s = load();
     const word = todaysWord();
-    const EMOJI = { good: "🟩", near: "🟨", miss: "⬛" };
+    const EMOJI = contrastOn()
+      ? { good: "🟧", near: "🟦", miss: "⬛" }
+      : { good: "🟩", near: "🟨", miss: "⬛" };
     const lines = s.day.guesses.map((g) => grade(g, word.w).map((m) => EMOJI[m]).join(""));
     const score = (s.day.won ? s.day.guesses.length : "X") + "/" + TRIES + (s.day.hard ? "*" : "");
     return "Word Bowl " + score + "\n" + lines.join("\n") + "\n\n" +
@@ -464,6 +466,25 @@
     locked = false;
     const leftTries = TRIES - boot.day.guesses.length;
     statusEl.textContent = leftTries + (leftTries === 1 ? " try left" : " tries left");
+  }
+
+  // --- High contrast (colorblind) tiles --------------------------------------
+  // Orange/blue instead of green/gold; the share grid follows suit.
+  const CONTRAST_KEY = "pokeworks-wb-contrast";
+  function contrastOn() {
+    try { return localStorage.getItem(CONTRAST_KEY) === "1"; } catch (e) { return false; }
+  }
+  const contrastCheck = document.getElementById("wb-contrast-check");
+  function applyContrast(on) {
+    document.body.classList.toggle("wb-contrast", on);
+    if (contrastCheck) contrastCheck.checked = on;
+  }
+  applyContrast(contrastOn());
+  if (contrastCheck) {
+    contrastCheck.addEventListener("change", () => {
+      try { localStorage.setItem(CONTRAST_KEY, contrastCheck.checked ? "1" : "0"); } catch (e) { /* ignore */ }
+      applyContrast(contrastCheck.checked);
+    });
   }
 
   startBtn.addEventListener("click", () => {

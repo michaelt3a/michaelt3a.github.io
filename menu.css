@@ -305,6 +305,40 @@ body {
   cursor: pointer;
 }
 
+/* Site-wide backup block in the profile sheet footer. */
+.pc-backup-btns {
+  display: flex;
+  gap: 0.4rem;
+}
+.pc-backup {
+  padding: 0 1.25rem 1rem;
+  border-top: 1px solid var(--surface-line);
+}
+.pc-backup-hint {
+  margin: 0.7rem 0 0.5rem;
+  color: var(--on-dark-muted);
+  font-size: 0.8rem;
+}
+.pc-backup textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--chip);
+  border: 1px solid var(--chip-line);
+  border-radius: 8px;
+  color: var(--on-dark);
+  font-family: monospace;
+  font-size: 0.72rem;
+  padding: 0.5rem;
+  resize: none;
+  word-break: break-all;
+}
+.pc-backup-msg {
+  margin: 0.4rem 0 0;
+  color: var(--on-dark-muted);
+  font-size: 0.8rem;
+  min-height: 1em;
+}
+
 .hub-logo {
   height: 64px;
   width: auto;

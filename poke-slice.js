@@ -33,6 +33,9 @@
 
   const BEST_KEY = "pokeworks-slice-best";
   const NAME_KEY = "pokeworks-lb-name";
+  // OS-level "reduce motion" turns off the camera shake.
+  const REDUCED_MOTION =
+    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const GOOD = ["🐟", "🍣", "🥑", "🍤", "🥒", "🥭"];
   const BOMB = "🧨";
   const GRAVITY = 1000;
@@ -479,7 +482,7 @@
         life: 0.5 + Math.random() * 0.4,
       });
     }
-    state.shake = 0.5;
+    if (!REDUCED_MOTION) state.shake = 0.5;
     state.flash = 0.4;
   }
 
@@ -500,7 +503,7 @@
           state.items.splice(i, 1);
           setScore(state.score + 8);
           sfx("boom");
-          state.shake = 0.3;
+          if (!REDUCED_MOTION) state.shake = 0.3;
           state.floaters.push({ text: "🍶 SHATTERED! +8", x: it.x, y: it.y - 30, life: 1.1 });
           for (let k = 0; k < 14; k++) {
             const ang = Math.random() * Math.PI * 2;

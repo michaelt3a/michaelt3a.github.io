@@ -319,6 +319,9 @@
 .bowl-area.shake {
   animation: shake 0.4s ease;
 }
+@media (prefers-reduced-motion: reduce) {
+  .bowl-area.shake { animation: none; }
+}
 
 @keyframes shake {
   0%, 100% { transform: translateX(0); }

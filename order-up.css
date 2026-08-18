@@ -1124,6 +1124,9 @@
 }
 /* Tapping a full room: a quick "no table" shake. */
 .ou-cust.noroom { animation: ou-noroom 0.3s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .ou-cust.noroom { animation: none; }
+}
 @keyframes ou-noroom {
   0%, 100% { transform: translateX(-50%); }
   25% { transform: translateX(calc(-50% - 4px)); }

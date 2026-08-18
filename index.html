@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=48" />
+  <link rel="stylesheet" href="menu.css?v=49" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -350,6 +350,19 @@
         <span>Sound</span>
         <button class="sound-btn" id="sound-toggle" type="button">🔊 On</button>
       </div>
+      <!-- Site-wide backup: points, streak, skins, and saves in one code -->
+      <div class="sheet-foot">
+        <span>Backup</span>
+        <span class="pc-backup-btns">
+          <button class="sound-btn" id="pc-backup-btn" type="button">Back up</button>
+          <button class="sound-btn" id="pc-restore-btn" type="button">Restore</button>
+        </span>
+      </div>
+      <div class="pc-backup" id="pc-backup-wrap" hidden>
+        <p class="pc-backup-hint">Moves your points, streak, skins, and saves to another device.</p>
+        <textarea id="pc-backup-code" rows="3" placeholder="Paste a backup code, then tap Restore again"></textarea>
+        <p class="pc-backup-msg" id="pc-backup-msg"></p>
+      </div>
     </div>
   </div>
 
@@ -437,6 +450,7 @@
   <script src="hub-leaderboard.js?v=12"></script>
   <script src="wordfilter.js?v=1"></script>
   <script src="player-card.js?v=11"></script>
+  <script src="backup.js?v=1"></script>
   <script src="daily-card.js?v=8"></script>
   <script>
     DailyCard.render(document.getElementById("dc"));
