@@ -80,7 +80,10 @@
       remember(next);
       apply(next);
     });
-    corner().appendChild(btn);
+    // A page can offer a #theme-slot (the hub puts one in the profile sheet);
+    // without one the switch lands in the top-right corner tray as ever.
+    var slot = document.getElementById("theme-slot");
+    (slot || corner()).appendChild(btn);
     apply(root.getAttribute("data-theme")); // label the freshly-made button
   }
 

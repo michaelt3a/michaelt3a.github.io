@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=39" />
+  <link rel="stylesheet" href="menu.css?v=40" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <script src="theme.js?v=5"></script>
+  <script src="theme.js?v=6"></script>
   <script src="sound.js?v=3"></script>
   <script src="streak.js?v=1"></script>
 </head>
 <body>
   <!-- Everything that isn't a game lives up here now: profile (name, stats,
-       achievements, boards, challenges), the daily challenge, and the shop.
-       theme.js appends its switch to this same tray. -->
+       achievements, boards, challenges, theme), the daily challenge, and the
+       shop. The theme switch mounts inside the profile sheet (#theme-slot). -->
   <div class="pk-corner" id="pk-corner">
     <button class="corner-btn" type="button" data-open="sheet-you" aria-label="Profile">👤</button>
     <button class="corner-btn" type="button" data-open="sheet-daily" aria-label="Daily challenge">
@@ -256,6 +256,11 @@
         <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
       </div>
       <div class="sheet-body" id="pc-body"></div>
+      <!-- theme.js mounts the light/dark switch into this slot -->
+      <div class="sheet-foot">
+        <span>Light / dark mode</span>
+        <span id="theme-slot"></span>
+      </div>
     </div>
   </div>
 
