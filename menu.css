@@ -316,6 +316,32 @@ body {
   75% { transform: scale(1); }
 }
 
+.icon-topping {
+  background: linear-gradient(135deg, #f5c542, #ee435b);
+}
+/* One avocado on loop: falls from the top and lands in the bowl. */
+.tdi-fall {
+  animation: tdi-fall 2.6s linear infinite;
+}
+@keyframes tdi-fall {
+  0% { transform: translateY(-48px); opacity: 0; }
+  12% { opacity: 1; }
+  68% { transform: translateY(28px); opacity: 1; }
+  80%, 100% { transform: translateY(40px); opacity: 0; }
+}
+
+.icon-rush {
+  background: linear-gradient(135deg, #22b2b4, #8f6ef0);
+}
+/* A chip rides the conveyor across the card. */
+.bri-slide {
+  animation: bri-slide 4.4s linear infinite;
+}
+@keyframes bri-slide {
+  from { transform: translateX(0); }
+  to { transform: translateX(500px); }
+}
+
 .icon-shopper {
   background: linear-gradient(135deg, #7c5cff, #ee435b);
 }
@@ -331,7 +357,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bbi-float, .oui-coin, .oui-coin2, .ssi-lens { animation: none; }
+  .bbi-float, .oui-coin, .oui-coin2, .ssi-lens, .tdi-fall, .bri-slide { animation: none; }
 }
 
 .icon-placeholder {
