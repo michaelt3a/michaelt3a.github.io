@@ -6,7 +6,7 @@
   <title>Bowl Rush - Pokeworks</title>
   <meta name="description" content="Sort ingredients to their station before the clock runs out." />
   <link rel="stylesheet" href="styles.css?v=22" />
-  <link rel="stylesheet" href="bowl-rush.css?v=2" />
+  <link rel="stylesheet" href="bowl-rush.css?v=3" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -41,7 +41,13 @@
         <div class="rush-timer"><i id="rush-timer-fill"></i></div>
         <!-- Ingredients ride this belt; drag them off into the tubs below -->
         <div class="rush-field" id="rush-field">
-          <div class="rush-beltline" aria-hidden="true"></div>
+          <div class="rush-conveyor" aria-hidden="true">
+            <span class="belt"></span>
+            <span class="roller left"></span>
+            <span class="roller right"></span>
+            <span class="leg left"></span>
+            <span class="leg right"></span>
+          </div>
         </div>
         <p class="rush-msg" id="rush-msg">&nbsp;</p>
         <div class="rush-bins" id="rush-bins"></div>
