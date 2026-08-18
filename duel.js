@@ -112,6 +112,8 @@
     "background:var(--star-color,#8f6ef0);color:#1f2b2b;text-decoration:none}" +
     ".duel-panel2 a.quiet{background:none;color:#6b7a7a;border:1px solid #ccc}" +
     ".duel-wait{font-weight:700;color:var(--star-deep,#8f6ef0);margin:0 0 .3rem}" +
+    ".duel-series{margin:0 0 .9rem;font-weight:700;font-size:.9rem;color:#6b7a7a}" +
+    ".duel-series.win{color:var(--star-deep,#8f6ef0);font-size:1rem}" +
     "@keyframes duel-pulse{50%{opacity:.5}}.duel-wait i{animation:duel-pulse 1.2s ease-in-out infinite;font-style:normal}";
   document.head.appendChild(css);
 
@@ -166,24 +168,94 @@
     }).join("");
   }
 
+  // --- Best-of-3 series ------------------------------------------------------
+  // Both devices track the rematch chain locally: when a duel ends, the next
+  // room's code is stored with the running tally, so the rematch recognizes
+  // the series it belongs to. First to 2 wins takes it; ties count nothing.
+  const SERIES_KEY = "pokeworks-duel-series";
+  let seriesResult = null; // computed once per page, reused on re-renders
+
+  function seriesAfter(a, b) {
+    if (seriesResult) return seriesResult;
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(SERIES_KEY)); } catch (e) { /* ignore */ }
+    if (!s || s.room !== code || s.game !== PAGE_GAME) s = { me: 0, them: 0 };
+    if (a > b) s.me++;
+    else if (b > a) s.them++;
+    const clinched = s.me >= 2 || s.them >= 2;
+    try {
+      if (clinched) localStorage.removeItem(SERIES_KEY);
+      else localStorage.setItem(SERIES_KEY, JSON.stringify({
+        room: nextCode(code), game: PAGE_GAME, me: s.me, them: s.them,
+      }));
+    } catch (e) { /* ignore */ }
+    seriesResult = { me: s.me, them: s.them, clinched: clinched };
+    return seriesResult;
+  }
+
+  const GAME_LABEL = { bowl: "Bowl Builder", td: "Topping Drop", ps: "Poke Slice" }[PAGE_GAME];
+
   function showResult() {
     const a = mine.score;
     const b = opp.score;
     const title = a > b ? "You win!" : a < b ? escapeHtml(opp.name) + " wins" : "Dead tie";
+    const s = seriesAfter(a, b);
+    let seriesLine;
+    if (s.clinched) {
+      const winnerMe = s.me > s.them;
+      seriesLine =
+        '<p class="duel-series win">🏆 ' +
+        (winnerMe ? "You take" : escapeHtml(opp.name) + " takes") +
+        " the series " + Math.max(s.me, s.them) + "-" + Math.min(s.me, s.them) + "!</p>";
+    } else {
+      seriesLine =
+        '<p class="duel-series">Series: You ' + s.me + " – " + s.them + " " +
+        escapeHtml(opp.name) + " · first to 2</p>";
+    }
+    if (window.PokeAch) {
+      if (a > b) PokeAch.unlock("duel-win");
+      if (s.clinched && s.me > s.them) PokeAch.unlock("duel-series");
+    }
+    const rematchUrl = "duel.html?room=" + nextCode(code) + "&game=" + PAGE_GAME;
     panel(
       "<h2>" + title + "</h2>" +
       '<p class="duel-sub">Room ' + code + " · " +
       ({ td: "same rain, no excuses", ps: "same catch, no excuses" }[PAGE_GAME] || "same blocks, no excuses") +
       "</p>" +
+      seriesLine +
       '<div class="duel-score-row">' +
       '<span><b class="' + (a >= b ? "w" : "l") + '">' + a + "</b><br><small>" + escapeHtml(myName) + "</small></span>" +
       '<span class="vs">—</span>' +
       '<span><b class="' + (b >= a ? "w" : "l") + '">' + b + "</b><br><small>" + escapeHtml(opp.name) + "</small></span></div>" +
       '<table class="duel-stats"><tr><th></th><th>' + escapeHtml(myName) + "</th><th>" + escapeHtml(opp.name) + "</th></tr>" +
       statRows() + "</table>" +
-      '<a href="duel.html?room=' + nextCode(code) + '&game=' + PAGE_GAME + '">Rematch</a>' +
+      '<a href="' + rematchUrl + '">Rematch</a>' +
+      '<a class="quiet" href="#" id="duel-share-result">Share</a>' +
       '<a class="quiet" href="index.html">Done</a>'
     );
+    // One-tap bragging: the share line carries a rematch link that lands the
+    // recipient in the lobby with this game preselected.
+    const shareEl = banner.querySelector("#duel-share-result");
+    if (shareEl) {
+      shareEl.addEventListener("click", function (e) {
+        e.preventDefault();
+        const url = location.origin + location.pathname.replace(/[^/]*$/, "") + rematchUrl;
+        const text =
+          (a > b
+            ? "I beat " + opp.name + " " + a + "-" + b + " in " + GAME_LABEL + "! 🥊"
+            : a < b
+              ? opp.name + " got me " + b + "-" + a + " in " + GAME_LABEL + ". Avenge me:"
+              : "Dead tie " + a + "-" + b + " with " + opp.name + " in " + GAME_LABEL + "!") +
+          " Rematch: " + url;
+        if (navigator.share) {
+          navigator.share({ text: text }).catch(function () { /* backed out, fine */ });
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            shareEl.textContent = "✓ Copied";
+          }, function () { /* clipboard unavailable; nothing to break */ });
+        }
+      });
+    }
   }
 
   function showWaiting() {

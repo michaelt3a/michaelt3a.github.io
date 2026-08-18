@@ -266,6 +266,10 @@
       }
     }
     save(s);
+    // Sweeping all of one game's quests in a day earns the wall a badge.
+    if (window.PokeAch && todaysSet(game).every((q) => s.done[q.id])) {
+      PokeAch.unlock("meta-sweep");
+    }
     checkDailyAward();
   }
 

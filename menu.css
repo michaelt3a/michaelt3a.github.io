@@ -178,7 +178,7 @@ body {
   box-shadow: inset 0 0 0 1.5px var(--gold);
 }
 
-/* Fixed footer row of the profile sheet; theme.js drops its switch here. */
+/* Fixed footer rows of the profile sheet (theme switch, sound). */
 .sheet-foot {
   display: flex;
   justify-content: space-between;
@@ -188,6 +188,18 @@ body {
   color: var(--on-dark-muted);
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+.sound-btn {
+  background: var(--chip);
+  border: 1px solid var(--chip-line);
+  color: var(--on-dark);
+  border-radius: 999px;
+  padding: 0.28rem 0.8rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .hub-logo {

@@ -238,6 +238,7 @@
     if (catName === it.cat) {
       state.streak++;
       if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+      if (state.streak >= 25 && window.PokeAch) PokeAch.unlock("br-streak25");
       let gain = 1;
       if (state.streak % 5 === 0) {
         gain += 2;

@@ -41,6 +41,10 @@
     // Word Bowl
     { id: "wb-first", game: "Word Bowl", icon: "🥢", title: "Word Up", how: "Solve a Word Bowl." },
     { id: "wb-hard", game: "Word Bowl", icon: "🧠", title: "No Training Wheels", how: "Solve a Word Bowl with hard mode on." },
+
+    { id: "td-combo20", game: "Topping Drop", icon: "🧲", title: "Bowl Magnet", how: "Catch 20 toppings in a row without a drop." },
+    { id: "br-streak25", game: "Bowl Rush", icon: "🏭", title: "Line Boss", how: "Sort 25 ingredients in a row without a miss." },
+    { id: "ps-stroke5", game: "Poke Slice", icon: "🔪", title: "One Clean Cut", how: "Slice 5 pieces in a single stroke." },
     // Secret Shopper
     { id: "ss-first", game: "Secret Shopper", icon: "🕵️", title: "Clocked In", how: "Finish a shift." },
     { id: "ss-pass", game: "Secret Shopper", icon: "📋", title: "Passing Grade", how: "Finish a shift with a score of 80% or higher." },
@@ -53,6 +57,9 @@
     // Arcade-wide
     { id: "meta-all", game: "Arcade", icon: "🕹️", title: "Arcade Regular", how: "Play all 5 games at least once." },
     { id: "meta-streak7", game: "Arcade", icon: "🔥", title: "Seven Straight", how: "Play on 7 days in a row." },
+    { id: "duel-win", game: "Arcade", icon: "🥊", title: "Duelist", how: "Win a live duel." },
+    { id: "duel-series", game: "Arcade", icon: "🏆", title: "Best of Three", how: "Take a duel series, first to 2 wins." },
+    { id: "meta-sweep", game: "Arcade", icon: "🧹", title: "Clean Sweep", how: "Finish all 5 of one game's challenges in a single day." },
     // One badge per hub section: prove yourself in both of its games.
     { id: "meta-customer", game: "Arcade", icon: "😋", title: "Crowd Pleaser", how: "Stack 25 blocks in Bowl Builder and reach a 4.8★ rating in Order Up." },
     { id: "meta-training", game: "Arcade", icon: "🎓", title: "Certified", how: "Finish a Signature Works speedrun and pass a Secret Shopper shift at 80%+." },

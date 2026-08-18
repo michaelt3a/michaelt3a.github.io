@@ -432,6 +432,7 @@
       } else {
         state.strokeSlices++;
         if (state.strokeSlices > state.bestStroke) state.bestStroke = state.strokeSlices;
+        if (state.strokeSlices >= 5 && window.PokeAch) PokeAch.unlock("ps-stroke5");
         sfx("swish");
         setScore(state.score + 1);
         // Two REAL halves: each piece is the glyph clipped along the cut

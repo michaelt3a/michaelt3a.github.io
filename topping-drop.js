@@ -400,6 +400,7 @@
         } else {
           state.combo++;
           if (state.combo > state.bestCombo) state.bestCombo = state.combo;
+          if (state.combo >= 20 && window.PokeAch) PokeAch.unlock("td-combo20");
           sfx("pop");
           setScore(state.score + 1);
         }
