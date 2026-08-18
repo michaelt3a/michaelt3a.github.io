@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=34" />
+  <link rel="stylesheet" href="menu.css?v=35" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -21,8 +21,42 @@
        theme.js appends its switch to this same tray. -->
   <div class="pk-corner" id="pk-corner">
     <button class="corner-btn" type="button" data-open="sheet-you" aria-label="Profile">👤</button>
-    <button class="corner-btn" type="button" data-open="sheet-daily" aria-label="Daily challenge">🗓</button>
-    <a class="corner-btn" href="shop.html" aria-label="Rewards Shop">🎁</a>
+    <button class="corner-btn" type="button" data-open="sheet-daily" aria-label="Daily challenge">
+      <!-- calendar with a bullseye and dart -->
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2.6" y="4.6" width="18.8" height="16.6" rx="2.4" fill="#fffdfa" stroke="#3f3c66" stroke-width="1.5" />
+        <path d="M5 4.6 h14 a2.4 2.4 0 0 1 2.4 2.4 v1.4 H2.6 V7 a2.4 2.4 0 0 1 2.4-2.4 Z" fill="#ee7472" />
+        <g fill="#d3d3dc" stroke="#3f3c66" stroke-width="1">
+          <rect x="6" y="2" width="1.9" height="4.4" rx="0.95" />
+          <rect x="11.05" y="2" width="1.9" height="4.4" rx="0.95" />
+          <rect x="16.1" y="2" width="1.9" height="4.4" rx="0.95" />
+        </g>
+        <circle cx="12" cy="15" r="5.4" fill="#aee0ee" stroke="#3f3c66" stroke-width="1.4" />
+        <circle cx="12" cy="15" r="3.4" fill="#f7e38d" />
+        <circle cx="12" cy="15" r="1.7" fill="#ef8484" stroke="#3f3c66" stroke-width="1.1" />
+        <line x1="12" y1="15" x2="16.6" y2="10.4" stroke="#3f3c66" stroke-width="1.4" stroke-linecap="round" />
+        <path d="M15.7 8.7 l3.4 -0.8 -0.8 3.4 -1.9 -0.7 Z" fill="#f6b04e" stroke="#3f3c66" stroke-width="1.1" stroke-linejoin="round" />
+      </svg>
+    </button>
+    <a class="corner-btn" href="shop.html" aria-label="Rewards Shop">
+      <!-- storefront with a striped awning -->
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4.5" y="10.5" width="15" height="9.5" rx="1" fill="#e6f3fb" stroke="#3f3c66" stroke-width="1.5" />
+        <rect x="7" y="13.5" width="4" height="4" fill="#62c3f7" />
+        <rect x="13.5" y="13" width="4.3" height="6.9" fill="#6d7fc4" />
+        <g stroke="none">
+          <circle cx="4.8" cy="10.5" r="1.9" fill="#ef6a5f" />
+          <circle cx="8.4" cy="10.5" r="1.9" fill="#aab4d8" />
+          <circle cx="12" cy="10.5" r="1.9" fill="#ef6a5f" />
+          <circle cx="15.6" cy="10.5" r="1.9" fill="#aab4d8" />
+          <circle cx="19.2" cy="10.5" r="1.9" fill="#ef6a5f" />
+        </g>
+        <path d="M5 4 H19 L21 10.5 H3 Z" fill="#ef6a5f" />
+        <path d="M8 4 h3 l-0.29 6.5 h-3.85 Z" fill="#fff" />
+        <path d="M14 4 h3 l1.43 6.5 h-3.86 Z" fill="#fff" />
+        <path d="M5 4 H19 L21 10.5 H3 Z" fill="none" stroke="#3f3c66" stroke-width="1.5" stroke-linejoin="round" />
+      </svg>
+    </a>
   </div>
 
   <main class="hub page-content">

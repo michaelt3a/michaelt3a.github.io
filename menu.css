@@ -47,6 +47,13 @@ body {
   text-decoration: none;
 }
 
+/* Drawn icons inside corner buttons (daily calendar, shop awning). */
+.corner-btn svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
 /* Doors at the bottom of the profile sheet. */
 .pc-nav {
   display: flex;
