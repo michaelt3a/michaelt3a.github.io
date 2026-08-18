@@ -200,37 +200,55 @@
   gap: 0.5rem;
 }
 
+/* Station pans, drawn like the steel inserts on a real poke counter: a
+   tapered steel body with the category's food sitting in the opening. */
 .rush-bin {
-  border: 2.5px solid var(--cat, #888);
-  border-radius: 12px 12px 8px 8px;
-  background: var(--cat-soft, rgba(255, 255, 255, 0.08));
-  color: #fff;
+  position: relative;
+  border: none;
+  padding: 1.5rem 0.3rem 0.6rem;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.1), transparent 14%, transparent 86%, rgba(0, 0, 0, 0.1)),
+    linear-gradient(180deg, #f2f6f7 0%, #d6dee2 100%);
+  clip-path: polygon(0% 0%, 100% 0%, 90% 100%, 10% 100%);
+  color: #4c5a60;
   font: inherit;
   font-weight: 800;
   font-size: 0.88rem;
-  padding: 1.05rem 0.3rem 0.85rem;
   text-align: center;
-  position: relative;
-  transition: transform 0.1s ease, background 0.12s ease;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.18));
+  transition: transform 0.1s ease, filter 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* The tub's lip */
+/* The food inside, peeking over the rim. */
 .rush-bin::before {
   content: "";
   position: absolute;
-  top: 4px;
-  left: 8px;
-  right: 8px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--cat, #888);
+  top: 6px;
+  left: 12px;
+  right: 12px;
+  height: 12px;
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 55%),
+    var(--cat, #888);
+}
+
+/* The steel rim along the opening. */
+.rush-bin::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #ffffff;
   opacity: 0.9;
 }
 
 .rush-bin.hot {
-  transform: scale(1.07);
-  background: var(--cat-hot, rgba(255, 255, 255, 0.2));
+  transform: scale(1.08) translateY(-3px);
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.28)) brightness(1.05);
 }
 
 .rush-bin.reveal {
@@ -238,8 +256,8 @@
 }
 
 @keyframes rush-reveal {
-  0%, 100% { box-shadow: none; }
-  30%, 70% { box-shadow: 0 0 0 4px #fff; }
+  0%, 100% { filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.18)); }
+  30%, 70% { filter: drop-shadow(0 0 10px var(--cat, #888)) brightness(1.2); }
 }
 
 @media (max-width: 640px) {
@@ -251,7 +269,7 @@
   }
   .rush-bin {
     font-size: 0.78rem;
-    padding: 0.9rem 0.3rem 0.7rem;
+    padding: 1.3rem 0.3rem 0.5rem;
   }
   .rush-item {
     font-size: 0.82rem;
