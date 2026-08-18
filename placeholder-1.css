@@ -7,13 +7,28 @@
 }
 
 /* The light game panel on the dark page */
+/* No game box: the menu and the builder float straight over the starfield.
+   Cards, chips and buttons stay white so they pop; loose text switches to
+   the on-dark theme colors (which flip correctly in light mode). */
 .builder-shell {
   position: relative;
   width: 100%;
-  background: #eef7f7;
-  border-radius: 16px;
-  overflow: hidden;
   min-height: 460px;
+}
+
+.builder-shell .overlay {
+  background: none;
+  backdrop-filter: none;
+}
+
+.builder-shell .overlay-title {
+  color: var(--on-dark);
+  text-shadow: none;
+}
+
+.builder-shell .overlay-subtitle {
+  color: var(--on-dark-muted);
+  text-shadow: none;
 }
 
 .builder {
@@ -50,7 +65,7 @@
 .drop-hint {
   text-align: center;
   margin: 0.1rem 0 0.4rem;
-  color: var(--muted);
+  color: var(--on-dark-muted);
   font-size: 0.85rem;
 }
 
@@ -184,14 +199,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--chip-line);
   padding-bottom: 0.5rem;
 }
 
 .tab {
   border: none;
   background: transparent;
-  color: var(--muted);
+  color: var(--on-dark-muted);
   font-weight: 700;
   font-size: 0.85rem;
   padding: 0.35rem 0.7rem;
@@ -211,7 +226,7 @@
 }
 
 .tab:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--chip);
 }
 
 .tab.active {
@@ -231,7 +246,8 @@
 
 .tab .count {
   font-size: 0.7rem;
-  color: var(--muted);
+  color: inherit;
+  opacity: 0.75;
 }
 
 /* Ingredient chips */
@@ -289,15 +305,15 @@
   margin: 0;
   min-height: 1.2rem;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--on-dark-muted);
 }
 
 .feedback.good {
-  color: var(--teal-dark);
+  color: var(--teal);
 }
 
 .feedback.bad {
-  color: var(--accent-dark);
+  color: var(--accent);
 }
 
 .bowl-area.shake {
@@ -503,7 +519,7 @@
 
 .overlay-note {
   text-align: center;
-  color: var(--muted);
+  color: var(--on-dark-muted);
   font-size: 0.78rem;
   font-weight: 600;
   margin: 0.6rem 0;
