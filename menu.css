@@ -366,6 +366,34 @@ body {
   text-transform: lowercase;
 }
 
+/* One tap, random customer game. Quiet outlined chip under the tagline. */
+.hub-surprise {
+  margin-top: 0.7rem;
+  background: none;
+  border: 1px solid var(--chip-line);
+  border-radius: 999px;
+  color: var(--on-dark-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: lowercase;
+  padding: 0.32rem 0.95rem;
+  cursor: pointer;
+}
+.hub-surprise:hover {
+  color: var(--on-dark);
+  border-color: var(--star-color, var(--on-dark-muted));
+}
+
+/* Countdown on the hourly challenge heading. */
+.ch-hour-left {
+  float: right;
+  color: var(--on-dark-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
 /* Cards: one flat neal.fun-style grid. Every game is a single banner tile
    with its name sitting on the art; no sections, no descriptions. */
 .cards {

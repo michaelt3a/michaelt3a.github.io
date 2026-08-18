@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=50" />
+  <link rel="stylesheet" href="menu.css?v=51" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -64,7 +64,7 @@
     <header class="hub-header">
       <img src="pokeworks-logo-circle-1.png" alt="Pokeworks" class="hub-logo" />
       <p class="hub-tag">play fun minigames for rewards!</p>
-
+      <button class="hub-surprise" id="hub-surprise" type="button">🎲 surprise me</button>
     </header>
 
     <!-- data-latest names the game whose card wears the ✨ Updated tag.
@@ -446,7 +446,7 @@
   <script src="track.js?v=1"></script>
   <script src="points.js?v=2"></script>
   <script src="mail-sync.js?v=2"></script>
-  <script src="challenges.js?v=9"></script>
+  <script src="challenges.js?v=10"></script>
   <script src="hub-leaderboard.js?v=13"></script>
   <script src="wordfilter.js?v=1"></script>
   <script src="player-card.js?v=12"></script>
@@ -476,6 +476,21 @@
         '<p class="ch-note">' + (ps > 1 ? ps + " days in a row. " : "") +
         'Finish these to earn points for the <a href="shop.html">Rewards Shop</a>. ' +
         "New set every day.</p>";
+      // The hourly challenge sits on top: one small task, new one every hour.
+      const h = PokeChallenges.hourly && PokeChallenges.hourly();
+      if (h && !h.capped) {
+        const hpct = Math.round((h.progress / h.goal) * 100);
+        html +=
+          '<h3 class="ch-game">⏱ This hour · ' + esc(h.gameLabel) +
+          ' <span class="ch-hour-left">new one in ' + h.minsLeft + ' min</span></h3>' +
+          '<div class="ch-row' + (h.done ? " done" : "") + '">' +
+          '<div class="ch-info"><span class="ch-label">' + esc(h.label) + "</span>" +
+          '<div class="ch-bar"><i style="width:' + (h.done ? 100 : hpct) + '%"></i></div></div>' +
+          '<span class="ch-pts">' + (h.done ? "✓" : "+" + h.pts) + "</span>" +
+          "</div>";
+      } else if (h && h.capped) {
+        html += '<p class="ch-note">⏱ Hourly challenges are done for today. New ones tomorrow.</p>';
+      }
       const canSwap = PokeChallenges.canReroll && PokeChallenges.canReroll();
       for (const g of PokeChallenges.active()) {
         html += '<h3 class="ch-game">' + esc(g.label) + "</h3>";
@@ -503,6 +518,16 @@
         btn.addEventListener("click", () => {
           if (PokeChallenges.reroll(btn.dataset.game, btn.dataset.quest)) buildChallenges();
         });
+      });
+    }
+
+    // 🎲 Surprise me: one tap opens a random customer game.
+    {
+      const btn = document.getElementById("hub-surprise");
+      if (btn) btn.addEventListener("click", () => {
+        const pages = ["bowl-builder.html", "order-up.html", "word-bowl.html",
+          "topping-drop.html", "bowl-rush.html", "poke-slice.html"];
+        location.href = pages[Math.floor(Math.random() * pages.length)];
       });
     }
 

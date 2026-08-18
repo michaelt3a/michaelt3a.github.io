@@ -31,6 +31,7 @@
       { id: "bb-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Play Bowl Builder for 5 minutes" },
       { id: "bb-runs3", tier: "starter", metric: "runs", mode: "sum", goal: 3, pts: 20, label: "Finish 3 Bowl Builder runs" },
       { id: "bb-score10", tier: "starter", metric: "score", mode: "max", goal: 10, pts: 20, label: "Stack 10 blocks in one run" },
+      { id: "bb-perfect3", tier: "starter", metric: "perfects", mode: "max", goal: 3, pts: 20, label: "Land 3 perfect drops in one run" },
       // mid — a decent run gets there
       { id: "bb-score18", tier: "mid", metric: "score", mode: "max", goal: 18, pts: 40, label: "Stack 18 blocks in one run" },
       { id: "bb-score22", tier: "mid", metric: "score", mode: "max", goal: 22, pts: 40, label: "Stack 22 blocks in one run" },
@@ -39,6 +40,9 @@
       { id: "bb-perfect8", tier: "mid", metric: "perfects", mode: "max", goal: 8, pts: 40, label: "Land 8 perfect drops in one run" },
       { id: "bb-runs6", tier: "mid", metric: "runs", mode: "sum", goal: 6, pts: 40, label: "Finish 6 Bowl Builder runs" },
       { id: "bb-time12", tier: "mid", metric: "seconds", mode: "sum", goal: 720, pts: 40, label: "Play Bowl Builder for 12 minutes" },
+      { id: "bb-score26", tier: "mid", metric: "score", mode: "max", goal: 26, pts: 40, label: "Stack 26 blocks in one run" },
+      { id: "bb-perfect10", tier: "mid", metric: "perfects", mode: "max", goal: 10, pts: 40, label: "Land 10 perfect drops in one run" },
+      { id: "bb-power4", tier: "mid", metric: "powerups", mode: "max", goal: 4, pts: 40, label: "Grab 4 power-ups in one run" },
       // hard — a genuinely good run
       { id: "bb-score30", tier: "hard", metric: "score", mode: "max", goal: 30, pts: 75, label: "Stack 30 blocks in one run" },
       { id: "bb-score35", tier: "hard", metric: "score", mode: "max", goal: 35, pts: 90, label: "Stack 35 blocks in one run" },
@@ -46,12 +50,16 @@
       { id: "bb-combo10", tier: "hard", metric: "combo", mode: "max", goal: 10, pts: 90, label: "Land 10 perfect drops in a row" },
       { id: "bb-perfect12", tier: "hard", metric: "perfects", mode: "max", goal: 12, pts: 75, label: "Land 12 perfect drops in one run" },
       { id: "bb-power5", tier: "hard", metric: "powerups", mode: "max", goal: 5, pts: 90, label: "Grab 5 power-ups in one run" },
+      { id: "bb-score40", tier: "hard", metric: "score", mode: "max", goal: 40, pts: 90, label: "Stack 40 blocks in one run" },
+      { id: "bb-runs10", tier: "hard", metric: "runs", mode: "sum", goal: 10, pts: 75, label: "Finish 10 Bowl Builder runs" },
+      { id: "bb-time20", tier: "hard", metric: "seconds", mode: "sum", goal: 1200, pts: 75, label: "Play Bowl Builder for 20 minutes" },
     ],
     ou: [
       // starters — momentum, not skill
       { id: "ou-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Work the counter for 5 minutes" },
       { id: "ou-shifts2", tier: "starter", metric: "runs", mode: "sum", goal: 2, pts: 20, label: "Complete 2 shifts" },
       { id: "ou-serve6", tier: "starter", metric: "served", mode: "max", goal: 6, pts: 20, label: "Serve 6 customers in one shift" },
+      { id: "ou-money50", tier: "starter", metric: "money", mode: "max", goal: 50, pts: 20, label: "Bank $50 in one shift" },
       // mid — a decent shift gets there
       { id: "ou-serve10", tier: "mid", metric: "served", mode: "max", goal: 10, pts: 40, label: "Serve 10 customers in one shift" },
       { id: "ou-serve12", tier: "mid", metric: "served", mode: "max", goal: 12, pts: 40, label: "Serve 12 customers in one shift" },
@@ -60,6 +68,9 @@
       { id: "ou-combo4", tier: "mid", metric: "combo", mode: "max", goal: 4, pts: 40, label: "Reach a x4 combo in one shift" },
       { id: "ou-shifts4", tier: "mid", metric: "runs", mode: "sum", goal: 4, pts: 40, label: "Complete 4 shifts" },
       { id: "ou-time12", tier: "mid", metric: "seconds", mode: "sum", goal: 720, pts: 40, label: "Work the counter for 12 minutes" },
+      { id: "ou-money200", tier: "mid", metric: "money", mode: "max", goal: 200, pts: 40, label: "Bank $200 in one shift" },
+      { id: "ou-perfect6", tier: "mid", metric: "perfects", mode: "max", goal: 6, pts: 40, label: "Serve 6 perfect bowls in one shift" },
+      { id: "ou-serve14", tier: "mid", metric: "served", mode: "max", goal: 14, pts: 40, label: "Serve 14 customers in one shift" },
       // hard — a genuinely good shift
       { id: "ou-combo6", tier: "hard", metric: "combo", mode: "max", goal: 6, pts: 75, label: "Reach a x6 combo in one shift" },
       { id: "ou-money300", tier: "hard", metric: "money", mode: "max", goal: 300, pts: 75, label: "Bank $300 in one shift" },
@@ -67,54 +78,75 @@
       { id: "ou-serve16", tier: "hard", metric: "served", mode: "max", goal: 16, pts: 75, label: "Serve 16 customers in one shift" },
       { id: "ou-serve20", tier: "hard", metric: "served", mode: "max", goal: 20, pts: 90, label: "Serve 20 customers in one shift" },
       { id: "ou-perfect8", tier: "hard", metric: "perfects", mode: "max", goal: 8, pts: 90, label: "Serve 8 perfect bowls in one shift" },
+      { id: "ou-combo8", tier: "hard", metric: "combo", mode: "max", goal: 8, pts: 90, label: "Reach a x8 combo in one shift" },
+      { id: "ou-shifts6", tier: "hard", metric: "runs", mode: "sum", goal: 6, pts: 75, label: "Complete 6 shifts" },
+      { id: "ou-perfect10", tier: "hard", metric: "perfects", mode: "max", goal: 10, pts: 90, label: "Serve 10 perfect bowls in one shift" },
     ],
     td: [
       // starters — momentum, not skill
       { id: "td-runs3", tier: "starter", metric: "runs", mode: "sum", goal: 3, pts: 20, label: "Finish 3 Topping Drop runs" },
       { id: "td-score10", tier: "starter", metric: "score", mode: "max", goal: 10, pts: 20, label: "Catch 10 toppings in one run" },
       { id: "td-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Catch toppings for 5 minutes" },
+      { id: "td-combo5", tier: "starter", metric: "combo", mode: "max", goal: 5, pts: 20, label: "Catch 5 in a row without a drop" },
       // mid — a decent run gets there
       { id: "td-score25", tier: "mid", metric: "score", mode: "max", goal: 25, pts: 40, label: "Catch 25 toppings in one run" },
       { id: "td-score35", tier: "mid", metric: "score", mode: "max", goal: 35, pts: 40, label: "Catch 35 toppings in one run" },
       { id: "td-combo10", tier: "mid", metric: "combo", mode: "max", goal: 10, pts: 40, label: "Catch 10 in a row without a drop" },
       { id: "td-runs6", tier: "mid", metric: "runs", mode: "sum", goal: 6, pts: 40, label: "Finish 6 Topping Drop runs" },
+      { id: "td-score45", tier: "mid", metric: "score", mode: "max", goal: 45, pts: 40, label: "Catch 45 toppings in one run" },
+      { id: "td-combo14", tier: "mid", metric: "combo", mode: "max", goal: 14, pts: 40, label: "Catch 14 in a row without a drop" },
+      { id: "td-time10", tier: "mid", metric: "seconds", mode: "sum", goal: 600, pts: 40, label: "Catch toppings for 10 minutes" },
       // hard — a genuinely good run
       { id: "td-score50", tier: "hard", metric: "score", mode: "max", goal: 50, pts: 75, label: "Catch 50 toppings in one run" },
       { id: "td-score65", tier: "hard", metric: "score", mode: "max", goal: 65, pts: 90, label: "Catch 65 toppings in one run" },
       { id: "td-combo18", tier: "hard", metric: "combo", mode: "max", goal: 18, pts: 75, label: "Catch 18 in a row without a drop" },
       { id: "td-combo25", tier: "hard", metric: "combo", mode: "max", goal: 25, pts: 90, label: "Catch 25 in a row without a drop" },
+      { id: "td-score80", tier: "hard", metric: "score", mode: "max", goal: 80, pts: 90, label: "Catch 80 toppings in one run" },
+      { id: "td-runs8", tier: "hard", metric: "runs", mode: "sum", goal: 8, pts: 75, label: "Finish 8 Topping Drop runs" },
     ],
     br: [
       // starters
       { id: "br-runs2", tier: "starter", metric: "runs", mode: "sum", goal: 2, pts: 20, label: "Work 2 Bowl Rush lines" },
       { id: "br-score15", tier: "starter", metric: "score", mode: "max", goal: 15, pts: 20, label: "Sort 15 ingredients in one line" },
       { id: "br-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Work the conveyor for 5 minutes" },
+      { id: "br-streak5", tier: "starter", metric: "streak", mode: "max", goal: 5, pts: 20, label: "Sort 5 in a row without a miss" },
       // mid
       { id: "br-score25", tier: "mid", metric: "score", mode: "max", goal: 25, pts: 40, label: "Sort 25 ingredients in one line" },
       { id: "br-score32", tier: "mid", metric: "score", mode: "max", goal: 32, pts: 40, label: "Sort 32 ingredients in one line" },
       { id: "br-streak10", tier: "mid", metric: "streak", mode: "max", goal: 10, pts: 40, label: "Sort 10 in a row without a miss" },
       { id: "br-runs4", tier: "mid", metric: "runs", mode: "sum", goal: 4, pts: 40, label: "Work 4 Bowl Rush lines" },
+      { id: "br-score38", tier: "mid", metric: "score", mode: "max", goal: 38, pts: 40, label: "Sort 38 ingredients in one line" },
+      { id: "br-streak14", tier: "mid", metric: "streak", mode: "max", goal: 14, pts: 40, label: "Sort 14 in a row without a miss" },
+      { id: "br-time10", tier: "mid", metric: "seconds", mode: "sum", goal: 600, pts: 40, label: "Work the conveyor for 10 minutes" },
       // hard
       { id: "br-score42", tier: "hard", metric: "score", mode: "max", goal: 42, pts: 75, label: "Sort 42 ingredients in one line" },
       { id: "br-score50", tier: "hard", metric: "score", mode: "max", goal: 50, pts: 90, label: "Sort 50 ingredients in one line" },
       { id: "br-streak20", tier: "hard", metric: "streak", mode: "max", goal: 20, pts: 75, label: "Sort 20 in a row without a miss" },
       { id: "br-streak28", tier: "hard", metric: "streak", mode: "max", goal: 28, pts: 90, label: "Sort 28 in a row without a miss" },
+      { id: "br-score60", tier: "hard", metric: "score", mode: "max", goal: 60, pts: 90, label: "Sort 60 ingredients in one line" },
+      { id: "br-runs7", tier: "hard", metric: "runs", mode: "sum", goal: 7, pts: 75, label: "Work 7 Bowl Rush lines" },
     ],
     ps: [
       // starters
       { id: "ps-runs3", tier: "starter", metric: "runs", mode: "sum", goal: 3, pts: 20, label: "Finish 3 Poke Slice runs" },
       { id: "ps-score10", tier: "starter", metric: "score", mode: "max", goal: 10, pts: 20, label: "Slice 10 pieces in one run" },
       { id: "ps-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Slice for 5 minutes" },
+      { id: "ps-combo2", tier: "starter", metric: "combo", mode: "max", goal: 2, pts: 20, label: "Slice 2 in a single stroke" },
       // mid
       { id: "ps-score25", tier: "mid", metric: "score", mode: "max", goal: 25, pts: 40, label: "Slice 25 pieces in one run" },
       { id: "ps-score35", tier: "mid", metric: "score", mode: "max", goal: 35, pts: 40, label: "Slice 35 pieces in one run" },
       { id: "ps-combo3", tier: "mid", metric: "combo", mode: "max", goal: 3, pts: 40, label: "Slice 3 in a single stroke" },
       { id: "ps-runs6", tier: "mid", metric: "runs", mode: "sum", goal: 6, pts: 40, label: "Finish 6 Poke Slice runs" },
+      { id: "ps-score45", tier: "mid", metric: "score", mode: "max", goal: 45, pts: 40, label: "Slice 45 pieces in one run" },
+      { id: "ps-combo4", tier: "mid", metric: "combo", mode: "max", goal: 4, pts: 40, label: "Slice 4 in a single stroke" },
+      { id: "ps-time10", tier: "mid", metric: "seconds", mode: "sum", goal: 600, pts: 40, label: "Slice for 10 minutes" },
       // hard
       { id: "ps-score55", tier: "hard", metric: "score", mode: "max", goal: 55, pts: 75, label: "Slice 55 pieces in one run" },
       { id: "ps-score70", tier: "hard", metric: "score", mode: "max", goal: 70, pts: 90, label: "Slice 70 pieces in one run" },
       { id: "ps-combo5", tier: "hard", metric: "combo", mode: "max", goal: 5, pts: 75, label: "Slice 5 in a single stroke" },
       { id: "ps-combo6", tier: "hard", metric: "combo", mode: "max", goal: 6, pts: 90, label: "Slice 6 in a single stroke" },
+      { id: "ps-score85", tier: "hard", metric: "score", mode: "max", goal: 85, pts: 90, label: "Slice 85 pieces in one run" },
+      { id: "ps-runs8", tier: "hard", metric: "runs", mode: "sum", goal: 8, pts: 75, label: "Finish 8 Poke Slice runs" },
     ],
   };
   const GAME_LABEL = {
@@ -220,6 +252,67 @@
     return pick;
   }
 
+  // --- Hourly challenge ----------------------------------------------------
+  // One small challenge at a time, seeded from the date + hour so everyone
+  // sees the same one. Deliberately cheap: 10 pts each, and at most 5 payouts
+  // a day so an all-day grinder can't outrun the quest economy.
+  const HOURLY_PTS = 10;
+  const HOURLY_CAP = 5;
+  const HOURLY = {
+    bowl: [
+      { metric: "score", goal: 8, label: "Stack 8 blocks in one run" },
+      { metric: "perfects", goal: 4, label: "Land 4 perfect drops in one run" },
+      { metric: "combo", goal: 3, label: "Land 3 perfect drops in a row" },
+    ],
+    ou: [
+      { metric: "served", goal: 5, label: "Serve 5 customers in one shift" },
+      { metric: "money", goal: 60, label: "Bank $60 in one shift" },
+    ],
+    td: [
+      { metric: "score", goal: 15, label: "Catch 15 toppings in one run" },
+      { metric: "combo", goal: 6, label: "Catch 6 in a row without a drop" },
+    ],
+    br: [
+      { metric: "score", goal: 12, label: "Sort 12 ingredients in one line" },
+      { metric: "streak", goal: 6, label: "Sort 6 in a row without a miss" },
+    ],
+    ps: [
+      { metric: "score", goal: 15, label: "Slice 15 pieces in one run" },
+      { metric: "combo", goal: 3, label: "Slice 3 in a single stroke" },
+    ],
+  };
+  function currentHourly() {
+    const hr = new Date().getHours();
+    const rng = Daily.stream("hourly:" + hr);
+    const games = Object.keys(HOURLY);
+    const game = games[Math.floor(rng() * games.length)];
+    const q = HOURLY[game][Math.floor(rng() * HOURLY[game].length)];
+    return { id: "h-" + hr, game: game, metric: q.metric, goal: q.goal, label: q.label, pts: HOURLY_PTS };
+  }
+  // Reset stored progress when the hour (or day, via load()) rolls over.
+  function ensureHourly(s) {
+    const h = currentHourly();
+    if (!s.hourly || s.hourly.id !== h.id) s.hourly = { id: h.id, progress: 0, done: false };
+    return h;
+  }
+  // For the hub sheet.
+  function hourly() {
+    const s = load();
+    const h = ensureHourly(s);
+    save(s);
+    return {
+      game: h.game,
+      gameLabel: GAME_LABEL[h.game],
+      label: h.label,
+      goal: h.goal,
+      pts: h.pts,
+      progress: Math.min(h.goal, Number(s.hourly.progress) || 0),
+      done: !!s.hourly.done,
+      capped: (s.hourlyWins || 0) >= HOURLY_CAP,
+      minsLeft: 60 - new Date().getMinutes(),
+    };
+  }
+
   // --- Lifetime totals (shown on the profile card) -------------------------
   // Accumulated here because every customer game already reports each run.
   const TOTALS_KEY = "pokeworks-career-totals";
@@ -316,6 +409,18 @@
         s.done[q.id] = Date.now();
         save(s);
         award(q.pts, q.label);
+      }
+    }
+    // The hourly challenge rides the same report; single-run (max) goals only.
+    const h = ensureHourly(s);
+    if (game === h.game && !s.hourly.done && (s.hourlyWins || 0) < HOURLY_CAP) {
+      const hv = Number(metrics[h.metric]) || 0;
+      s.hourly.progress = Math.max(Number(s.hourly.progress) || 0, hv);
+      if (s.hourly.progress >= h.goal) {
+        s.hourly.done = true;
+        s.hourlyWins = (s.hourlyWins || 0) + 1;
+        save(s);
+        award(h.pts, "This hour: " + h.label);
       }
     }
     save(s);
@@ -421,7 +526,7 @@
 
   window.PokeChallenges = {
     report, active, markPlay, playStreak,
-    reroll, canReroll,
+    reroll, canReroll, hourly,
     checkDailyAward, checkTopBonus,
     awardPts: award, claimOnce, shieldCount, addShield,
     DAILY_PTS, TOP_PTS, STREAK_PTS, STREAK_DAYS,
