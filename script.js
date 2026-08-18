@@ -894,6 +894,8 @@ function spawnActive() {
     ingredient,
     color: ingredient.base,
     dir: 1,
+    // Every 25th block is golden: land it perfect for a +5 bonus.
+    golden: (state.placed.length + 1) % 25 === 0,
   };
 }
 
@@ -933,6 +935,7 @@ function startGame(difficulty) {
   state.stats = { perfects: 0, bestCombo: 0, powerups: 0 };
   state.baseIngredient = randomFrom(BASES);
   state.cam = { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 };
+  state.goldenBonus = 0;
   state.duelCharges = 0;
   state.duelNextChargeAt = 8;
   state.duelSpeedDrops = 0;
@@ -1172,14 +1175,25 @@ function dropActive() {
     ingredient: active.ingredient,
     color: active.color,
     landAnim: 1,
+    golden: active.golden,
   });
-  setScore(state.placed.length);
+  // A perfect landing on a golden block pays +5 on top of the block itself.
+  if (active.golden && perfect) {
+    state.goldenBonus += 5;
+    addFloater("✨ GOLDEN +5!", "#ffd15a", placedX + placedWidth / 2, activeTopWorld - 62);
+    spawnLandParticles(placedX, placedX + placedWidth, activeTopWorld, "#ffd15a");
+    spawnLandParticles(placedX, placedX + placedWidth, activeTopWorld + BLOCK_H, "#fff1c9");
+    playMilestone();
+    buzz(25);
+  }
+  setScore(state.placed.length + state.goldenBonus);
   if (state.duelSpeedDrops > 0) state.duelSpeedDrops--;
 
+  // Milestone achievements count real blocks, not golden bonus points.
   if (window.PokeAch) {
-    if (state.score === 1) PokeAch.unlock("bb-first");
-    if (state.score === 25) PokeAch.unlock("bb-25");
-    if (state.score === 50) PokeAch.unlock("bb-50");
+    if (state.placed.length === 1) PokeAch.unlock("bb-first");
+    if (state.placed.length === 25) PokeAch.unlock("bb-25");
+    if (state.placed.length === 50) PokeAch.unlock("bb-50");
     if (state.combo >= 10) PokeAch.unlock("bb-combo10");
   }
 
@@ -1205,9 +1219,9 @@ function dropActive() {
   }
 
   // Milestone flags every 10 blocks.
-  if (state.score % 10 === 0) {
+  if (state.placed.length % 10 === 0) {
     playMilestone();
-    addFloater(`▲ ${state.score}!`, "#22b2b4", midX, topY - 26);
+    addFloater(`▲ ${state.placed.length}!`, "#22b2b4", midX, topY - 26);
     spawnLandParticles(placedX, placedX + placedWidth, activeTopWorld, "#ffd15a");
   }
 
@@ -1291,12 +1305,28 @@ function drawSlabRect(dx, dy, w, h, ingredient) {
 }
 
 // Draw a game slab, optionally squashed (anchored at its bottom / center).
-function drawBlock(x, topY, width, ingredient, scaleX = 1, scaleY = 1) {
+// Golden slabs (every 25th) shimmer under a pulsing gold wash.
+function drawBlock(x, topY, width, ingredient, scaleX = 1, scaleY = 1, golden = false) {
   const w = width * scaleX;
   const h = BLOCK_H * scaleY;
   const dx = x + (width - w) / 2;
   const dy = topY + BLOCK_H - h; // keep the bottom edge fixed
   drawSlabRect(dx, dy, w, h, ingredient);
+  if (golden) {
+    ctx.save();
+    ctx.globalAlpha = 0.3 + Math.sin(performance.now() / 170) * 0.15;
+    ctx.fillStyle = "#ffd15a";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(dx, dy, w, h, Math.min(7, h / 2));
+    else ctx.rect(dx, dy, w, h);
+    ctx.fill();
+    ctx.globalAlpha = 0.9;
+    ctx.font = "14px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("✨", dx + w / 2, dy + h / 2);
+    ctx.restore();
+  }
 }
 
 function drawIngredients() {
@@ -1311,7 +1341,7 @@ function drawIngredients() {
       sy = 0.6 + 0.4 * easeOutBack(p);
       sx = 1 + (1 - sy) * 0.6;
     }
-    drawBlock(b.x, worldTopForIndex(i), b.width, b.ingredient, sx, sy);
+    drawBlock(b.x, worldTopForIndex(i), b.width, b.ingredient, sx, sy, b.golden);
   }
 
   if (state.active) {
@@ -1319,7 +1349,10 @@ function drawIngredients() {
       state.active.x,
       worldTopForIndex(state.placed.length),
       state.active.width,
-      state.active.ingredient
+      state.active.ingredient,
+      1,
+      1,
+      state.active.golden
     );
   }
 }
@@ -1352,13 +1385,29 @@ function bowlBodyPath() {
 
 // A ceramic band (the rim lip) between the opening and its outer edge, over the
 // angular range [startA, endA] of the rim ellipse.
+// The equipped bowl skin (shop cosmetic) recolors the ceramic and the lip.
+function skinHexToRgba(hex, a) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+function skinBody(a) {
+  const s = window.PokeSkins ? PokeSkins.active() : null;
+  return skinHexToRgba(s && s.bb ? s.bb : "#e9dcc6", a);
+}
+function skinLip(a) {
+  const s = window.PokeSkins ? PokeSkins.active() : null;
+  return skinHexToRgba(s && (s.rim || s.bb) ? (s.rim || s.bb) : "#e9dcc6", a);
+}
+
 function rimBand(startA, endA, alpha) {
   const { cx, rimY, rimRx, rimRy } = BOWL;
   ctx.beginPath();
   ctx.ellipse(cx, rimY, rimRx + 12, rimRy + 3, 0, startA, endA, false);
   ctx.ellipse(cx, rimY, rimRx, rimRy, 0, endA, startA, true);
   ctx.closePath();
-  ctx.fillStyle = `rgba(233, 220, 198, ${alpha})`;
+  ctx.fillStyle = skinLip(alpha);
   ctx.fill();
 }
 
@@ -1395,9 +1444,9 @@ function drawBowlFront(t) {
   const bottomY = BOWL_BOTTOM_Y;
   const bodyAlpha = lerp(0.1, 1, t);
 
-  // Ceramic body.
+  // Ceramic body, wearing the equipped skin.
   bowlBodyPath();
-  ctx.fillStyle = `rgba(233, 220, 198, ${bodyAlpha})`;
+  ctx.fillStyle = skinBody(bodyAlpha);
   ctx.fill();
 
   // Interior depth shading, fading in as the bowl becomes opaque.

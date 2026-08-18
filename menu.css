@@ -99,6 +99,39 @@ body {
   margin-top: 1.1rem;
 }
 
+/* Yesterday's top 3 inside the daily sheet. */
+.dc-podium {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--on-dark-muted);
+}
+
+.dc-podium-tag {
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.dc-podium-row {
+  white-space: nowrap;
+}
+
+/* Bowl skin swatches in the shop: a little colored bowl preview. */
+.shop-skin-swatch {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 50% 50% 46% 46%;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+}
+
 /* Duel lobby: which game are we playing? */
 .duel-games {
   display: flex;
@@ -124,6 +157,27 @@ body {
   background: var(--star-color, var(--accent));
   border-color: var(--star-color, var(--accent));
   color: #1f2b2b;
+}
+
+/* One-tap rerun of the last matchup. */
+.duel-rerun {
+  display: block;
+  width: 100%;
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--chip);
+  border: 1.5px solid var(--star-color, var(--chip-line));
+  border-radius: 12px;
+  color: var(--on-dark);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.duel-rerun[hidden] {
+  display: none;
 }
 
 /* The profile's month-at-a-glance streak calendar. */

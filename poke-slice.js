@@ -95,7 +95,11 @@
     slicing: false,
     strokeSlices: 0,
     bestStroke: 0,
+    strokeId: 0, // increments per stroke; the boss takes one hit per stroke
     waveIn: 0.9,
+    wildAt: 40, // next natural frenzy wave (fixed times, fair on seeded runs)
+    wildUntil: 0,
+    bossAt: 30, // next soy bottle boss
     lastTime: 0,
     flash: 0,
     shake: 0,
@@ -143,7 +147,7 @@
     controls.appendChild(sabBtn);
     updateSabBtn();
     sabBtn.addEventListener("click", () => {
-      if (!state.running || state.paused || state.duelCharges <= 0) return;
+      if (!state.running || state.paused || state.manualPause || state.duelCharges <= 0) return;
       state.duelCharges--;
       state.duelSabsSent++;
       PokeDuel.sendSab(Math.random() < 0.5 ? "bombs" : "frenzy");
@@ -165,28 +169,53 @@
   }
 
   function waveEvery() {
+    if (state.wildUntil > state.elapsed) return 0.32; // natural frenzy: it pours
     const base = Math.max(1.6 - state.elapsed * 0.012, 0.85);
     return state.frenzyUntil > state.elapsed ? base / 2 : base;
   }
   function bombChance() { return Math.min(0.12 + state.elapsed * 0.002, 0.22); }
 
-  function tossOne() {
-    // Fixed draw order per item (x, lift, drift, bomb?, which) so daily
-    // waves stay identical for everyone.
+  function tossOne(noBombs) {
+    // Exactly six rolls per toss, always, so seeded runs stay in lockstep no
+    // matter what the rolls decide (frenzy just ignores the bomb roll).
     const x = 100 + rng() * (W - 200);
     const vy = -(820 + rng() * 180);
     const vx = (W / 2 - x) * (0.35 + rng() * 0.3);
-    const bomb = rng() < bombChance();
-    const glyph = bomb ? BOMB : GOOD[Math.floor(rng() * GOOD.length)];
+    const bombRoll = rng();
+    const goldRoll = rng();
+    const glyphRoll = rng();
+    const bomb = !noBombs && bombRoll < bombChance();
+    const golden = !bomb && goldRoll < 0.05;
+    const glyph = bomb ? BOMB : golden ? "🐟" : GOOD[Math.floor(glyphRoll * GOOD.length)];
     state.items.push({
       x: x,
       y: H + 30,
-      vx: vx,
-      vy: vy,
+      vx: vx * (golden ? 1.2 : 1),
+      vy: golden ? vy * 1.18 : vy, // goldens fly harder and fall faster
       rot: 0,
       vrot: (x < W / 2 ? 1 : -1) * (1.2 + Math.abs(vx) / 120),
       glyph: glyph,
       bomb: bomb,
+      golden: golden,
+    });
+  }
+
+  // The soy bottle boss: floats slow, takes a hit from three SEPARATE
+  // strokes, pays +8 when it finally shatters. Missing it costs nothing.
+  function tossBoss() {
+    const x = 200 + Math.random() * (W - 400);
+    state.items.push({
+      x: x,
+      y: H + 40,
+      vx: (W / 2 - x) * 0.2,
+      vy: -880,
+      rot: 0,
+      vrot: 0.5,
+      glyph: "🍶",
+      boss: true,
+      hp: 3,
+      slowFall: true, // reduced gravity so three strokes are possible
+      lastStrokeId: -1,
     });
   }
 
@@ -209,12 +238,13 @@
   function wave() {
     // Both extra-item rolls are always drawn, even when unused, to keep the
     // seeded stream in lockstep.
+    const wild = state.wildUntil > state.elapsed;
     const roll2 = rng();
     const roll3 = rng();
     let count = 1;
     if (roll2 < Math.min(0.25 + state.elapsed * 0.01, 0.7)) count++;
     if (state.elapsed > 20 && roll3 < 0.3) count++;
-    for (let i = 0; i < count; i++) tossOne();
+    for (let i = 0; i < count; i++) tossOne(wild); // frenzy waves carry no bombs
     while (state.bombDebt > 0) {
       state.bombDebt--;
       tossSabBomb();
@@ -237,6 +267,10 @@
     state.slicing = false;
     state.strokeSlices = 0;
     state.bestStroke = 0;
+    state.strokeId = 0;
+    state.wildAt = 40;
+    state.wildUntil = 0;
+    state.bossAt = 30;
     state.waveIn = 0.7;
     state.lastTime = 0;
     state.flash = 0;
@@ -247,6 +281,10 @@
     state.bombDebt = 0;
     state.frenzyUntil = 0;
     updateSabBtn();
+    state.manualPause = false;
+    screenPaused.classList.add("hidden");
+    pauseBtn.style.display = "";
+    pauseBtn.textContent = "⏸";
     rng = isDaily ? Daily.stream("ps:wave") : isDuel ? PokeDuel.stream("ps:wave") : Math.random;
     overlay.classList.add("hidden");
     if (window.PokeStreak) PokeStreak.mark();
@@ -282,6 +320,9 @@
 
   function endGame() {
     state.running = false;
+    state.manualPause = false;
+    screenPaused.classList.add("hidden");
+    pauseBtn.style.display = "none";
     sfx("over");
     // Feed the run into today's shop challenges (points for the Rewards Shop).
     if (window.PokeChallenges) {
@@ -377,6 +418,20 @@
     else state.paused = false;
   });
 
+  // Manual pause: the corner ⏸ freezes the run; Resume picks it back up.
+  const pauseBtn = document.getElementById("pause-btn");
+  const screenPaused = document.getElementById("screen-paused");
+  function setPause(on) {
+    if (!state.running) return;
+    state.manualPause = on;
+    state.lastTime = 0;
+    screenPaused.classList.toggle("hidden", !on);
+    overlay.classList.toggle("hidden", !on);
+    pauseBtn.textContent = on ? "▶" : "⏸";
+  }
+  pauseBtn.addEventListener("click", () => setPause(!state.manualPause));
+  document.getElementById("resume-btn").addEventListener("click", () => setPause(false));
+
   // --- Slicing ---------------------------------------------------------------
   function toWorld(e) {
     const rect = canvas.getBoundingClientRect();
@@ -420,7 +475,36 @@
   function sliceAlong(a, b) {
     for (let i = state.items.length - 1; i >= 0; i--) {
       const it = state.items[i];
-      if (segDist(it, a, b) > HIT_R) continue;
+      if (segDist(it, a, b) > (it.boss ? HIT_R + 16 : HIT_R)) continue;
+      // The boss doesn't pop; it cracks, one hit per distinct stroke.
+      if (it.boss) {
+        if (it.lastStrokeId === state.strokeId) continue;
+        it.lastStrokeId = state.strokeId;
+        it.hp--;
+        if (navigator.vibrate) { try { navigator.vibrate(25); } catch (e) { /* ignore */ } }
+        if (it.hp > 0) {
+          sfx("thunk");
+          state.floaters.push({ text: "🍶 " + it.hp + " more", x: it.x, y: it.y - 44, life: 0.7 });
+        } else {
+          state.items.splice(i, 1);
+          setScore(state.score + 8);
+          sfx("boom");
+          state.shake = 0.3;
+          state.floaters.push({ text: "🍶 SHATTERED! +8", x: it.x, y: it.y - 30, life: 1.1 });
+          for (let k = 0; k < 14; k++) {
+            const ang = Math.random() * Math.PI * 2;
+            const sp = 140 + Math.random() * 240;
+            state.sparks.push({
+              x: it.x, y: it.y,
+              vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 100,
+              size: 2 + Math.random() * 3.5,
+              color: ["#d8e6ee", "#9fb8c8", "#ffffff"][Math.floor(Math.random() * 3)],
+              life: 0.4 + Math.random() * 0.35,
+            });
+          }
+        }
+        continue;
+      }
       state.items.splice(i, 1);
       if (it.bomb) {
         state.lives--;
@@ -434,7 +518,13 @@
         if (state.strokeSlices > state.bestStroke) state.bestStroke = state.strokeSlices;
         if (state.strokeSlices >= 5 && window.PokeAch) PokeAch.unlock("ps-stroke5");
         sfx("swish");
-        setScore(state.score + 1);
+        if (it.golden) {
+          setScore(state.score + 5);
+          sfx("chime");
+          state.floaters.push({ text: "✨ +5", x: it.x, y: it.y - 30, life: 0.9 });
+        } else {
+          setScore(state.score + 1);
+        }
         // Two REAL halves: each piece is the glyph clipped along the cut
         // line, drifting apart perpendicular to the blade.
         const ang = Math.atan2(b.y - a.y, b.x - a.x);
@@ -459,10 +549,11 @@
   }
 
   canvas.addEventListener("pointerdown", (e) => {
-    if (!state.running || state.paused) return;
+    if (!state.running || state.paused || state.manualPause) return;
     e.preventDefault();
     state.slicing = true;
     state.strokeSlices = 0;
+    state.strokeId++;
     state.trail = [toWorld(e)];
   });
   window.addEventListener("pointermove", (e) => {
@@ -502,6 +593,18 @@
   // --- Update / render -------------------------------------------------------
   function update(dt) {
     state.elapsed += dt;
+    // Natural frenzy every 40 seconds: four seconds of bomb-free downpour.
+    if (state.elapsed >= state.wildAt) {
+      state.wildAt += 40;
+      state.wildUntil = state.elapsed + 4;
+      say("🌊 FRENZY! Slice everything!");
+      sfx("chime");
+    }
+    // The soy bottle boss drops by every 30 seconds.
+    if (state.elapsed >= state.bossAt) {
+      state.bossAt += 30;
+      tossBoss();
+    }
     state.waveIn -= dt;
     if (state.waveIn <= 0) {
       wave();
@@ -510,13 +613,14 @@
 
     for (let i = state.items.length - 1; i >= 0; i--) {
       const it = state.items[i];
-      it.vy += GRAVITY * dt;
+      it.vy += GRAVITY * (it.slowFall ? 0.45 : 1) * dt;
       it.x += it.vx * dt;
       it.y += it.vy * dt;
       it.rot += it.vrot * dt;
       if (it.y > H + 60 && it.vy > 0) {
         state.items.splice(i, 1);
-        if (!it.bomb) {
+        // Letting the boss bottle get away costs nothing; it's a bonus.
+        if (!it.bomb && !it.boss) {
           // Fresh fish on the floor: that's a heart.
           state.lives--;
           state.flash = 0.35;
@@ -617,9 +721,42 @@
     for (const it of state.items) {
       ctx.save();
       ctx.translate(it.x, it.y);
+      // Goldens glow; the boss glows faintly too so it reads as special.
+      if (it.golden || it.boss) {
+        const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, it.boss ? 58 : 44);
+        glow.addColorStop(0, it.golden ? "rgba(255,209,90,0.55)" : "rgba(216,230,238,0.4)");
+        glow.addColorStop(1, "rgba(255,209,90,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, it.boss ? 58 : 44, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.rotate(it.rot);
-      ctx.font = ITEM_SIZE + "px system-ui, sans-serif";
+      ctx.font = (it.boss ? 62 : ITEM_SIZE) + "px system-ui, sans-serif";
       ctx.fillText(it.glyph, 0, 0);
+      ctx.restore();
+      // The boss wears its remaining hits as pips.
+      if (it.boss) {
+        for (let p = 0; p < 3; p++) {
+          ctx.save();
+          ctx.globalAlpha = p < it.hp ? 0.95 : 0.2;
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.arc(it.x - 14 + p * 14, it.y - 46, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    // Frenzy banner while the downpour is on.
+    if (state.wildUntil > state.elapsed) {
+      ctx.save();
+      ctx.globalAlpha = 0.75 + Math.sin(state.elapsed * 10) * 0.25;
+      ctx.font = "800 30px system-ui, sans-serif";
+      ctx.fillStyle = "#ffd15a";
+      ctx.textAlign = "center";
+      ctx.fillText("🌊 FRENZY", W / 2, 64);
       ctx.restore();
     }
 
@@ -707,7 +844,7 @@
   }
 
   function frame(t) {
-    if (state.running && !state.paused) {
+    if (state.running && !state.paused && !state.manualPause) {
       if (!state.lastTime) state.lastTime = t;
       const dt = Math.min((t - state.lastTime) / 1000, 0.05);
       state.lastTime = t;

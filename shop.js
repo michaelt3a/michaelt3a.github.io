@@ -65,6 +65,34 @@
       gridEl.appendChild(card);
     }
 
+    // Bowl skins: buy once, keep forever, swap anytime.
+    const skinsEl = document.getElementById("shop-skins");
+    if (skinsEl && window.PokeSkins) {
+      skinsEl.innerHTML = "";
+      const activeId = PokeSkins.active().id;
+      for (const sk of PokeSkins.SKINS) {
+        const owned = PokeSkins.owned(sk.id);
+        const isOn = owned && sk.id === activeId;
+        const afford = data.balance >= sk.cost;
+        const card = document.createElement("div");
+        card.className = "shop-item" + (owned || afford ? "" : " locked");
+        card.innerHTML =
+          `<span class="shop-item-ico shop-skin-swatch" style="background:${sk.body};` +
+          `box-shadow: inset 0 -8px 0 ${sk.inner}${sk.rim ? `, 0 0 0 3px ${sk.rim}` : ""}"></span>` +
+          `<div class="shop-item-body"><strong>${sk.icon} ${sk.title}</strong><small>${sk.desc}</small></div>` +
+          `<button class="shop-buy" type="button" ${owned || afford ? "" : "disabled"}></button>`;
+        const btn = card.querySelector(".shop-buy");
+        btn.textContent = isOn ? "✓ On"
+          : owned ? "Equip"
+          : armed === "skin-" + sk.id ? "Sure? −" + sk.cost
+          : sk.cost.toLocaleString() + " pts";
+        if (isOn) btn.disabled = true;
+        if (armed === "skin-" + sk.id) btn.classList.add("armed");
+        btn.addEventListener("click", () => onSkin(sk));
+        skinsEl.appendChild(card);
+      }
+    }
+
     // Owned codes
     ownedWrap.hidden = !data.redeemed.length;
     ownedEl.innerHTML = "";
@@ -94,6 +122,29 @@
         first.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
+  }
+
+  function onSkin(sk) {
+    if (PokeSkins.owned(sk.id)) {
+      PokeSkins.equip(sk.id);
+      render();
+      return;
+    }
+    // Same two-tap arm as the codes.
+    if (armed !== "skin-" + sk.id) {
+      armed = "skin-" + sk.id;
+      clearTimeout(armedTimer);
+      armedTimer = setTimeout(() => { armed = null; render(); }, 3500);
+      render();
+      return;
+    }
+    clearTimeout(armedTimer);
+    armed = null;
+    if (PokePoints.spend(sk.cost, "Bowl skin: " + sk.title)) {
+      PokeSkins.own(sk.id);
+      if (window.PokeTrack) PokeTrack.hit("redeem", "skin-" + sk.id);
+    }
+    render();
   }
 
   function onBuy(item) {

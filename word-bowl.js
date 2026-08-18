@@ -144,6 +144,13 @@
   let entry = ""; // letters typed into the current row
   let locked = true; // input off until Play is tapped (and after finishing)
 
+  // Archive practice: once today's word is done, replay an old day's word.
+  // Nothing persists — no points, no career, no hard mode, no board writes.
+  let arch = null; // { word, label, guesses, done, won }
+  function curGuesses() {
+    return arch ? arch.guesses : load().day.guesses;
+  }
+
   function paintSaved(s) {
     const answer = todaysWord().w;
     s.day.guesses.forEach((g, r) => {
@@ -156,7 +163,7 @@
     });
   }
   function paintEntry() {
-    const r = load().day.guesses.length;
+    const r = curGuesses().length;
     if (r >= TRIES) return;
     for (let c = 0; c < 5; c++) {
       ROWS[r][c].textContent = entry[c] || "";
@@ -177,8 +184,7 @@
 
   function press(ch) {
     if (locked) return;
-    const s = load();
-    if (s.day.done) return;
+    if (arch ? arch.done : load().day.done) return;
     if (ch === "⌫") { entry = entry.slice(0, -1); paintEntry(); return; }
     if (ch === "⏎") { submit(); return; }
     if (entry.length < 5 && /^[A-Z]$/.test(ch)) { entry += ch; paintEntry(); }
@@ -195,6 +201,7 @@
   // Hard mode: every revealed hint has to be honored in later guesses.
   // Returns null when the guess is fine, or a short complaint.
   function hardViolation(guess) {
+    if (arch) return null; // archive practice is always easy-going
     const s = load();
     if (!s.day.hard) return null;
     const answer = todaysWord().w;
@@ -214,7 +221,7 @@
     return null;
   }
   function shakeRow() {
-    const r = load().day.guesses.length;
+    const r = curGuesses().length;
     if (r >= TRIES) return;
     const row = ROWS[r][0].parentElement;
     row.classList.remove("shake");
@@ -237,6 +244,33 @@
     if (broken) {
       statusEl.textContent = broken;
       shakeRow();
+      return;
+    }
+    // Archive rounds live entirely in memory.
+    if (arch) {
+      const guess = entry;
+      entry = "";
+      arch.guesses.push(guess);
+      const marks = grade(guess, arch.word.w);
+      const r = arch.guesses.length - 1;
+      for (let c = 0; c < 5; c++) {
+        ROWS[r][c].textContent = guess[c];
+        ROWS[r][c].classList.add("filled", marks[c]);
+        paintKey(guess[c], marks[c]);
+      }
+      const won = guess === arch.word.w;
+      if (won || arch.guesses.length >= TRIES) {
+        arch.done = true;
+        arch.won = won;
+        locked = true;
+        statusEl.textContent = won
+          ? "🎉 " + arch.word.w + " in " + arch.guesses.length + "! Archive rounds are just for fun."
+          : "It was " + arch.word.w + ". Archive round, no harm done.";
+        archBtn.textContent = "🔄 Another old word";
+      } else {
+        const leftTries = TRIES - arch.guesses.length;
+        statusEl.textContent = leftTries + (leftTries === 1 ? " try left" : " tries left");
+      }
       return;
     }
     const s = load();
@@ -286,6 +320,7 @@
       if (s.day.hard) PokeAch.unlock("wb-hard");
     }
     shareBtn.hidden = false;
+    if (archBtn) archBtn.hidden = false;
     const bonus = TIER_PTS[word.tier] ? " It was a " + TIER_NAME[word.tier] + ", so it paid extra." : "";
     statusEl.textContent = won
       ? "🎉 " + word.w + " in " + tries + "! +" + pts + " pts." + bonus
@@ -352,6 +387,43 @@
   }
   shareBtn.addEventListener("click", () => doShare(shareBtn));
 
+  // --- Archive practice ------------------------------------------------------
+  // Appears once today's word is finished: replay a random old day's word.
+  const archBtn = document.getElementById("wb-archive");
+
+  function clearBoard() {
+    for (const tiles of ROWS) {
+      for (const t of tiles) {
+        t.textContent = "";
+        t.className = "wb-tile";
+      }
+    }
+    for (const ch of Object.keys(keyEls)) {
+      keyEls[ch].classList.remove("good", "near", "miss");
+      delete keyEls[ch].dataset.mark;
+    }
+    entry = "";
+  }
+
+  function startArchive() {
+    const days = Math.floor(Date.parse(Daily.today() + "T00:00:00Z") / 86400000);
+    const todayIdx = ((days % WORDS.length) + WORDS.length) % WORDS.length;
+    // Any past word except today's.
+    const back = 1 + Math.floor(Math.random() * (WORDS.length - 1));
+    const idx = ((todayIdx - back) % WORDS.length + WORDS.length) % WORDS.length;
+    const d = new Date();
+    d.setDate(d.getDate() - back);
+    const label = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    arch = { word: WORDS[idx], label: label, guesses: [], done: false, won: false };
+    clearBoard();
+    endEl.classList.add("hidden");
+    shareBtn.hidden = true; // the share grid belongs to today's word
+    locked = false;
+    statusEl.textContent = "📚 Archive: the word from " + label + ". No points, just practice.";
+    archBtn.textContent = "🎲 Different word";
+  }
+  if (archBtn) archBtn.addEventListener("click", startArchive);
+
   // --- Boot ----------------------------------------------------------------
   const boot = load();
   paintStats(boot);
@@ -360,6 +432,7 @@
     paintSaved(boot);
     overlayEl.classList.add("hidden");
     shareBtn.hidden = false;
+    if (archBtn) archBtn.hidden = false;
     statusEl.textContent = boot.day.won ? "Solved. Back tomorrow!" : "Out of tries. Back tomorrow!";
     showEnd(boot);
   } else if (boot.day.guesses.length) {

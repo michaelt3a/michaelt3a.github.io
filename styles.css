@@ -412,6 +412,33 @@ body {
   line-height: 1;
 }
 
+/* "More games" row on game-over screens: keep the run going elsewhere. */
+.more-games {
+  margin-top: 1.1rem;
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.more-games a {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 999px;
+  padding: 0.32rem 0.75rem;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.more-games a:hover {
+  border-color: var(--accent);
+}
+
 /* Game over quip */
 .gameover-quip {
   color: var(--accent);

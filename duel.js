@@ -217,6 +217,12 @@
       if (s.clinched && s.me > s.them) PokeAch.unlock("duel-series");
     }
     const rematchUrl = "duel.html?room=" + nextCode(code) + "&game=" + PAGE_GAME;
+    // The lobby's "run it back" chip remembers who you last fought and where.
+    try {
+      localStorage.setItem("pokeworks-duel-last", JSON.stringify({
+        game: PAGE_GAME, opp: opp.name, t: Date.now(),
+      }));
+    } catch (e) { /* ignore */ }
     panel(
       "<h2>" + title + "</h2>" +
       '<p class="duel-sub">Room ' + code + " · " +

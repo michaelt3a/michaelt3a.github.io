@@ -93,6 +93,7 @@
     lastTime: 0,
     flash: 0,
     floaters: [],
+    feverUntil: 0, // every 10-catch streak: 5s of golden rain worth double
     // duel bits
     duelCharges: 0,
     duelNextChargeAt: 10,
@@ -137,7 +138,7 @@
     controls.appendChild(sabBtn);
     updateSabBtn();
     sabBtn.addEventListener("click", () => {
-      if (!state.running || state.paused || state.duelCharges <= 0) return;
+      if (!state.running || state.paused || state.manualPause || state.duelCharges <= 0) return;
       state.duelCharges--;
       state.duelSabsSent++;
       PokeDuel.sendSab(Math.random() < 0.5 ? "speed" : "forks");
@@ -222,6 +223,7 @@
     state.lastTime = 0;
     state.flash = 0;
     state.floaters = [];
+    state.feverUntil = 0;
     state.duelCharges = 0;
     state.duelNextChargeAt = 10;
     state.duelSabsSent = 0;
@@ -229,6 +231,10 @@
     state.sabSpeedUntil = 0;
     updateSabBtn();
     setScore(0);
+    state.manualPause = false;
+    screenPaused.classList.add("hidden");
+    pauseBtn.style.display = "";
+    pauseBtn.textContent = "⏸";
     rng = isDaily ? Daily.stream("td:spawn") : isDuel ? PokeDuel.stream("td:spawn") : Math.random;
     overlay.classList.add("hidden");
     if (window.PokeStreak) PokeStreak.mark();
@@ -264,6 +270,9 @@
 
   function endGame() {
     state.running = false;
+    state.manualPause = false;
+    screenPaused.classList.add("hidden");
+    pauseBtn.style.display = "none";
     sfx("over");
     // Feed the run into today's shop challenges (points for the Rewards Shop).
     if (window.PokeChallenges) {
@@ -369,6 +378,20 @@
     else state.paused = false;
   });
 
+  // Manual pause: the corner ⏸ freezes the run; Resume picks it back up.
+  const pauseBtn = document.getElementById("pause-btn");
+  const screenPaused = document.getElementById("screen-paused");
+  function setPause(on) {
+    if (!state.running) return;
+    state.manualPause = on;
+    state.lastTime = 0;
+    screenPaused.classList.toggle("hidden", !on);
+    overlay.classList.toggle("hidden", !on);
+    pauseBtn.textContent = on ? "▶" : "⏸";
+  }
+  pauseBtn.addEventListener("click", () => setPause(!state.manualPause));
+  document.getElementById("resume-btn").addEventListener("click", () => setPause(false));
+
   // --- Update / render -------------------------------------------------------
   function update(dt) {
     state.elapsed += dt;
@@ -401,8 +424,14 @@
           state.combo++;
           if (state.combo > state.bestCombo) state.bestCombo = state.combo;
           if (state.combo >= 20 && window.PokeAch) PokeAch.unlock("td-combo20");
+          // Every 10th straight catch lights the fever: 5 seconds of double.
+          if (state.combo % 10 === 0) {
+            state.feverUntil = state.elapsed + 5;
+            state.floaters.push({ text: "🔥 FEVER x2!", x: state.bowlX, y: BOWL_Y - 60, life: 1.1 });
+            sfx("chime");
+          }
           sfx("pop");
-          setScore(state.score + 1);
+          setScore(state.score + (state.feverUntil > state.elapsed ? 2 : 1));
         }
         continue;
       }
@@ -430,19 +459,27 @@
 
   function drawBowl() {
     const x = state.bowlX;
+    const skin = window.PokeSkins ? PokeSkins.active() : null;
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.25)";
     ctx.beginPath();
     ctx.ellipse(x, BOWL_Y + 34, 74, 9, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = skin ? skin.body : "#ffffff";
     ctx.beginPath();
     ctx.ellipse(x, BOWL_Y + 6, BOWL_HALF + 6, 30, 0, 0, Math.PI, false);
     ctx.fill();
-    ctx.fillStyle = "#e8eef0";
+    ctx.fillStyle = skin ? skin.inner : "#e8eef0";
     ctx.beginPath();
     ctx.ellipse(x, BOWL_Y + 6, BOWL_HALF + 6, 10, 0, 0, Math.PI * 2);
     ctx.fill();
+    if (skin && skin.rim) {
+      ctx.strokeStyle = skin.rim;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.ellipse(x, BOWL_Y + 6, BOWL_HALF + 6, 10, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -486,6 +523,20 @@
       ctx.fillText("x" + state.combo + " streak", state.bowlX, BOWL_Y - 34);
     }
 
+    // Fever: a pulsing gold frame and a banner while the x2 window is open.
+    if (state.feverUntil > state.elapsed) {
+      ctx.save();
+      ctx.globalAlpha = 0.5 + Math.sin(state.elapsed * 9) * 0.3;
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = "#ffd15a";
+      ctx.strokeRect(0, 0, W, H);
+      ctx.font = "800 26px system-ui, sans-serif";
+      ctx.fillStyle = "#ffd15a";
+      ctx.textAlign = "center";
+      ctx.fillText("🔥 FEVER x2", W / 2, 64);
+      ctx.restore();
+    }
+
     if (state.flash > 0) {
       ctx.save();
       ctx.globalAlpha = state.flash * 1.6;
@@ -497,7 +548,7 @@
   }
 
   function frame(t) {
-    if (state.running && !state.paused) {
+    if (state.running && !state.paused && !state.manualPause) {
       if (!state.lastTime) state.lastTime = t;
       const dt = Math.min((t - state.lastTime) / 1000, 0.05);
       state.lastTime = t;

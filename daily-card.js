@@ -13,6 +13,16 @@
     return score + " " + unit;
   }
 
+  // Hours and minutes until the next local midnight.
+  function untilTomorrow() {
+    const now = new Date();
+    const mid = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const mins = Math.max(1, Math.round((mid - now) / 60000));
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? h + "h " + m + "m" : m + "m";
+  }
+
   function render(el) {
     const c = Daily.challenge();
     const done = Daily.result();
@@ -26,16 +36,39 @@
       '<span class="dc-game">' + escapeHtml(c.game.label) + "</span>" +
       '<span class="dc-note">' +
       (done
-        ? "Played: " + fmtScore(done.score, c.game.unit)
+        ? "Played: " + fmtScore(done.score, c.game.unit) +
+          " · new challenge in " + untilTomorrow()
         : "Same run for everyone. One attempt." +
           // Customer-game days pay Rewards Shop points.
           (c.game.customer && window.PokeChallenges ? " Earns +" + PokeChallenges.DAILY_PTS + " pts." : "")) +
       "</span></div>" +
       (done
-        ? '<div class="dc-rank" id="dc-rank">Checking today\'s board…</div>'
+        ? '<div class="dc-rank" id="dc-rank">Checking today\'s board…</div>' +
+          '<div class="dc-podium" id="dc-podium"></div>'
         : '<a class="dc-play" href="' + c.game.file + '?daily=1">Play ›</a>');
 
-    if (done) fillRank(el, c);
+    if (done) {
+      fillRank(el, c);
+      fillPodium(el);
+    }
+  }
+
+  // Yesterday's top 3, so there's always someone to gun for.
+  async function fillPodium(el) {
+    const slot = el.querySelector("#dc-podium");
+    if (!slot) return;
+    const yd = Daily.yesterday();
+    const game = Daily.gameFor(yd);
+    let list = [];
+    try { list = await Daily.board(yd, game.id); } catch (e) { list = []; }
+    if (!list.length) { slot.remove(); return; }
+    const medals = ["🥇", "🥈", "🥉"];
+    slot.innerHTML =
+      '<span class="dc-podium-tag">Yesterday (' + escapeHtml(game.label) + ")</span>" +
+      list.slice(0, 3).map((e, i) =>
+        '<span class="dc-podium-row">' + medals[i] + " " + escapeHtml(e.name) +
+        " · " + fmtScore(e.score, game.unit) + "</span>"
+      ).join("");
   }
 
   // Where today's score sits on the day's board.

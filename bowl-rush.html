@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bowl Rush - Pokeworks</title>
   <meta name="description" content="Sort ingredients to their station before the clock runs out." />
-  <link rel="stylesheet" href="styles.css?v=23" />
+  <link rel="stylesheet" href="styles.css?v=24" />
   <link rel="stylesheet" href="bowl-rush.css?v=3" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
@@ -69,6 +69,15 @@
           <h1 class="overlay-title" id="count-num">3</h1>
         </div>
 
+        <!-- Paused screen -->
+        <div id="screen-paused" class="overlay-panel hidden">
+          <h1 class="overlay-title">Paused</h1>
+          <div class="gameover-actions">
+            <button id="resume-btn" class="btn" type="button">Resume</button>
+            <a class="btn btn-secondary" href="index.html">Quit</a>
+          </div>
+        </div>
+
         <div id="screen-gameover" class="overlay-panel hidden">
           <h1 class="overlay-title">Time!</h1>
           <p class="overlay-subtitle" id="gameover-subtitle">You sorted 0 ingredients.</p>
@@ -86,8 +95,17 @@
             <button id="play-again-btn" class="btn" type="button">Play Again</button>
             <a class="btn btn-secondary" href="index.html">Done</a>
           </div>
+          <div class="more-games">
+            <span>More games:</span>
+            <a href="topping-drop.html">Topping Drop</a>
+            <a href="poke-slice.html">Poke Slice</a>
+            <a href="order-up.html">Order Up</a>
+          </div>
         </div>
       </div>
+
+      <!-- Pause lives in the box's corner; icon flips to ▶ while paused -->
+      <button id="pause-btn" class="control-btn" type="button" aria-label="Pause" style="display:none">⏸</button>
     </main>
   </div>
 
@@ -101,7 +119,7 @@
   <script src="challenges.js?v=7"></script>
   <script src="wordfilter.js?v=1"></script>
   <script src="arcade-sfx.js?v=1"></script>
-  <script src="bowl-rush.js?v=7"></script>
+  <script src="bowl-rush.js?v=8"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

@@ -50,6 +50,21 @@
     if (b && !launched) selectGame(b.dataset.game);
   });
 
+  // "Run it back": one tap re-creates a room in your last matchup's game.
+  const rerunBtn = document.getElementById("duel-rerun");
+  try {
+    const last = JSON.parse(localStorage.getItem("pokeworks-duel-last"));
+    const GAME_LABELS = { bowl: "Bowl Builder", td: "Topping Drop", ps: "Poke Slice" };
+    if (rerunBtn && last && GAME_FILES[last.game] && Date.now() - last.t < 7 * 86400000) {
+      rerunBtn.hidden = false;
+      rerunBtn.textContent = "🥊 Run it back: " + (last.opp || "your rival") + " · " + GAME_LABELS[last.game];
+      rerunBtn.addEventListener("click", function () {
+        selectGame(last.game);
+        createBtn.click();
+      });
+    }
+  } catch (e) { /* ignore */ }
+
   // The realtime client library loads on demand; nobody else pays for it.
   let libPromise = null;
   function lib() {

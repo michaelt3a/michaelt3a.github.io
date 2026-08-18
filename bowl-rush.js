@@ -193,7 +193,7 @@
 
   function wireDrag(it) {
     it.el.addEventListener("pointerdown", (e) => {
-      if (!state.running || state.paused) return;
+      if (!state.running || state.paused || state.manualPause) return;
       e.preventDefault();
       it.dragging = true;
       const rect = fieldEl.getBoundingClientRect();
@@ -281,6 +281,10 @@
     state.lastTime = 0;
     say(" ");
     playEl.hidden = false;
+    state.manualPause = false;
+    screenPaused.classList.add("hidden");
+    pauseBtn.style.display = "";
+    pauseBtn.textContent = "⏸";
     overlay.classList.add("hidden");
     rng = isDaily ? Daily.stream("br:deck") : Math.random;
     if (window.PokeStreak) PokeStreak.mark();
@@ -316,6 +320,9 @@
 
   function endGame() {
     state.running = false;
+    state.manualPause = false;
+    screenPaused.classList.add("hidden");
+    pauseBtn.style.display = "none";
     sfx("over");
     // Feed the round into today's shop challenges (points for the Rewards Shop).
     if (window.PokeChallenges) {
@@ -390,8 +397,22 @@
     else state.paused = false;
   });
 
+  // Manual pause: the corner ⏸ freezes the clock; Resume picks it back up.
+  const pauseBtn = document.getElementById("pause-btn");
+  const screenPaused = document.getElementById("screen-paused");
+  function setPause(on) {
+    if (!state.running) return;
+    state.manualPause = on;
+    state.lastTime = 0;
+    screenPaused.classList.toggle("hidden", !on);
+    overlay.classList.toggle("hidden", !on);
+    pauseBtn.textContent = on ? "▶" : "⏸";
+  }
+  pauseBtn.addEventListener("click", () => setPause(!state.manualPause));
+  document.getElementById("resume-btn").addEventListener("click", () => setPause(false));
+
   function frame(t) {
-    if (state.running && !state.paused) {
+    if (state.running && !state.paused && !state.manualPause) {
       if (!state.lastTime) state.lastTime = t;
       const dt = Math.min((t - state.lastTime) / 1000, 0.05);
       state.lastTime = t;
