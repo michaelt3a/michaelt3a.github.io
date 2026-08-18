@@ -40,6 +40,7 @@
     spawnIn: 0,
     lastTime: 0,
     flash: 0, // red edge flash after catching something bad
+    floaters: [], // little "+❤️" pops
   };
 
   function setScore(n) {
@@ -53,6 +54,20 @@
   function badChance() { return Math.min(0.16 + state.elapsed * 0.002, 0.3); }
 
   function spawn() {
+    // A stray heart now and then while you're hurt; catch it to heal. It
+    // falls a touch slower than food so it's genuinely catchable.
+    if (state.lives < 3 && Math.random() < 0.08) {
+      state.items.push({
+        x: 60 + Math.random() * (W - 120),
+        y: -30,
+        vy: fallSpeed() * 0.75,
+        spin: (Math.random() - 0.5) * 1.6,
+        glyph: "❤️",
+        bad: false,
+        heart: true,
+      });
+      return;
+    }
     const bad = Math.random() < badChance();
     const list = bad ? BAD : GOOD;
     state.items.push({
@@ -77,6 +92,7 @@
     state.spawnIn = 0.5;
     state.lastTime = 0;
     state.flash = 0;
+    state.floaters = [];
     overlay.classList.add("hidden");
     if (window.PokeStreak) PokeStreak.mark();
     if (window.PokeTrack) PokeTrack.hit("play", "topping");
@@ -106,17 +122,16 @@
     overlay.classList.remove("hidden");
   }
 
-  // --- Input: the bowl chases the pointer -----------------------------------
-  function pointToWorldX(e) {
+  // --- Input: the bowl tracks the pointer -----------------------------------
+  // Listening on the whole window keeps tracking alive when the pointer
+  // wanders past the box edge, so the bowl never stalls mid-chase.
+  function trackPointer(e) {
+    if (!state.running) return;
     const rect = canvas.getBoundingClientRect();
-    return (e.clientX - rect.left) * (W / rect.width);
+    state.targetX = (e.clientX - rect.left) * (W / rect.width);
   }
-  canvas.addEventListener("pointermove", (e) => {
-    if (state.running) state.targetX = pointToWorldX(e);
-  });
-  canvas.addEventListener("pointerdown", (e) => {
-    if (state.running) state.targetX = pointToWorldX(e);
-  });
+  window.addEventListener("pointermove", trackPointer);
+  window.addEventListener("pointerdown", trackPointer);
 
   document.getElementById("start-btn").addEventListener("click", startGame);
   document.getElementById("play-again-btn").addEventListener("click", () => {
@@ -138,8 +153,9 @@
       spawn();
       state.spawnIn = spawnEvery();
     }
-    // The bowl eases toward the finger so it feels weighty, not twitchy.
-    state.bowlX += (state.targetX - state.bowlX) * Math.min(1, dt * 14);
+    // Tight tracking: the bowl basically rides the cursor, with just enough
+    // smoothing left to keep it from feeling jittery.
+    state.bowlX += (state.targetX - state.bowlX) * Math.min(1, dt * 34);
     state.bowlX = Math.max(70, Math.min(W - 70, state.bowlX));
 
     for (let i = state.items.length - 1; i >= 0; i--) {
@@ -147,7 +163,10 @@
       it.y += it.vy * dt;
       if (it.y >= BOWL_Y - 14 && it.y <= BOWL_Y + 26 && Math.abs(it.x - state.bowlX) <= BOWL_HALF) {
         state.items.splice(i, 1);
-        if (it.bad) {
+        if (it.heart) {
+          state.lives = Math.min(3, state.lives + 1);
+          state.floaters.push({ text: "+❤️", x: state.bowlX, y: BOWL_Y - 46, life: 0.9 });
+        } else if (it.bad) {
           state.lives--;
           state.combo = 0;
           state.flash = 0.35;
@@ -161,7 +180,8 @@
       }
       if (it.y > H + 40) {
         state.items.splice(i, 1);
-        if (!it.bad) {
+        // A missed heart is a shame, not a punishment.
+        if (!it.bad && !it.heart) {
           // Dropped food costs a heart, same as catching junk.
           state.combo = 0;
           state.lives--;
@@ -172,6 +192,12 @@
       }
     }
     if (state.flash > 0) state.flash = Math.max(0, state.flash - dt);
+    for (let i = state.floaters.length - 1; i >= 0; i--) {
+      const f = state.floaters[i];
+      f.y -= 40 * dt;
+      f.life -= dt;
+      if (f.life <= 0) state.floaters.splice(i, 1);
+    }
   }
 
   function drawBowl() {
@@ -217,6 +243,16 @@
       ctx.fillText("❤️", 16 + i * 34, 30);
     }
     ctx.globalAlpha = 1;
+
+    // rising "+❤️" pops
+    ctx.textAlign = "center";
+    for (const f of state.floaters) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, f.life * 2);
+      ctx.font = "700 24px system-ui, sans-serif";
+      ctx.fillText(f.text, f.x, f.y);
+      ctx.restore();
+    }
 
     // combo tag once it's worth bragging about
     if (state.combo >= 5) {
