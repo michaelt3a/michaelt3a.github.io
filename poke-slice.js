@@ -62,6 +62,9 @@
     }
   }
 
+  const ITEM_SIZE = 52; // glyph font size; hit radius scales with it
+  const HIT_R = 44;
+
   const state = {
     running: false,
     paused: false,
@@ -69,14 +72,18 @@
     lives: 3,
     elapsed: 0,
     items: [], // {x,y,vx,vy,rot,vrot,glyph,bomb}
-    pieces: [], // sliced halves tumbling away
+    pieces: [], // sliced halves tumbling away (clipped along the cut)
     floaters: [],
-    trail: [], // recent pointer points while slicing
+    trail: [], // the live blade under the finger
+    cuts: [], // finished blade segments that linger and fade, fruit-ninja style
+    booms: [], // expanding shockwave rings from dynamite
+    sparks: [], // explosion debris
     slicing: false,
     strokeSlices: 0,
     waveIn: 0.9,
     lastTime: 0,
     flash: 0,
+    shake: 0,
   };
 
   function setScore(n) {
@@ -128,11 +135,15 @@
     state.pieces = [];
     state.floaters = [];
     state.trail = [];
+    state.cuts = [];
+    state.booms = [];
+    state.sparks = [];
     state.slicing = false;
     state.strokeSlices = 0;
     state.waveIn = 0.7;
     state.lastTime = 0;
     state.flash = 0;
+    state.shake = 0;
     rng = isDaily ? Daily.stream("ps:wave") : Math.random;
     overlay.classList.add("hidden");
     if (window.PokeStreak) PokeStreak.mark();
@@ -246,28 +257,58 @@
     return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
   }
 
+  function explode(x, y) {
+    state.booms.push({ x: x, y: y, life: 0.55, maxLife: 0.55 });
+    for (let i = 0; i < 22; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 180 + Math.random() * 320;
+      state.sparks.push({
+        x: x,
+        y: y,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp - 120,
+        size: 2.5 + Math.random() * 4,
+        color: ["#ffd15a", "#fd9f27", "#ee435b", "#fff1c9"][Math.floor(Math.random() * 4)],
+        life: 0.5 + Math.random() * 0.4,
+      });
+    }
+    state.shake = 0.5;
+    state.flash = 0.4;
+  }
+
   function sliceAlong(a, b) {
     for (let i = state.items.length - 1; i >= 0; i--) {
       const it = state.items[i];
-      if (segDist(it, a, b) > 34) continue;
+      if (segDist(it, a, b) > HIT_R) continue;
       state.items.splice(i, 1);
       if (it.bomb) {
         state.lives--;
-        state.flash = 0.4;
+        explode(it.x, it.y);
         if (navigator.vibrate) { try { navigator.vibrate(60); } catch (e) { /* ignore */ } }
-        state.floaters.push({ text: "💥", x: it.x, y: it.y, life: 0.8 });
+        state.floaters.push({ text: "💥", x: it.x, y: it.y - 20, life: 0.8 });
         if (state.lives <= 0) { endGame(); return; }
       } else {
         state.strokeSlices++;
         setScore(state.score + 1);
-        // The two halves tumble apart along the cut.
+        // Two REAL halves: each piece is the glyph clipped along the cut
+        // line, drifting apart perpendicular to the blade.
         const ang = Math.atan2(b.y - a.y, b.x - a.x);
-        const px = Math.cos(ang + Math.PI / 2) * 130;
-        const py = Math.sin(ang + Math.PI / 2) * 130;
-        state.pieces.push(
-          { glyph: it.glyph, x: it.x, y: it.y, vx: it.vx + px, vy: it.vy * 0.2 + py, rot: it.rot, vrot: 4, life: 0.7 },
-          { glyph: it.glyph, x: it.x, y: it.y, vx: it.vx - px, vy: it.vy * 0.2 - py, rot: it.rot, vrot: -4, life: 0.7 }
-        );
+        const px = Math.cos(ang + Math.PI / 2);
+        const py = Math.sin(ang + Math.PI / 2);
+        for (const side of [-1, 1]) {
+          state.pieces.push({
+            glyph: it.glyph,
+            x: it.x + px * side * 3,
+            y: it.y + py * side * 3,
+            vx: it.vx * 0.5 + px * side * 150,
+            vy: it.vy * 0.2 + py * side * 150 - 40,
+            rot: it.rot,
+            vrot: side * 3.2,
+            cutAng: ang - it.rot, // the cut, glued to the glyph's own frame
+            side: side,
+            life: 1.0,
+          });
+        }
       }
     }
   }
@@ -285,7 +326,12 @@
     const prev = state.trail[state.trail.length - 1];
     state.trail.push(p);
     if (state.trail.length > 14) state.trail.shift();
-    if (prev) sliceAlong(prev, p);
+    if (prev) {
+      // Every segment also lingers as a fading cut mark, fruit-ninja style.
+      state.cuts.push({ ax: prev.x, ay: prev.y, bx: p.x, by: p.y, life: 1.1, maxLife: 1.1 });
+      if (state.cuts.length > 80) state.cuts.shift();
+      sliceAlong(prev, p);
+    }
   });
   function strokeEnd() {
     if (!state.slicing) return;
@@ -351,24 +397,72 @@
       if (f.life <= 0) state.floaters.splice(i, 1);
     }
 
-    // Trail points go stale fast so the blade doesn't linger.
+    for (let i = state.cuts.length - 1; i >= 0; i--) {
+      const c = state.cuts[i];
+      c.life -= dt;
+      if (c.life <= 0) state.cuts.splice(i, 1);
+    }
+
+    for (let i = state.booms.length - 1; i >= 0; i--) {
+      const bm = state.booms[i];
+      bm.life -= dt;
+      if (bm.life <= 0) state.booms.splice(i, 1);
+    }
+
+    for (let i = state.sparks.length - 1; i >= 0; i--) {
+      const s = state.sparks[i];
+      s.vy += GRAVITY * 0.7 * dt;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.life -= dt;
+      if (s.life <= 0) state.sparks.splice(i, 1);
+    }
+
+    // The live blade under the finger goes stale fast; the cut marks above
+    // are what linger.
     const now = performance.now();
     while (state.trail.length && now - state.trail[0].t > 140) state.trail.shift();
 
     if (state.flash > 0) state.flash = Math.max(0, state.flash - dt);
+    if (state.shake > 0) state.shake = Math.max(0, state.shake - dt);
   }
 
   function render() {
     ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    // Dynamite rattles the whole box for a beat.
+    if (state.shake > 0) {
+      const m = 22 * state.shake;
+      ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m);
+    }
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
+    // Fading cut marks left behind by the blade.
+    ctx.lineCap = "round";
+    for (const c of state.cuts) {
+      const a = c.life / c.maxLife;
+      ctx.strokeStyle = "rgba(255,255,255," + (a * 0.55).toFixed(3) + ")";
+      ctx.lineWidth = 1 + a * 4;
+      ctx.beginPath();
+      ctx.moveTo(c.ax, c.ay);
+      ctx.lineTo(c.bx, c.by);
+      ctx.stroke();
+    }
+
+    // Sliced halves: the glyph clipped along its cut line, so each piece
+    // really is half the thing that got cut.
     for (const p of state.pieces) {
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.rot);
-      ctx.globalAlpha = Math.min(1, p.life * 2.4);
-      ctx.font = "26px system-ui, sans-serif";
+      ctx.globalAlpha = Math.min(1, p.life * 2);
+      ctx.rotate(p.cutAng);
+      ctx.beginPath();
+      ctx.rect(-ITEM_SIZE * 1.4, p.side < 0 ? -ITEM_SIZE * 1.4 : 0, ITEM_SIZE * 2.8, ITEM_SIZE * 1.4);
+      ctx.clip();
+      ctx.rotate(-p.cutAng);
+      ctx.font = ITEM_SIZE + "px system-ui, sans-serif";
       ctx.fillText(p.glyph, 0, 0);
       ctx.restore();
     }
@@ -377,12 +471,47 @@
       ctx.save();
       ctx.translate(it.x, it.y);
       ctx.rotate(it.rot);
-      ctx.font = "38px system-ui, sans-serif";
+      ctx.font = ITEM_SIZE + "px system-ui, sans-serif";
       ctx.fillText(it.glyph, 0, 0);
       ctx.restore();
     }
 
-    // The blade trail
+    // Explosion shockwaves and debris.
+    for (const bm of state.booms) {
+      const t = 1 - bm.life / bm.maxLife;
+      const r = 20 + t * 150;
+      ctx.save();
+      ctx.globalAlpha = (1 - t) * 0.9;
+      ctx.lineWidth = 10 * (1 - t) + 2;
+      ctx.strokeStyle = "#ffd15a";
+      ctx.beginPath();
+      ctx.arc(bm.x, bm.y, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "#ee435b";
+      ctx.lineWidth = 5 * (1 - t) + 1;
+      ctx.beginPath();
+      ctx.arc(bm.x, bm.y, r * 0.65, 0, Math.PI * 2);
+      ctx.stroke();
+      if (t < 0.3) {
+        ctx.globalAlpha = (0.3 - t) * 2.2;
+        ctx.fillStyle = "#fff1c9";
+        ctx.beginPath();
+        ctx.arc(bm.x, bm.y, 34, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    for (const s of state.sparks) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, s.life * 2.2);
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // The live blade under the finger.
     if (state.trail.length > 1) {
       ctx.save();
       ctx.lineCap = "round";
@@ -390,8 +519,8 @@
       for (let i = 1; i < state.trail.length; i++) {
         const a = state.trail[i - 1];
         const b = state.trail[i];
-        const w = (i / state.trail.length) * 9 + 1;
-        ctx.strokeStyle = "rgba(255,255,255," + (0.25 + (i / state.trail.length) * 0.65) + ")";
+        const w = (i / state.trail.length) * 10 + 1.5;
+        ctx.strokeStyle = "rgba(255,255,255," + (0.35 + (i / state.trail.length) * 0.6) + ")";
         ctx.lineWidth = w;
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
@@ -427,6 +556,7 @@
       ctx.strokeRect(0, 0, W, H);
       ctx.restore();
     }
+    ctx.restore(); // shake transform
   }
 
   function frame(t) {
