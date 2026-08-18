@@ -81,6 +81,14 @@ body {
   margin: 0;
 }
 
+/* The little tagline under the logo, neal.fun style. */
+.hub-tag {
+  margin: 0.55rem 0 0;
+  color: var(--on-dark-muted);
+  font-size: 1rem;
+  text-transform: lowercase;
+}
+
 /* Cards: one flat neal.fun-style grid. Every game is a single banner tile
    with its name sitting on the art; no sections, no descriptions. */
 .cards {
@@ -1494,6 +1502,9 @@ body.sheet-lock {
   }
   .hub-subtitle {
     display: none;
+  }
+  .hub-tag {
+    font-size: 0.85rem;
   }
   .cards {
     grid-template-columns: 1fr;
