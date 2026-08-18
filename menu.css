@@ -160,8 +160,10 @@ body {
 
 .train-stripe {
   display: block;
-  width: 100%;
+  width: 140%;
+  margin-left: -20%;
   height: 11px;
+  transform: rotate(-12deg);
   background: repeating-linear-gradient(45deg, #ffd15a 0 14px, #14141a 14px 28px);
 }
 
