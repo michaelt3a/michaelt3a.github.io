@@ -146,14 +146,16 @@ body {
 }
 
 /* The whole card fills with diagonal yellow lines that flow while hovered.
-   The pattern repeats every 26px along its axis, so sliding the background
-   26px x sqrt(2) horizontally loops it seamlessly. */
+   The background tile is exactly one stripe period wide (26px along the 45°
+   axis = 26·√2 ≈ 36.7696px across), so tiles join seamlessly and sliding by
+   exactly one tile loops with no visible seam. */
 .train-barrier {
   position: absolute;
   inset: 0;
   z-index: 3;
   background-color: rgba(8, 10, 14, 0.45);
   background-image: repeating-linear-gradient(45deg, transparent 0 18px, #ffd15a 18px 26px);
+  background-size: 36.7696px 100%;
   opacity: 0;
   transition: opacity 0.16s ease;
   pointer-events: none;
@@ -161,7 +163,7 @@ body {
 }
 
 @keyframes train-flow {
-  to { background-position: 36.77px 0; }
+  to { background-position: 36.7696px 0; }
 }
 
 .card-training:hover .train-barrier,
