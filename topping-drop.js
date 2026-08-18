@@ -1,7 +1,8 @@
 // Topping Drop — a catcher. Ingredients rain from the top of the box; slide
-// the bowl to catch the good ones. Forks and rogue chilis cost a life (three
-// lives per run). Points are stingy on purpose: only a new personal best
-// earns any, one point per block of improvement, capped per run.
+// the bowl to catch the good ones. Losing a heart happens two ways: catching
+// a fork or rogue chili, or letting good food hit the floor. Three hearts a
+// run. Points are stingy on purpose: only a new personal best earns any,
+// one point per block of improvement, capped per run.
 (function () {
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -160,7 +161,14 @@
       }
       if (it.y > H + 40) {
         state.items.splice(i, 1);
-        if (!it.bad) state.combo = 0; // dropped food breaks the streak
+        if (!it.bad) {
+          // Dropped food costs a heart, same as catching junk.
+          state.combo = 0;
+          state.lives--;
+          state.flash = 0.35;
+          if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) { /* ignore */ } }
+          if (state.lives <= 0) { endGame(); return; }
+        }
       }
     }
     if (state.flash > 0) state.flash = Math.max(0, state.flash - dt);
