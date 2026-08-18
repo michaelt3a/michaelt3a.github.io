@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=32" />
+  <link rel="stylesheet" href="menu.css?v=33" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -165,7 +165,10 @@
             <span class="train-chip">Training</span>
             <div class="train-barrier" aria-hidden="true">
               <span class="train-stripe"></span>
-              <span class="train-msg">🚧 Crew training zone</span>
+              <span class="train-stripe"></span>
+              <span class="train-stripe"></span>
+              <span class="train-stripe"></span>
+              <span class="train-stripe"></span>
               <span class="train-stripe"></span>
             </div>
           </a>
@@ -216,7 +219,10 @@
             <span class="train-chip">Training</span>
             <div class="train-barrier" aria-hidden="true">
               <span class="train-stripe"></span>
-              <span class="train-msg">🚧 Crew training zone</span>
+              <span class="train-stripe"></span>
+              <span class="train-stripe"></span>
+              <span class="train-stripe"></span>
+              <span class="train-stripe"></span>
               <span class="train-stripe"></span>
             </div>
           </a>
@@ -266,6 +272,23 @@
     </div>
   </div>
 
+  <!-- Training heads-up (opens when a training game is tapped) -->
+  <div class="sheet" id="sheet-train" hidden>
+    <div class="sheet-panel sheet-train-panel" role="dialog" aria-modal="true" aria-label="Crew training">
+      <div class="sheet-head">
+        <h2 class="sheet-title">🚧 Crew training</h2>
+        <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="sheet-body">
+        <p class="train-note">This is a crew training minigame. You will not gain any rewards points for this minigame.</p>
+        <div class="train-actions">
+          <button class="hub-btn train-go" type="button" id="train-continue">Continue</button>
+          <button class="hub-btn" type="button" data-close>Exit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Achievement wall (opens from the hub button) -->
   <div class="sheet" id="sheet-ach" hidden>
     <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Achievements">
@@ -280,7 +303,7 @@
     </div>
   </div>
 
-  <script src="transitions.js?v=3"></script>
+  <script src="transitions.js?v=4"></script>
   <script src="supabase-config.js?v=2"></script>
   <script src="achievements.js?v=9"></script>
   <!-- daily.js first: hub-leaderboard.js registers today's board from it,
@@ -378,6 +401,7 @@
         ),
       "sheet-you": () => PlayerCard.renderSheet(document.getElementById("pc-body")),
       "sheet-ch": buildChallenges,
+      "sheet-train": () => {}, // static markup, nothing to build
     };
     // Panels whose contents change as you play are rebuilt every open.
     const alwaysRebuild = { "sheet-you": true, "sheet-ch": true };
@@ -410,6 +434,22 @@
       const open = document.querySelector(".sheet.open");
       if (open) closeSheet(open);
     });
+
+    // Training games get a heads-up before they open: no points in there.
+    // Continue goes on to the game; Exit (or ✕, or the backdrop) stays here.
+    {
+      let trainHref = "";
+      for (const card of document.querySelectorAll(".card-training")) {
+        card.addEventListener("click", (e) => {
+          e.preventDefault();
+          trainHref = card.href;
+          openSheet("sheet-train");
+        });
+      }
+      document.getElementById("train-continue").addEventListener("click", () => {
+        if (trainHref) location.href = trainHref;
+      });
+    }
   </script>
   <script src="tour.js?v=1"></script>
   <script src="pwa.js?v=1"></script>

@@ -4,6 +4,7 @@
   const DURATION = 260;
 
   document.addEventListener("click", (e) => {
+    if (e.defaultPrevented) return; // someone upstream canceled this click (e.g. the training heads-up)
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // let new-tab etc. work
     const a = e.target.closest("a");
     if (!a || a.target === "_blank" || a.hasAttribute("download")) return;

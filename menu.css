@@ -131,10 +131,8 @@ body {
   z-index: 3;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 0.7rem;
-  background: rgba(8, 10, 14, 0.55);
+  justify-content: space-evenly;
+  background: rgba(8, 10, 14, 0.4);
   opacity: 0;
   transition: opacity 0.16s ease;
   pointer-events: none;
@@ -142,23 +140,9 @@ body {
 
 .train-stripe {
   display: block;
-  width: 120%;
-  height: 13px;
-  transform: rotate(-3deg);
+  width: 100%;
+  height: 11px;
   background: repeating-linear-gradient(45deg, #ffd15a 0 14px, #14141a 14px 28px);
-}
-.train-stripe:last-child {
-  transform: rotate(3deg);
-}
-
-.train-msg {
-  background: #fff;
-  color: #1f2b2b;
-  font-weight: 800;
-  font-size: 0.92rem;
-  padding: 0.45rem 0.95rem;
-  border-radius: 999px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .card-training:hover .train-barrier,
@@ -167,6 +151,33 @@ body {
 }
 .card-training:hover {
   border-color: #ffd15a;
+}
+
+/* The heads-up sheet a training card opens before the game does. */
+.sheet-train-panel {
+  max-width: 380px;
+}
+
+.train-note {
+  margin: 0 0 1.1rem;
+  color: var(--on-dark);
+  line-height: 1.55;
+}
+
+.train-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.train-go {
+  background: #ffd15a;
+  border-color: #ffd15a;
+  color: #14141a;
+  font-weight: 700;
+}
+.train-go:hover {
+  background: #f5c542;
+  border-color: #f5c542;
 }
 
 @media (prefers-reduced-motion: reduce) {
