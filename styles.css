@@ -377,22 +377,25 @@ body {
   margin-top: 0.25rem;
 }
 
+/* Controls under the box sit on the dark page, so they wear the hub's
+   quiet chip look. */
 .control-btn {
-  background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: var(--chip, rgba(255, 255, 255, 0.08));
+  color: var(--on-dark, #f4ede3);
+  border: 1px solid var(--chip-line, rgba(255, 255, 255, 0.18));
   border-radius: 999px;
   padding: 0.45rem 1.1rem;
-  font-size: 0.9rem;
+  font: inherit;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .control-btn:hover {
-  background: #f2fbfb;
-  border-color: var(--accent);
+  background: var(--chip-hover, rgba(255, 255, 255, 0.15));
+  border-color: var(--on-dark-muted, #b6c4c4);
 }
 
 /* Pause: a round icon button inside the box, above the overlay so it can
@@ -410,6 +413,15 @@ body {
   border-radius: 50%;
   font-size: 1.1rem;
   line-height: 1;
+  /* It floats inside the light box, not on the dark page. */
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+#pause-btn:hover {
+  background: #ffffff;
+  border-color: var(--accent);
 }
 
 /* "More games" row on game-over screens: keep the run going elsewhere. */
@@ -644,13 +656,14 @@ body.duel-mode .stage {
 
 /* The green go-button: the round starts once both players have pressed it */
 .duel-ready {
-  background: #39a85b;
-  border: none;
-  color: #fff;
-  font-weight: 800;
+  background: none;
+  border: 1.5px solid #39a85b;
+  color: #39a85b;
+  font-weight: 700;
 }
 .duel-ready:hover {
-  background: #2f8f4d;
+  background: #39a85b;
+  color: #fff;
 }
 .duel-ready:disabled {
   opacity: 0.75;
@@ -676,13 +689,14 @@ body.duel-mode .stage {
 }
 
 .btn.btn-secondary {
-  background: var(--teal);
-  color: #fff;
-  border: none;
+  background: none;
+  color: var(--teal-dark);
+  border-color: var(--teal);
 }
 
 .btn.btn-secondary:hover {
-  background: var(--teal-dark);
+  background: var(--teal);
+  color: #fff;
 }
 
 /* Difficulty selection */
@@ -698,46 +712,56 @@ body.duel-mode .stage {
 }
 
 .difficulty-btn[data-difficulty="easy"] {
-  background: #4caf72;
+  border-color: #4caf72;
+  color: #3d9760;
 }
 
 .difficulty-btn[data-difficulty="easy"]:hover {
-  background: #3d9760;
+  background: #4caf72;
+  color: #fff;
 }
 
 .difficulty-btn[data-difficulty="medium"] {
-  background: #fd9f27;
+  border-color: #fd9f27;
+  color: #c97c14;
 }
 
 .difficulty-btn[data-difficulty="medium"]:hover {
-  background: #e2871a;
+  background: #fd9f27;
+  color: #fff;
 }
 
 .difficulty-btn[data-difficulty="impossible"] {
-  background: #e2574c;
+  border-color: #e2574c;
+  color: #c74438;
 }
 
 .difficulty-btn[data-difficulty="impossible"]:hover {
-  background: #c74438;
+  background: #e2574c;
+  color: #fff;
 }
 
-/* Buttons */
+/* Buttons: quiet outlined pills, same language as the hub's chips. The
+   color stays but lives in the border and text; the fill only arrives on
+   hover. */
 .btn {
   display: inline-block;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  padding: 0.75rem 2.25rem;
+  background: none;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  padding: 0.6rem 1.9rem;
   border-radius: 999px;
-  font-size: 1rem;
-  font-weight: 600;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.15s ease, transform 0.05s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
 }
 
 .btn:hover {
-  background: var(--accent-dark);
+  background: var(--accent);
+  color: #fff;
 }
 
 .btn:active {

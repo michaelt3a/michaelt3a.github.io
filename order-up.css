@@ -1231,17 +1231,20 @@
 .ou-slot-info small { font-size: 0.7rem; color: var(--muted); }
 .ou-slot-btn {
   flex: none;
-  background: var(--teal);
-  color: #fff;
-  border: none;
+  background: none;
+  color: var(--teal-dark);
+  border: 1.5px solid var(--teal);
   border-radius: 999px;
   font: inherit;
   font-size: 0.74rem;
   font-weight: 800;
   padding: 0.35rem 0.8rem;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.ou-slot-btn.ghost { background: #b9c6c6; }
+.ou-slot-btn:hover { background: var(--teal); color: #fff; }
+.ou-slot-btn.ghost { border-color: #b9c6c6; color: #7d8d8d; }
+.ou-slot-btn.ghost:hover { background: #b9c6c6; color: #fff; }
 
 /* -------- First-shift tutorial ------------------------------------------- */
 .ou-tut-banner {
@@ -1271,17 +1274,18 @@
 }
 .ou-tut-btn {
   flex: none;
-  background: #2a2f31;
-  color: #fff;
-  border: none;
+  background: none;
+  color: #6a4c00;
+  border: 1.5px solid #c99b2e;
   border-radius: 999px;
   font: inherit;
   font-size: 0.72rem;
   font-weight: 800;
   padding: 0.4rem 0.8rem;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.ou-tut-btn:hover { background: #3a4143; }
+.ou-tut-btn:hover { background: #6a4c00; border-color: #6a4c00; color: #fff; }
 .ou-tut-cta {
   display: flex;
   flex-direction: column;

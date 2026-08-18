@@ -1840,21 +1840,24 @@ body.sheet-lock {
 }
 
 /* Buttons + back link */
+/* Quiet outlined pill, same language as the hub chips. */
 .btn {
   display: inline-block;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  padding: 0.75rem 2rem;
+  background: none;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  padding: 0.6rem 1.8rem;
   border-radius: 999px;
-  font-weight: 600;
+  font: inherit;
+  font-weight: 700;
   text-decoration: none;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .btn:hover {
-  background: var(--accent-dark);
+  background: var(--accent);
+  color: #fff;
 }
 
 .back-link {
