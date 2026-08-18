@@ -146,6 +146,23 @@
   }
 
   // --- Hub wall -------------------------------------------------------------
+  // Progress readouts for locked badges, where a lifetime best already
+  // exists in localStorage. [current, goal]; missing entries show nothing.
+  function lsNum(k) {
+    try { return parseInt(localStorage.getItem(k), 10) || 0; } catch (e) { return 0; }
+  }
+  const PROGRESS = {
+    "bb-25": () => [lsNum("pokeworks-high-score"), 25],
+    "bb-50": () => [lsNum("pokeworks-high-score"), 50],
+    "td-combo20": () => [lsNum("pokeworks-topping-combo-best"), 20],
+    "br-streak25": () => [lsNum("pokeworks-rush-streak-best"), 25],
+    "ps-stroke5": () => [lsNum("pokeworks-slice-stroke-best"), 5],
+    "meta-streak7": () => {
+      const s = window.PokeStreak ? PokeStreak.get() : { best: 0 };
+      return [s.best || 0, 7];
+    },
+  };
+
   function renderWall(gridEl, countEl) {
     const map = load();
     if (countEl) {
@@ -155,11 +172,16 @@
     gridEl.innerHTML = "";
     for (const d of DEFS) {
       const got = !!map[d.id];
+      let prog = "";
+      if (!got && PROGRESS[d.id]) {
+        const [cur, goal] = PROGRESS[d.id]();
+        if (cur > 0) prog = `<em class="ach-prog">${Math.min(cur, goal)}/${goal} so far</em>`;
+      }
       const item = document.createElement("div");
       item.className = "ach-item" + (got ? " unlocked" : " locked");
       item.innerHTML =
         `<span class="ach-ico">${got ? d.icon : "🔒"}</span>` +
-        `<span class="ach-txt"><strong>${d.title}</strong><small>${d.how}</small>` +
+        `<span class="ach-txt"><strong>${d.title}</strong><small>${d.how}</small>${prog}` +
         `<i class="ach-game" style="--g:${GAME_COLOR[d.game]}">${d.game}</i></span>`;
       gridEl.appendChild(item);
     }

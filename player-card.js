@@ -328,7 +328,7 @@
         '<span class="pc-stat-game">' + s.label + "</span>" +
         '<span class="pc-stat-val">' + (b ? escapeHtml(b.value) : "None") + "</span>" +
         '<span class="pc-stat-rank" data-rank="' + s.id + '">' +
-        (s.noRank || !b ? "" : name ? "Checking rank…" : "Add a name to rank") +
+        (s.noRank || !b ? "" : name ? '<span class="skel"></span>' : "Add a name to rank") +
         "</span></div>"
       );
     }).join("");
@@ -388,7 +388,7 @@
       if (!el || s.noRank) continue;
       if (!s.best()) { el.textContent = ""; continue; }
       if (!name) { el.textContent = "Add a name to rank"; continue; }
-      el.textContent = "Checking rank…";
+      el.innerHTML = '<span class="skel"></span>';
       el.classList.remove("ranked");
       (function (el2, id) {
         bestRank(id, name).then(function (r) {

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=47" />
+  <link rel="stylesheet" href="menu.css?v=48" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -425,7 +425,7 @@
 
   <script src="transitions.js?v=4"></script>
   <script src="supabase-config.js?v=2"></script>
-  <script src="achievements.js?v=10"></script>
+  <script src="achievements.js?v=11"></script>
   <!-- daily.js first: hub-leaderboard.js registers today's board from it,
        and challenges.js draws today's quest set from its seeded streams -->
   <script src="daily.js?v=6"></script>
@@ -434,10 +434,10 @@
   <script src="points.js?v=2"></script>
   <script src="mail-sync.js?v=2"></script>
   <script src="challenges.js?v=7"></script>
-  <script src="hub-leaderboard.js?v=10"></script>
+  <script src="hub-leaderboard.js?v=11"></script>
   <script src="wordfilter.js?v=1"></script>
-  <script src="player-card.js?v=10"></script>
-  <script src="daily-card.js?v=7"></script>
+  <script src="player-card.js?v=11"></script>
+  <script src="daily-card.js?v=8"></script>
   <script>
     DailyCard.render(document.getElementById("dc"));
 
@@ -573,6 +573,35 @@
     }
     refreshDots();
     window.addEventListener("pageshow", refreshDots); // back from a game
+
+    // Your best on each game card, read from the same keys the games save.
+    {
+      const num = (k) => { try { return parseInt(localStorage.getItem(k), 10) || 0; } catch (e) { return 0; } };
+      const json = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+      const BESTS = {
+        "bowl-builder": () => { const n = num("pokeworks-high-score"); return n ? n + " blocks" : ""; },
+        "order-up": () => {
+          const n = Math.max(num("pokeworks-orderup-best-v2"), num("pokeworks-orderup-best-v2-hard"),
+            num("pokeworks-orderup-best-v2-normal-rush"), num("pokeworks-orderup-best-v2-hard-rush"));
+          return n ? "$" + n.toLocaleString() : "";
+        },
+        "word-bowl": () => { const s = json("pokeworks-wordbowl"); const c = s && s.career; return c && c.solved ? c.solved + " solved" : ""; },
+        "topping-drop": () => { const n = num("pokeworks-topping-best"); return n ? n + " catches" : ""; },
+        "bowl-rush": () => { const n = num("pokeworks-rush-best"); return n ? n + " sorted" : ""; },
+        "poke-slice": () => { const n = num("pokeworks-slice-best"); return n ? n + " slices" : ""; },
+        "signature-works": () => { const b = json("sigworks_speedrun_best"); return b && typeof b.perfect === "number" ? b.perfect + "/9 speedrun" : ""; },
+        "secret-shopper": () => { const n = num("pokeworks-shopper-best"); return n ? n + "%" : ""; },
+      };
+      for (const card of document.querySelectorAll(".cards .card")) {
+        const fn = BESTS[card.dataset.game];
+        const txt = fn && fn();
+        if (!txt) continue;
+        const el = document.createElement("span");
+        el.className = "card-best";
+        el.textContent = "Best: " + txt;
+        card.appendChild(el);
+      }
+    }
 
     // Sound on/off, persisted by sound.js across every page.
     {

@@ -153,6 +153,33 @@
   opacity: 0;
 }
 
+/* Rotten arrivals: no tub wants these; flick them up off the belt. */
+.rush-item.rotten {
+  background: #d7ecd2;
+  color: #33691e;
+}
+
+/* The rush-order callout while a station pays double. */
+.rush-call {
+  position: absolute;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  background: #ffd15a;
+  color: #4a3a00;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.rush-call[hidden] {
+  display: none;
+}
+
 /* Feedback line between field and tubs */
 .rush-msg {
   text-align: center;

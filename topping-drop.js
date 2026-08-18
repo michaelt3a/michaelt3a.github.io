@@ -94,6 +94,7 @@
     flash: 0,
     floaters: [],
     feverUntil: 0, // every 10-catch streak: 5s of golden rain worth double
+    wideUntil: 0, // caught a ⭐: double-width bowl until this time
     // duel bits
     duelCharges: 0,
     duelNextChargeAt: 10,
@@ -194,19 +195,25 @@
       });
       return;
     }
-    // Fixed draw order (x, speed, spin, bad?, which) keeps daily runs in sync.
+    // Fixed draw order (x, speed, spin, bad?, which, star?) keeps daily and
+    // duel runs in sync.
     const x = 60 + rng() * (W - 120);
     const vy = fallSpeed() * (0.85 + rng() * 0.3);
     const spin = (rng() - 0.5) * 2.4;
     const bad = rng() < badChance();
+    const glyphRoll = rng();
+    const starRoll = rng();
+    // A rare star doubles the bowl's width for 8 seconds.
+    const star = !bad && state.elapsed > 8 && starRoll < 0.04;
     const list = bad ? BAD : GOOD;
     state.items.push({
       x: x,
       y: -30,
-      vy: vy,
+      vy: star ? vy * 0.8 : vy,
       spin: spin,
-      glyph: list[Math.floor(rng() * list.length)],
+      glyph: star ? "⭐" : list[Math.floor(glyphRoll * list.length)],
       bad: bad,
+      star: star,
     });
   }
 
@@ -224,6 +231,7 @@
     state.flash = 0;
     state.floaters = [];
     state.feverUntil = 0;
+    state.wideUntil = 0;
     state.duelCharges = 0;
     state.duelNextChargeAt = 10;
     state.duelSabsSent = 0;
@@ -274,6 +282,13 @@
     screenPaused.classList.add("hidden");
     pauseBtn.style.display = "none";
     sfx("over");
+    // Keep the lifetime best streak around for the achievement wall.
+    try {
+      const k = "pokeworks-topping-combo-best";
+      if (state.bestCombo > (parseInt(localStorage.getItem(k), 10) || 0)) {
+        localStorage.setItem(k, String(state.bestCombo));
+      }
+    } catch (e) { /* ignore */ }
     // Feed the run into today's shop challenges (points for the Rewards Shop).
     if (window.PokeChallenges) {
       PokeChallenges.report("td", {
@@ -404,12 +419,17 @@
     state.bowlX = Math.max(70, Math.min(W - 70, state.bowlX));
 
     const speedMult = state.sabSpeedUntil > state.elapsed ? 1.45 : 1;
+    const half = state.wideUntil > state.elapsed ? BOWL_HALF * 1.8 : BOWL_HALF;
     for (let i = state.items.length - 1; i >= 0; i--) {
       const it = state.items[i];
       it.y += it.vy * dt * speedMult;
-      if (it.y >= BOWL_Y - 14 && it.y <= BOWL_Y + 26 && Math.abs(it.x - state.bowlX) <= BOWL_HALF) {
+      if (it.y >= BOWL_Y - 14 && it.y <= BOWL_Y + 26 && Math.abs(it.x - state.bowlX) <= half) {
         state.items.splice(i, 1);
-        if (it.heart) {
+        if (it.star) {
+          state.wideUntil = state.elapsed + 8;
+          state.floaters.push({ text: "⭐ WIDE BOWL!", x: state.bowlX, y: BOWL_Y - 60, life: 1.1 });
+          sfx("chime");
+        } else if (it.heart) {
           state.lives = Math.min(3, state.lives + 1);
           state.floaters.push({ text: "+❤️", x: state.bowlX, y: BOWL_Y - 46, life: 0.9 });
           sfx("chime");
@@ -437,8 +457,8 @@
       }
       if (it.y > H + 40) {
         state.items.splice(i, 1);
-        // A missed heart is a shame, not a punishment.
-        if (!it.bad && !it.heart) {
+        // A missed heart or star is a shame, not a punishment.
+        if (!it.bad && !it.heart && !it.star) {
           state.combo = 0;
           state.lives--;
           state.flash = 0.35;
@@ -459,25 +479,26 @@
 
   function drawBowl() {
     const x = state.bowlX;
+    const half = (state.wideUntil > state.elapsed ? BOWL_HALF * 1.8 : BOWL_HALF) + 6;
     const skin = window.PokeSkins ? PokeSkins.active() : null;
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.25)";
     ctx.beginPath();
-    ctx.ellipse(x, BOWL_Y + 34, 74, 9, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, BOWL_Y + 34, half + 4, 9, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = skin ? skin.body : "#ffffff";
     ctx.beginPath();
-    ctx.ellipse(x, BOWL_Y + 6, BOWL_HALF + 6, 30, 0, 0, Math.PI, false);
+    ctx.ellipse(x, BOWL_Y + 6, half, 30, 0, 0, Math.PI, false);
     ctx.fill();
     ctx.fillStyle = skin ? skin.inner : "#e8eef0";
     ctx.beginPath();
-    ctx.ellipse(x, BOWL_Y + 6, BOWL_HALF + 6, 10, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, BOWL_Y + 6, half, 10, 0, 0, Math.PI * 2);
     ctx.fill();
     if (skin && skin.rim) {
       ctx.strokeStyle = skin.rim;
       ctx.lineWidth = 3.5;
       ctx.beginPath();
-      ctx.ellipse(x, BOWL_Y + 6, BOWL_HALF + 6, 10, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, BOWL_Y + 6, half, 10, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
     ctx.restore();

@@ -37,6 +37,9 @@
   const BOMB = "🧨";
   const GRAVITY = 1000;
 
+  // The equipped blade skin colors the trail; cached per run.
+  let trailRGB = "255,255,255";
+
   const wantsDaily = !!(window.Daily && Daily.isRun());
   const isDaily = wantsDaily && Daily.isTodaysGame("ps") && !Daily.result();
   // Duel plumbing (?duel=CODE): the room code seeds the waves so both players
@@ -285,6 +288,7 @@
     screenPaused.classList.add("hidden");
     pauseBtn.style.display = "";
     pauseBtn.textContent = "⏸";
+    trailRGB = window.PokeSkins ? PokeSkins.active("blade").trail : "255,255,255";
     rng = isDaily ? Daily.stream("ps:wave") : isDuel ? PokeDuel.stream("ps:wave") : Math.random;
     overlay.classList.add("hidden");
     if (window.PokeStreak) PokeStreak.mark();
@@ -324,6 +328,13 @@
     screenPaused.classList.add("hidden");
     pauseBtn.style.display = "none";
     sfx("over");
+    // Keep the lifetime best stroke around for the achievement wall.
+    try {
+      const k = "pokeworks-slice-stroke-best";
+      if (state.bestStroke > (parseInt(localStorage.getItem(k), 10) || 0)) {
+        localStorage.setItem(k, String(state.bestStroke));
+      }
+    } catch (e) { /* ignore */ }
     // Feed the run into today's shop challenges (points for the Rewards Shop).
     if (window.PokeChallenges) {
       PokeChallenges.report("ps", {
@@ -693,7 +704,7 @@
     ctx.lineCap = "round";
     for (const c of state.cuts) {
       const a = c.life / c.maxLife;
-      ctx.strokeStyle = "rgba(255,255,255," + (a * 0.55).toFixed(3) + ")";
+      ctx.strokeStyle = "rgba(" + trailRGB + "," + (a * 0.55).toFixed(3) + ")";
       ctx.lineWidth = 1 + a * 4;
       ctx.beginPath();
       ctx.moveTo(c.ax, c.ay);
@@ -804,7 +815,7 @@
         const a = state.trail[i - 1];
         const b = state.trail[i];
         const w = (i / state.trail.length) * 10 + 1.5;
-        ctx.strokeStyle = "rgba(255,255,255," + (0.35 + (i / state.trail.length) * 0.6) + ")";
+        ctx.strokeStyle = "rgba(" + trailRGB + "," + (0.35 + (i / state.trail.length) * 0.6) + ")";
         ctx.lineWidth = w;
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);

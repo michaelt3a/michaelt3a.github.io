@@ -183,7 +183,8 @@
     curKey = key;
     for (const b of catsEl.children) b.classList.toggle("active", b.dataset.key === key);
     const my = ++reqId;
-    listEl.innerHTML = '<li class="lb-empty">Loading…</li>';
+    // Shimmer placeholders while the board fetches.
+    listEl.innerHTML = new Array(5).fill('<li class="lb-empty"><span class="skel wide"></span></li>').join("");
     let list = [];
     try { list = (await fetchBoard(key)).slice(0, 10); } catch { list = []; }
     if (my !== reqId) return; // superseded

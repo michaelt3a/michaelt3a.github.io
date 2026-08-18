@@ -405,6 +405,27 @@
     entry = "";
   }
 
+  // Archive-only hint: 10 points reveals one letter. The daily word never
+  // sells hints, so the boards stay honest.
+  const hintBtn = document.getElementById("wb-hint");
+  if (hintBtn) hintBtn.addEventListener("click", () => {
+    if (!arch || arch.done) return;
+    if (!window.PokePoints || PokePoints.balance() < 10) {
+      statusEl.textContent = "Hints cost 10 points. Play a customer game to earn some.";
+      return;
+    }
+    const answer = arch.word.w;
+    // Skip spots already solved in green.
+    const open = [];
+    for (let i = 0; i < 5; i++) {
+      if (!arch.guesses.some((g) => g[i] === answer[i])) open.push(i);
+    }
+    if (!open.length) return;
+    if (!PokePoints.spend(10, "Word Bowl hint")) return;
+    const i = open[Math.floor(Math.random() * open.length)];
+    statusEl.textContent = "💡 Letter " + (i + 1) + " is " + answer[i] + ".";
+  });
+
   function startArchive() {
     const days = Math.floor(Date.parse(Daily.today() + "T00:00:00Z") / 86400000);
     const todayIdx = ((days % WORDS.length) + WORDS.length) % WORDS.length;
@@ -418,6 +439,7 @@
     clearBoard();
     endEl.classList.add("hidden");
     shareBtn.hidden = true; // the share grid belongs to today's word
+    if (hintBtn) hintBtn.hidden = false;
     locked = false;
     statusEl.textContent = "📚 Archive: the word from " + label + ". No points, just practice.";
     archBtn.textContent = "🎲 Different word";

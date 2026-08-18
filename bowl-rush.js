@@ -97,12 +97,24 @@
     score: 0,
     streak: 0,
     bestStreak: 0,
+    // Rush orders: a station gets called out and pays double for 8 seconds.
+    // Fixed rotation and fixed times, so seeded runs stay identical.
+    callAt: 20,
+    callUntil: 0,
+    callCat: null,
+    callIdx: 0,
     timeLeft: ROUND_SECS,
     items: [], // {el, x, y, w, name, cat, dragging, offX, offY}
     spawnIn: 0.6,
     lastName: "",
     lastTime: 0,
   };
+
+  // The rush-order callout chip, floating over the field while a call is on.
+  const callEl = document.createElement("div");
+  callEl.className = "rush-call";
+  callEl.hidden = true;
+  fieldEl.appendChild(callEl);
 
   // Station tubs, colored like the Signature Works palette. Alpha-suffixed
   // hexes feed the tub fill and its drag-hover glow.
@@ -147,9 +159,13 @@
   // --- Chips on the belt -----------------------------------------------------
   function spawn() {
     const ing = pickIngredient();
+    // One extra roll per spawn, always drawn, keeps seeded runs in lockstep:
+    // some ingredients arrive rotten. They belong in NO tub; flick them up
+    // off the belt for a point instead.
+    const rotten = rng() < 0.15 && elapsed() > 5;
     const el = document.createElement("div");
-    el.className = "rush-item";
-    el.textContent = ing.name;
+    el.className = "rush-item" + (rotten ? " rotten" : "");
+    el.textContent = (rotten ? "🤢 " : "") + ing.name;
     fieldEl.appendChild(el);
     const item = {
       el: el,
@@ -158,6 +174,7 @@
       w: el.offsetWidth,
       name: ing.name,
       cat: ing.cat,
+      rotten: rotten,
       dragging: false,
       offX: 0,
       offY: 0,
@@ -222,6 +239,12 @@
       clearHot();
       if (bin) {
         answer(it, bin.dataset.cat);
+      } else if (it.rotten && it.y < BELT_Y - 34) {
+        // Rotten and flicked up off the belt: binned properly, +1.
+        setScore(state.score + 1);
+        say("Tossed the rotten " + it.name + ". +1", "good");
+        sfx("pop");
+        removeItem(it, true);
       } else {
         // Nowhere useful: hop back onto the belt where it left off.
         it.y = BELT_Y;
@@ -235,19 +258,35 @@
 
   function answer(it, catName) {
     if (!state.running) return;
+    // Rotten food never belongs in a tub.
+    if (it.rotten) {
+      state.streak = 0;
+      state.timeLeft = Math.max(0, state.timeLeft - WRONG_PENALTY);
+      say("That " + it.name + " was rotten! Flick it off the belt. -" + WRONG_PENALTY + "s", "bad");
+      sfx("thunk");
+      if (navigator.vibrate) { try { navigator.vibrate(35); } catch (e) { /* ignore */ } }
+      removeItem(it, true);
+      return;
+    }
     if (catName === it.cat) {
       state.streak++;
       if (state.streak > state.bestStreak) state.bestStreak = state.streak;
       if (state.streak >= 25 && window.PokeAch) PokeAch.unlock("br-streak25");
       let gain = 1;
+      let note = "+1";
       if (state.streak % 5 === 0) {
         gain += 2;
-        say("🔥 " + state.streak + " in a row! +" + gain, "good");
+        note = "🔥 " + state.streak + " in a row! +" + gain;
         sfx("chime");
       } else {
-        say("+1", "good");
         sfx("pop");
       }
+      // Rush orders: the called-out station pays double while the call is on.
+      if (state.callUntil > elapsed() && it.cat === state.callCat) {
+        gain *= 2;
+        note = "📢 " + it.cat + " x2! +" + gain;
+      }
+      say(note, "good");
       setScore(state.score + gain);
       removeItem(it, true);
     } else {
@@ -275,6 +314,16 @@
     setScore(0);
     state.streak = 0;
     state.bestStreak = 0;
+    state.callAt = 20;
+    state.callUntil = 0;
+    state.callCat = null;
+    state.callIdx = 0;
+    callEl.hidden = true;
+    // The equipped belt skin colors the conveyor.
+    if (window.PokeSkins) {
+      const beltFace = document.querySelector(".rush-conveyor .belt");
+      if (beltFace) beltFace.style.backgroundColor = PokeSkins.active("belt").belt;
+    }
     state.timeLeft = ROUND_SECS;
     state.spawnIn = 0.5;
     state.lastName = "";
@@ -324,6 +373,13 @@
     screenPaused.classList.add("hidden");
     pauseBtn.style.display = "none";
     sfx("over");
+    // Keep the lifetime best streak around for the achievement wall.
+    try {
+      const k = "pokeworks-rush-streak-best";
+      if (state.bestStreak > (parseInt(localStorage.getItem(k), 10) || 0)) {
+        localStorage.setItem(k, String(state.bestStreak));
+      }
+    } catch (e) { /* ignore */ }
     // Feed the round into today's shop challenges (points for the Rewards Shop).
     if (window.PokeChallenges) {
       PokeChallenges.report("br", {
@@ -421,6 +477,20 @@
       fillEl.style.transform = "scaleX(" + Math.max(0, state.timeLeft / ROUND_SECS) + ")";
       if (state.timeLeft <= 0) { endGame(); requestAnimationFrame(frame); return; }
 
+      // Rush orders fire every 20 seconds on a fixed station rotation.
+      const now = elapsed();
+      if (now >= state.callAt) {
+        const CALL_ORDER = ["Sauce", "Toppings", "Mix-ins", "Protein", "Base"];
+        state.callCat = CALL_ORDER[state.callIdx++ % CALL_ORDER.length];
+        state.callUntil = now + 8;
+        state.callAt += 20;
+        callEl.hidden = false;
+        callEl.textContent = "📢 " + state.callCat + " x2";
+        say("📢 " + state.callCat + " pay double!", "good");
+        sfx("chime");
+      }
+      if (!callEl.hidden && state.callUntil <= now) callEl.hidden = true;
+
       state.spawnIn -= dt;
       if (state.spawnIn <= 0) {
         spawn();
@@ -436,8 +506,11 @@
         place(it);
         if (it.x > edge + 10) {
           // Rolled off the end: no time lost, but the streak is gone.
-          if (state.streak > 0) say("Missed " + it.name + "!", "bad");
-          state.streak = 0;
+          // Rotten food leaving on its own is fine.
+          if (!it.rotten) {
+            if (state.streak > 0) say("Missed " + it.name + "!", "bad");
+            state.streak = 0;
+          }
           removeItem(it, false);
         }
       }

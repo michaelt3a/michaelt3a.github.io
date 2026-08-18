@@ -65,20 +65,29 @@
       gridEl.appendChild(card);
     }
 
-    // Bowl skins: buy once, keep forever, swap anytime.
+    // Skins: buy once, keep forever, swap anytime. One slot each for bowls,
+    // blades and belts; buying or equipping swaps that slot.
     const skinsEl = document.getElementById("shop-skins");
     if (skinsEl && window.PokeSkins) {
       skinsEl.innerHTML = "";
-      const activeId = PokeSkins.active().id;
+      const activeBySlot = {
+        bowl: PokeSkins.active("bowl").id,
+        blade: PokeSkins.active("blade").id,
+        belt: PokeSkins.active("belt").id,
+      };
       for (const sk of PokeSkins.SKINS) {
         const owned = PokeSkins.owned(sk.id);
-        const isOn = owned && sk.id === activeId;
+        const isOn = owned && sk.id === activeBySlot[sk.slot];
         const afford = data.balance >= sk.cost;
+        const swatch = sk.slot === "bowl"
+          ? `background:${sk.body};box-shadow: inset 0 -8px 0 ${sk.inner}${sk.rim ? `, 0 0 0 3px ${sk.rim}` : ""}`
+          : sk.slot === "blade"
+            ? `background:linear-gradient(135deg, transparent 42%, rgb(${sk.trail}) 42% 58%, transparent 58%) #20262a`
+            : `background:repeating-linear-gradient(90deg, ${sk.belt} 0 8px, rgba(0,0,0,0.2) 8px 10px)`;
         const card = document.createElement("div");
         card.className = "shop-item" + (owned || afford ? "" : " locked");
         card.innerHTML =
-          `<span class="shop-item-ico shop-skin-swatch" style="background:${sk.body};` +
-          `box-shadow: inset 0 -8px 0 ${sk.inner}${sk.rim ? `, 0 0 0 3px ${sk.rim}` : ""}"></span>` +
+          `<span class="shop-item-ico shop-skin-swatch" style="${swatch}"></span>` +
           `<div class="shop-item-body"><strong>${sk.icon} ${sk.title}</strong><small>${sk.desc}</small></div>` +
           `<button class="shop-buy" type="button" ${owned || afford ? "" : "disabled"}></button>`;
         const btn = card.querySelector(".shop-buy");

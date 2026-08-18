@@ -43,7 +43,7 @@
           (c.game.customer && window.PokeChallenges ? " Earns +" + PokeChallenges.DAILY_PTS + " pts." : "")) +
       "</span></div>" +
       (done
-        ? '<div class="dc-rank" id="dc-rank">Checking today\'s board…</div>' +
+        ? '<div class="dc-rank" id="dc-rank"><span class="skel"></span></div>' +
           '<div class="dc-podium" id="dc-podium"></div>'
         : '<a class="dc-play" href="' + c.game.file + '?daily=1">Play ›</a>');
 

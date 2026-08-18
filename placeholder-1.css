@@ -498,6 +498,15 @@
   background: rgba(238, 67, 91, 0.16);
 }
 
+.drill-btn {
+  border-color: var(--teal);
+  margin-top: 0.6rem;
+}
+
+.drill-btn:hover {
+  background: rgba(34, 178, 180, 0.16);
+}
+
 .speedrun-btn:active { transform: scale(0.99); }
 
 .speedrun-ico {

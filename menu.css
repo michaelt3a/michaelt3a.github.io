@@ -99,6 +99,55 @@ body {
   margin-top: 1.1rem;
 }
 
+/* Progress note on locked achievements. */
+.ach-prog {
+  display: block;
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin-top: 2px;
+}
+
+/* Your best score, tucked in the card's corner opposite the name. */
+.card-best {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  z-index: 1;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* Shimmer placeholder while boards fetch. */
+.skel {
+  display: inline-block;
+  height: 0.8em;
+  width: 110px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--chip) 25%, var(--chip-hover) 50%, var(--chip) 75%);
+  background-size: 200% 100%;
+  animation: skel-shine 1.1s linear infinite;
+}
+
+.skel.wide {
+  width: 100%;
+  height: 1.6em;
+  border-radius: 8px;
+  margin: 0.3rem 0;
+}
+
+@keyframes skel-shine {
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; }
+}
+
 /* Yesterday's top 3 inside the daily sheet. */
 .dc-podium {
   flex-basis: 100%;

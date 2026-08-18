@@ -618,6 +618,7 @@ function selectRecipe(recipe) {
 }
 
 function openSelect() {
+  drill = null; // leaving the builder ends any drill
   // Hide the builder so the previously-built bowl doesn't ghost through the
   // semi-transparent recipe menu. selectRecipe / startSpeedrun re-show it fresh.
   builder.hidden = true;
@@ -692,6 +693,19 @@ function checkBowl() {
     win();
   } else {
     SFX.wrong();
+    // A wrong check ends an endless drill on the spot.
+    if (drill) {
+      const chain = drill.chain;
+      drill = null;
+      const best = drillBest();
+      feedbackEl.textContent =
+        `Drill over at ${chain} bowl${chain === 1 ? "" : "s"}. Best: ${Math.max(best, chain)}.`;
+      feedbackEl.className = "feedback bad";
+      bowlArea.classList.remove("shake");
+      void bowlArea.offsetWidth;
+      bowlArea.classList.add("shake");
+      return;
+    }
     feedbackEl.textContent = `${correctGroups} / ${CATEGORIES.length} groups correct. Keep going!`;
     feedbackEl.className = "feedback bad";
     bowlArea.classList.remove("shake");
@@ -700,7 +714,50 @@ function checkBowl() {
   }
 }
 
+// --- Endless drill: random bowls until the first wrong check ---------------
+let drill = null; // { chain }
+const DRILL_BEST_KEY = "sigworks-drill-best";
+
+function drillBest() {
+  try { return parseInt(localStorage.getItem(DRILL_BEST_KEY), 10) || 0; } catch (e) { return 0; }
+}
+
+function drillNextRecipe() {
+  let r;
+  do { r = RECIPES[Math.floor(Math.random() * RECIPES.length)]; }
+  while (currentRecipe && r.name === currentRecipe.name);
+  selectRecipe(r);
+  recipeNameEl.textContent = r.name + " · chain " + drill.chain;
+}
+
+function startDrill() {
+  drill = { chain: 0 };
+  drillNextRecipe();
+  feedbackEl.textContent = "Drill on. One wrong check ends it.";
+  feedbackEl.className = "feedback";
+}
+
 function win() {
+  if (drill) {
+    // Chain it and roll straight into the next bowl.
+    drill.chain++;
+    const best = drillBest();
+    if (drill.chain > best) {
+      try { localStorage.setItem(DRILL_BEST_KEY, String(drill.chain)); } catch (e) { /* ignore */ }
+    }
+    SFX.win();
+    successSub.textContent =
+      `Chain: ${drill.chain}${drill.chain > best ? " · new best!" : ""} Next bowl…`;
+    successEl.classList.remove("hidden");
+    runConfetti();
+    if (window.PokeAch) PokeAch.unlock("sw-first");
+    setTimeout(() => {
+      if (!drill) return; // bailed out while the confetti was up
+      successEl.classList.add("hidden");
+      drillNextRecipe();
+    }, 1100);
+    return;
+  }
   successSub.textContent = hintsUsed
     ? `You built the ${currentRecipe.name} with ${hintsUsed} hint${hintsUsed === 1 ? "" : "s"}.`
     : `You built the ${currentRecipe.name} with no hints!`;
@@ -1171,6 +1228,20 @@ function renderResults(perfect, totalMs) {
 // --- Wiring -------------------------------------------------------------
 
 speedrunBtn.addEventListener("click", () => { SFX.start(); startSpeedrun(); });
+{
+  const drillBtn = document.getElementById("drill-btn");
+  const drillNote = document.getElementById("drill-best-note");
+  const paintDrillNote = () => {
+    const b = drillBest();
+    drillNote.textContent = "Random bowls until your first miss." + (b ? " Best: " + b + "." : "");
+  };
+  paintDrillNote();
+  drillBtn.addEventListener("click", () => {
+    SFX.start();
+    startDrill();
+    paintDrillNote();
+  });
+}
 nextBowlBtn.addEventListener("click", () => { SFX.click(); nextRunBowl(); });
 
 // Speedrun leaderboard submission wiring (board is viewed on the hub)
