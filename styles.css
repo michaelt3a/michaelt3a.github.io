@@ -606,12 +606,12 @@ body {
 /* Duel mode: the whole stage wears a purple glow so it can't be mistaken
    for a normal run, and the sabotage button joins the controls. */
 body.duel-mode .stage {
-  box-shadow: 0 0 0 2px #8f6ef0, 0 0 26px rgba(143, 110, 240, 0.4);
+  box-shadow: 0 0 0 2px var(--star-color, #8f6ef0), 0 0 26px var(--star-glow, rgba(143, 110, 240, 0.4));
   border-radius: 6px;
 }
 .duel-sab {
-  border: 1.5px solid #8f6ef0;
-  color: #8f6ef0;
+  border: 1.5px solid var(--star-color, #8f6ef0);
+  color: var(--star-color, #8f6ef0);
   font-weight: 700;
 }
 

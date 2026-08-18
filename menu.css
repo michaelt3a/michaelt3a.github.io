@@ -121,9 +121,9 @@ body {
 }
 
 .duel-game.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--star-color, var(--accent));
+  border-color: var(--star-color, var(--accent));
+  color: #1f2b2b;
 }
 
 /* The profile's month-at-a-glance streak calendar. */

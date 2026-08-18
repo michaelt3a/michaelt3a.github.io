@@ -79,23 +79,24 @@
   // --- UI ------------------------------------------------------------------
   const css = document.createElement("style");
   css.textContent =
-    // The VS scoreboard bar: unmistakably a duel.
+    // The VS scoreboard bar: unmistakably a duel. Accents follow the day's
+    // star color (see theme.js), falling back to the original purple.
     ".duel-bar{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:400;display:flex;" +
-    "align-items:center;gap:12px;background:rgba(20,10,40,.88);border:1.5px solid #8f6ef0;border-radius:999px;" +
-    "padding:7px 18px;color:#f4ede3;font:700 14px system-ui,sans-serif;box-shadow:0 0 18px rgba(143,110,240,.45)}" +
+    "align-items:center;gap:12px;background:rgba(20,10,40,.88);border:1.5px solid var(--star-color,#8f6ef0);border-radius:999px;" +
+    "padding:7px 18px;color:#f4ede3;font:700 14px system-ui,sans-serif;box-shadow:0 0 18px var(--star-glow,rgba(143,110,240,.45))}" +
     ".duel-bar b{font-variant-numeric:tabular-nums;font-size:17px}" +
     ".duel-bar .rdot{display:inline-block;width:10px;height:10px;border-radius:50%;" +
     "border:2px solid #667;margin-right:6px;vertical-align:-1px}" +
     ".duel-bar .rdot.on{background:#39a85b;border-color:#39a85b}" +
-    ".duel-bar .me b{color:#ffd15a}.duel-bar .them b{color:#b9a5ff}" +
-    ".duel-bar .vs{color:#8f6ef0;font-size:11px;letter-spacing:.08em}" +
+    ".duel-bar .me b,.duel-bar .them b{color:var(--star-color,#ffd15a)}" +
+    ".duel-bar .vs{color:var(--star-color,#8f6ef0);font-size:11px;letter-spacing:.08em}" +
     ".duel-bar .fin{font-size:11px;color:#9aa;font-weight:700}" +
     // End panels (waiting + result).
     ".duel-banner{position:fixed;inset:0;z-index:950;display:flex;align-items:center;justify-content:center;" +
     "background:rgba(10,6,24,.82);font-family:system-ui,sans-serif}" +
-    ".duel-panel2{background:var(--panel,#fff);color:var(--text,#1f2b2b);border:2px solid #8f6ef0;" +
+    ".duel-panel2{background:var(--panel,#fff);color:var(--text,#1f2b2b);border:2px solid var(--star-color,#8f6ef0);" +
     "border-radius:16px;padding:1.5rem 1.7rem;text-align:center;max-width:360px;width:calc(100vw - 40px);" +
-    "box-shadow:0 0 40px rgba(143,110,240,.5)}" +
+    "box-shadow:0 0 40px var(--star-glow,rgba(143,110,240,.5))}" +
     ".duel-panel2 h2{margin:0 0 .2rem;font-size:1.7rem}" +
     ".duel-panel2 .duel-sub{margin:0 0 1rem;color:#6b7a7a;font-size:.9rem}" +
     ".duel-score-row{display:flex;justify-content:center;align-items:baseline;gap:14px;margin-bottom:1rem}" +
@@ -108,9 +109,9 @@
     ".duel-stats td:first-child{text-align:left;color:#6b7a7a}" +
     ".duel-stats td.win{font-weight:800;color:#39a85b}" +
     ".duel-panel2 a{display:inline-block;margin:0 .3rem;font-weight:700;padding:.5rem 1.2rem;border-radius:999px;" +
-    "background:#8f6ef0;color:#fff;text-decoration:none}" +
+    "background:var(--star-color,#8f6ef0);color:#1f2b2b;text-decoration:none}" +
     ".duel-panel2 a.quiet{background:none;color:#6b7a7a;border:1px solid #ccc}" +
-    ".duel-wait{font-weight:700;color:#8f6ef0;margin:0 0 .3rem}" +
+    ".duel-wait{font-weight:700;color:var(--star-deep,#8f6ef0);margin:0 0 .3rem}" +
     "@keyframes duel-pulse{50%{opacity:.5}}.duel-wait i{animation:duel-pulse 1.2s ease-in-out infinite;font-style:normal}";
   document.head.appendChild(css);
 

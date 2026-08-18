@@ -3,7 +3,7 @@
 // Deliberately conservative about staleness: page loads go to the network
 // first so a deploy always lands, and assets are served from cache but
 // refreshed in the background. Bump VERSION on release to drop old caches.
-const VERSION = "v81";
+const VERSION = "v82";
 const CACHE = "pokeworks-" + VERSION;
 
 const SHELL = [

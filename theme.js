@@ -54,6 +54,20 @@
     }
     svg += "</g></svg>";
     root.style.setProperty("--star-pattern", 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")');
+    // The day's color also drives accents elsewhere (duel glow, VS bar):
+    // solid, a 45% glow, a 25% wash, and a darkened cut that stays readable
+    // as text on white panels.
+    function shade(hex, f) {
+      var out = "#";
+      for (var k = 1; k < 7; k += 2) {
+        out += Math.round(parseInt(hex.slice(k, k + 2), 16) * (1 - f)).toString(16).padStart(2, "0");
+      }
+      return out;
+    }
+    root.style.setProperty("--star-color", color);
+    root.style.setProperty("--star-glow", color + "73");
+    root.style.setProperty("--star-dim", color + "40");
+    root.style.setProperty("--star-deep", shade(color, 0.45));
   })();
 
   function corner() {

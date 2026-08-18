@@ -55,6 +55,7 @@
   bestEl.textContent = String(best);
 
   if (isDuel) {
+    document.body.classList.add("duel-mode"); // the box glows in the day's color
     startTitle.textContent = "Duel";
     startSub.textContent =
       "Same rain for both of you; most catches wins. Every 10 catches loads a sabotage. " +

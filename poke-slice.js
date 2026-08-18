@@ -53,6 +53,7 @@
   bestEl.textContent = String(best);
 
   if (isDuel) {
+    document.body.classList.add("duel-mode"); // the box glows in the day's color
     startTitle.textContent = "Duel";
     startSub.textContent =
       "Same toss order for both of you; most slices wins. Every 12 slices loads a sabotage. " +
