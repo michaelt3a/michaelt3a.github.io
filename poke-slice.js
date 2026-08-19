@@ -978,4 +978,22 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+
+  // Presentation Mode hooks. Inert unless demo.js turned the mode on.
+  if (window.PokeDemo && PokeDemo.active) {
+    PokeDemo.register("ps", {
+      golden: () => {
+        if (state.running) {
+          state.items.push({ x: 250 + Math.random() * 300, y: H + 30, vx: 0, vy: -940, rot: 0, vrot: 1.2, glyph: "🐟", bomb: false, golden: true, wave: 0 });
+        }
+      },
+      frenzy: () => {
+        if (state.running) {
+          state.wildUntil = state.elapsed + 5;
+          say("🌊 FRENZY! Slice everything!");
+        }
+      },
+      boss: () => { if (state.running) tossBoss(); },
+    });
+  }
 })();

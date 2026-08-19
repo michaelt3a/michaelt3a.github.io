@@ -444,4 +444,17 @@
         (DAILY_TWIST ? " Today's twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
     }
   }
+
+  // Presentation Mode hook: jump straight to the results screen. Inert in
+  // normal play.
+  if (window.PokeDemo && PokeDemo.active) {
+    PokeDemo.register("iq", {
+      finish: () => {
+        if (!state.running) return;
+        stopTimer();
+        state.idx = ROUND;
+        endGame();
+      },
+    });
+  }
 })();

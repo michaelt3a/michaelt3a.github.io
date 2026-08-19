@@ -602,4 +602,20 @@
     else if (e.key === "Backspace") press("⌫");
     else if (/^[a-zA-Z]$/.test(e.key)) press(e.key.toUpperCase());
   });
+
+  // Presentation Mode hook: solve today's word on demand so the win state,
+  // distribution, and completion screen can be shown. Inert in normal play.
+  if (window.PokeDemo && PokeDemo.active) {
+    PokeDemo.register("wb", {
+      win: () => {
+        const s = load();
+        if (s.day.done || arch) return;
+        overlayEl.classList.add("hidden");
+        locked = false;
+        entry = todaysWord().w;
+        paintEntry();
+        submit();
+      },
+    });
+  }
 })();

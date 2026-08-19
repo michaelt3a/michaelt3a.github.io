@@ -729,4 +729,19 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+
+  // Presentation Mode hooks: one-tap versions of states that normally take
+  // a streak to reach. Inert unless demo.js turned the mode on.
+  if (window.PokeDemo && PokeDemo.active) {
+    PokeDemo.register("td", {
+      fever: () => { if (state.running) state.feverUntil = state.elapsed + 6; },
+      star: () => {
+        if (state.running) state.items.push({ x: 200 + Math.random() * 400, y: -30, vy: 300, spin: 0.5, glyph: "⭐", bad: false, star: true });
+      },
+      heart: () => {
+        if (state.running) state.items.push({ x: 200 + Math.random() * 400, y: -30, vy: 260, spin: 0.5, glyph: "❤️", bad: false, heart: true });
+      },
+      streak: () => { if (state.running) state.combo = 8; },
+    });
+  }
 })();
