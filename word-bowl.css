@@ -156,6 +156,89 @@ body.wb-contrast .wb-key.near {
   color: #06283f;
 }
 
+/* Guess distribution on the completion screen. */
+.wb-dist {
+  margin: -0.5rem 0 1.1rem;
+  text-align: left;
+}
+.wb-dist-title {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+.wb-dist-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 3px;
+}
+.wb-dist-n {
+  flex: none;
+  width: 0.8em;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: right;
+}
+.wb-dist-bar {
+  min-width: 1.2em;
+  padding: 1px 6px 1px 0;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.16);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: right;
+  box-sizing: border-box;
+}
+.wb-dist-bar.today {
+  background: #39a85b;
+  color: #fff;
+}
+body.wb-contrast .wb-dist-bar.today {
+  background: #f5793a;
+}
+
+/* Archive picker: the last 14 days as compact rows. */
+.wb-arch-list {
+  width: 100%;
+  max-width: 430px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.wb-arch-list.hidden {
+  display: none;
+}
+.wb-arch-day {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--chip-line);
+  border-radius: 8px;
+  background: var(--chip);
+  color: var(--on-dark);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.wb-arch-day small {
+  color: var(--on-dark-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.wb-arch-day.solved small { color: #39a85b; }
+.wb-arch-day.lost small { color: #ee435b; }
+body.wb-contrast .wb-arch-day.solved small { color: #f5793a; }
+
 /* Completion screen */
 .wb-panel {
   position: relative;

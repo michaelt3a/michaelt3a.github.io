@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Word Bowl - Pokeworks</title>
   <meta name="description" content="Guess the day's 5-letter word. New word daily, points for the Rewards Shop." />
-  <link rel="stylesheet" href="styles.css?v=25" />
-  <link rel="stylesheet" href="word-bowl.css?v=9" />
+  <link rel="stylesheet" href="styles.css?v=26" />
+  <link rel="stylesheet" href="word-bowl.css?v=10" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -42,6 +42,7 @@
       <div class="wb-keys" id="wb-keys"></div>
       <button id="wb-share" class="btn wb-share" type="button" hidden>Share your grid</button>
       <button id="wb-archive" class="btn wb-share" type="button" hidden>📚 Play an old word</button>
+      <div class="wb-arch-list hidden" id="wb-arch-list"></div>
       <button id="wb-hint" class="btn wb-share" type="button" hidden>💡 Hint (10 pts)</button>
 
       <!-- Completion screen -->
@@ -56,6 +57,7 @@
             <div><strong id="wb-end-solved">0</strong><small>solved</small></div>
             <div><strong id="wb-end-streak">0</strong><small>streak</small></div>
           </div>
+          <div class="wb-dist" id="wb-dist" hidden></div>
           <button id="wb-end-share" class="btn" type="button">Share your grid</button>
           <a href="index.html" class="btn btn-secondary">Back to Minigames</a>
           <p class="wb-end-note">New word tomorrow.</p>
@@ -88,9 +90,9 @@
   <script src="track.js?v=1"></script>
   <script src="points.js?v=2"></script>
   <script src="mail-sync.js?v=2"></script>
-  <script src="challenges.js?v=11"></script>
+  <script src="challenges.js?v=12"></script>
   <script src="word-bowl-dict.js?v=1"></script>
-  <script src="word-bowl.js?v=13"></script>
+  <script src="word-bowl.js?v=14"></script>
   <script src="pwa.js?v=1"></script>
 </body>
 </html>

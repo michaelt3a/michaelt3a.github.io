@@ -303,6 +303,26 @@
     try { return localStorage.getItem(NAME_KEY) || ""; } catch (e) { return ""; }
   }
 
+  // One plain share line after posting a daily score.
+  function addDailyShare() {
+    if (document.getElementById("daily-share-btn")) return;
+    const b = document.createElement("button");
+    b.id = "daily-share-btn";
+    b.type = "button";
+    b.className = "btn btn-secondary";
+    b.textContent = "Share score";
+    b.addEventListener("click", () => {
+      const text = "Pokeworks Daily · Topping Drop · " + state.score + " catches · " +
+        location.origin + location.pathname.replace(/[^/]*$/, "");
+      if (navigator.share) {
+        navigator.share({ text: text }).catch(() => { /* backed out, fine */ });
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => { b.textContent = "✓ Copied"; });
+      }
+    });
+    lbDone.after(b);
+  }
+
   function endGame() {
     state.running = false;
     state.manualPause = false;
@@ -355,11 +375,13 @@
     } else {
       playAgainBtn.hidden = false;
       let pts = 0;
+      const prevBest = best;
       if (state.score > best) {
         pts = Math.min(20, state.score - best);
         best = state.score;
         try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* ignore */ }
         bestEl.textContent = String(best);
+        if (prevBest > 0) overSub.textContent += " Your old best was " + prevBest + ".";
         if (window.PokePoints) PokePoints.add(pts, "Topping Drop: new best " + best);
       }
       if (pts > 0) {
@@ -386,6 +408,7 @@
     lbSave.disabled = false;
     lbEntry.classList.add("hidden");
     lbDone.classList.remove("hidden");
+    addDailyShare();
   }
   lbSave.addEventListener("click", submitDaily);
   lbName.addEventListener("keydown", (e) => {
@@ -407,7 +430,7 @@
     if (!isDuel) { runCountdown(); return; }
     if (startBtn.disabled) return;
     startBtn.disabled = true;
-    startBtn.textContent = "Waiting for opponent…";
+    startBtn.textContent = "Waiting for " + ((PokeDuel.oppName && PokeDuel.oppName()) || "opponent") + " to ready up…";
     PokeDuel.setReady();
   });
   if (isDuel) {
@@ -437,6 +460,24 @@
   pauseBtn.addEventListener("click", () => setPause(!state.manualPause));
   document.getElementById("resume-btn").addEventListener("click", () => setPause(false));
 
+  // The next quest worth chasing, on the start screen (normal runs only).
+  {
+    const qh = document.getElementById("quest-hint");
+    if (qh && !isDaily && !isDuel && window.PokeChallenges && PokeChallenges.startHint) {
+      qh.textContent = PokeChallenges.startHint("td");
+    }
+  }
+
+  // Arrow keys steer the bowl too; the pointer keeps working exactly as before.
+  let keyDir = 0;
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") { keyDir = -1; e.preventDefault(); }
+    else if (e.key === "ArrowRight") { keyDir = 1; e.preventDefault(); }
+  });
+  window.addEventListener("keyup", (e) => {
+    if ((e.key === "ArrowLeft" && keyDir === -1) || (e.key === "ArrowRight" && keyDir === 1)) keyDir = 0;
+  });
+
   // A burst of droplets where something lands in the bowl.
   function spawnSparks(x, y, colors, n) {
     for (let k = 0; k < n; k++) {
@@ -459,6 +500,9 @@
     if (state.spawnIn <= 0) {
       spawn();
       state.spawnIn = spawnEvery();
+    }
+    if (keyDir) {
+      state.targetX = Math.max(70, Math.min(W - 70, state.targetX + keyDir * 560 * dt));
     }
     state.bowlX += (state.targetX - state.bowlX) * Math.min(1, dt * 34);
     state.bowlX = Math.max(70, Math.min(W - 70, state.bowlX));
@@ -635,6 +679,18 @@
       ctx.fillStyle = "#ffd15a";
       ctx.textAlign = "center";
       ctx.fillText("x" + state.combo + " streak", state.bowlX, BOWL_Y - 34);
+    }
+    // Fever progress pips: how many straight catches until the x2 window.
+    if (state.combo >= 2 && state.feverUntil <= state.elapsed) {
+      const prog = state.combo % FEVER_EVERY;
+      const gap = 11;
+      const x0 = state.bowlX - ((FEVER_EVERY - 1) * gap) / 2;
+      for (let i = 0; i < FEVER_EVERY; i++) {
+        ctx.beginPath();
+        ctx.arc(x0 + i * gap, BOWL_Y - 55, 2.6, 0, Math.PI * 2);
+        ctx.fillStyle = i < prog ? "#ffd15a" : "rgba(0,0,0,0.15)";
+        ctx.fill();
+      }
     }
 
     // Fever: a pulsing gold frame and a banner while the x2 window is open.

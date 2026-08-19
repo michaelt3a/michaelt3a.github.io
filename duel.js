@@ -115,8 +115,11 @@
     ".duel-series{margin:0 0 .9rem;font-weight:700;font-size:.9rem;color:#6b7a7a}" +
     ".duel-series.win{color:var(--star-deep,#8f6ef0);font-size:1rem}" +
     ".duel-h2h{margin:-.5rem 0 .9rem;font-size:.8rem;color:#6b7a7a}" +
+    ".duel-bar .reconn{margin-left:.5rem;font-size:.68rem;font-weight:700;color:#ffd15a;animation:duel-pulse 1.2s ease-in-out infinite}" +
     "@keyframes duel-pulse{50%{opacity:.5}}.duel-wait i{animation:duel-pulse 1.2s ease-in-out infinite;font-style:normal}";
   document.head.appendChild(css);
+
+  let connState = "connecting"; // "connecting" | "on" | "reconnecting"
 
   const bar = document.createElement("div");
   bar.className = "duel-bar";
@@ -128,7 +131,8 @@
       '<span class="vs">VS</span>' +
       '<span class="them"><i class="rdot' + (opp.ready ? " on" : "") + '"></i>' +
       escapeHtml(opp.name) + " <b>" + opp.score + "</b>" +
-      (opp.done ? ' <span class="fin">FIN</span>' : "") + "</span>";
+      (opp.done ? ' <span class="fin">FIN</span>' : "") + "</span>" +
+      (connState !== "on" ? '<span class="reconn">' + connState + "…</span>" : "");
   }
 
   let banner = null;
@@ -400,6 +404,7 @@
     mineCh.subscribe(function (status) {
       if (mineCh !== ch) return; // a newer rebuild took over
       if (status === "SUBSCRIBED") {
+        connState = "on";
         if (!bar.parentElement) document.body.appendChild(bar);
         paintBar();
         announce(mineCh); // catch the opponent up right away
@@ -409,6 +414,8 @@
           announce(mineCh);
         }, 1200);
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        connState = "reconnecting";
+        paintBar();
         clearInterval(beat);
         setTimeout(function () { if (mineCh === ch) buildChannel(); }, 2000);
       }

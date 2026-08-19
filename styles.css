@@ -768,6 +768,17 @@ body.duel-mode .stage {
   transform: translateY(1px);
 }
 
+/* The one-line quest target on game start screens. */
+.quest-hint {
+  margin: -0.5rem 0 1rem;
+  color: #a8760a;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.quest-hint:empty {
+  display: none;
+}
+
 /* Page transitions */
 .page-content {
   /* `backwards` (not `both`) so the entrance still fades in with no flash,

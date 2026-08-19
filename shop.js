@@ -89,7 +89,7 @@
           `<div class="shop-item-body"><strong>${sk.icon} ${sk.title}</strong><small>${sk.desc}</small></div>` +
           `<button class="shop-buy" type="button" ${owned || afford ? "" : "disabled"}></button>`;
         const btn = card.querySelector(".shop-buy");
-        btn.textContent = isOn ? "✓ On"
+        btn.textContent = isOn ? "Equipped"
           : owned ? "Equip"
           : armed === "skin-" + sk.id ? "Confirm −" + sk.cost
           : sk.cost.toLocaleString() + " pts";

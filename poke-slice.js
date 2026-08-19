@@ -109,6 +109,7 @@
     bestStroke: 0,
     strokeId: 0, // increments per stroke; the boss takes one hit per stroke
     waveIn: 0.9,
+    waves: {}, // live clean-wave tallies, keyed by wave id
     wildAt: 40, // next natural frenzy wave (fixed times, fair on seeded runs)
     wildUntil: 0,
     bossAt: 30, // next soy bottle boss
@@ -187,7 +188,9 @@
   }
   function bombChance() { return Math.min(0.12 + state.elapsed * 0.002, 0.22); }
 
-  function tossOne(noBombs) {
+  let waveSeq = 0; // ids the waves so full clears can pay the clean bonus
+
+  function tossOne(noBombs, waveId) {
     // Exactly six rolls per toss, always, so seeded runs stay in lockstep no
     // matter what the rolls decide (frenzy just ignores the bomb roll).
     const x = 100 + rng() * (W - 200);
@@ -199,7 +202,7 @@
     const bomb = !noBombs && bombRoll < bombChance();
     const golden = !bomb && goldRoll < GOLD_CHANCE;
     const glyph = bomb ? BOMB : golden ? "🐟" : GOOD[Math.floor(glyphRoll * GOOD.length)];
-    state.items.push({
+    const it = {
       x: x,
       y: H + 30,
       vx: vx * (golden ? 1.2 : 1),
@@ -209,7 +212,10 @@
       glyph: glyph,
       bomb: bomb,
       golden: golden,
-    });
+      wave: waveId || 0,
+    };
+    state.items.push(it);
+    return it;
   }
 
   // The soy bottle boss: floats slow, takes a hit from three SEPARATE
@@ -257,7 +263,15 @@
     if (roll2 < Math.min(0.25 + state.elapsed * 0.01, 0.7)) count++;
     if (state.elapsed > 20 && roll3 < 0.3) count++;
     if (EXTRA_TOSS && count < 3) count++; // big-toss twist: one more per wave
-    for (let i = 0; i < count; i++) tossOne(wild); // frenzy waves carry no bombs
+    // Slice a whole multi-item wave (no bombs in it) and it pays a small bonus.
+    waveSeq++;
+    let goods = 0;
+    let hadBomb = false;
+    for (let i = 0; i < count; i++) {
+      const it = tossOne(wild, waveSeq); // frenzy waves carry no bombs
+      if (it.bomb) hadBomb = true; else goods++;
+    }
+    if (!hadBomb && goods >= 2) state.waves[waveSeq] = { left: goods };
     while (state.bombDebt > 0) {
       state.bombDebt--;
       tossSabBomb();
@@ -283,6 +297,7 @@
     state.strokeId = 0;
     state.wildAt = WILD_EVERY;
     state.wildUntil = 0;
+    state.waves = {};
     state.bossAt = 30;
     state.waveIn = 0.7;
     state.lastTime = 0;
@@ -383,11 +398,13 @@
     } else {
       playAgainBtn.hidden = false;
       let pts = 0;
+      const prevBest = best;
       if (state.score > best) {
         pts = Math.min(20, state.score - best);
         best = state.score;
         try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* ignore */ }
         bestEl.textContent = String(best);
+        if (prevBest > 0) overSub.textContent += " Your old best was " + prevBest + ".";
         if (window.PokePoints) PokePoints.add(pts, "Poke Slice: new best " + best);
       }
       if (pts > 0) {
@@ -414,11 +431,39 @@
     lbSave.disabled = false;
     lbEntry.classList.add("hidden");
     lbDone.classList.remove("hidden");
+    addDailyShare();
+  }
+  // One plain share line after posting a daily score.
+  function addDailyShare() {
+    if (document.getElementById("daily-share-btn")) return;
+    const b = document.createElement("button");
+    b.id = "daily-share-btn";
+    b.type = "button";
+    b.className = "btn btn-secondary";
+    b.textContent = "Share score";
+    b.addEventListener("click", () => {
+      const text = "Pokeworks Daily · Poke Slice · " + state.score + " slices · " +
+        location.origin + location.pathname.replace(/[^/]*$/, "");
+      if (navigator.share) {
+        navigator.share({ text: text }).catch(() => { /* backed out, fine */ });
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => { b.textContent = "✓ Copied"; });
+      }
+    });
+    lbDone.after(b);
   }
   lbSave.addEventListener("click", submitDaily);
   lbName.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); submitDaily(); }
   });
+
+  // The next quest worth chasing, on the start screen (normal runs only).
+  {
+    const qh = document.getElementById("quest-hint");
+    if (qh && !isDaily && !isDuel && window.PokeChallenges && PokeChallenges.startHint) {
+      qh.textContent = PokeChallenges.startHint("ps");
+    }
+  }
 
   // In a duel the Start button is the Ready button: the countdown fires on
   // both screens once both players have pressed it.
@@ -426,7 +471,7 @@
     if (!isDuel) { runCountdown(); return; }
     if (startBtn.disabled) return;
     startBtn.disabled = true;
-    startBtn.textContent = "Waiting for opponent…";
+    startBtn.textContent = "Waiting for " + ((PokeDuel.oppName && PokeDuel.oppName()) || "opponent") + " to ready up…";
     PokeDuel.setReady();
   });
   if (isDuel) {
@@ -581,6 +626,17 @@
           setScore(state.score + 1);
           state.floaters.push({ text: "+1", x: it.x, y: it.y - 26, life: 0.5, size: 16, color: "#ffffff" });
         }
+        // Whole wave sliced, nothing hit the floor: a small clean bonus.
+        const w = it.wave && state.waves[it.wave];
+        if (w) {
+          w.left--;
+          if (w.left <= 0) {
+            delete state.waves[it.wave];
+            setScore(state.score + 2);
+            state.floaters.push({ text: "Clean! +2", x: it.x, y: it.y - 54, life: 0.9, size: 20, color: "#7ddba0" });
+            sfx("chime");
+          }
+        }
         // Two REAL halves: each piece is the glyph clipped along the cut
         // line, drifting apart perpendicular to the blade.
         const ang = Math.atan2(b.y - a.y, b.x - a.x);
@@ -682,6 +738,8 @@
       it.rot += it.vrot * dt;
       if (it.y > H + 60 && it.vy > 0) {
         state.items.splice(i, 1);
+        // A drop spoils its wave's clean bonus.
+        if (it.wave && state.waves[it.wave]) delete state.waves[it.wave];
         // Letting the boss bottle get away costs nothing; it's a bonus.
         if (!it.bomb && !it.boss) {
           // Fresh fish on the floor: that's a heart.

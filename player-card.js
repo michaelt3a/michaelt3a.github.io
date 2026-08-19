@@ -286,7 +286,11 @@
       const g = t[id];
       const v = g && g[metric];
       if (!v) continue;
-      rows.push([label, color, fmtN(v) + " " + unit + (g.runs ? " · " + fmtN(g.runs) + " run" + (g.runs === 1 ? "" : "s") : "")]);
+      // Poke IQ also knows how many it got wrong, so it can show accuracy.
+      const acc = id === "iq" && g.missed
+        ? " · " + Math.round((g.correct / (g.correct + g.missed)) * 100) + "% right"
+        : (g.runs ? " · " + fmtN(g.runs) + " run" + (g.runs === 1 ? "" : "s") : "");
+      rows.push([label, color, fmtN(v) + " " + unit + acc]);
     }
     const ou = lsJson("pokeworks-orderup-tycoon");
     if (ou && ou.life && (ou.life.earned || ou.life.served)) {
@@ -307,6 +311,24 @@
         '<span class="pc-stat-game">' + label + "</span>" +
         '<span class="pc-stat-val">' + escapeHtml(val) + "</span>" +
         '<span class="pc-stat-rank"></span></div>'
+      ).join("") +
+      "</div>"
+    );
+  }
+
+  // The last few point earns and spends, from the history points.js already
+  // keeps. Answers "where did my points go?".
+  function historyBlock() {
+    if (!window.PokePoints) return "";
+    const h = (PokePoints.data().history || []).slice(0, 10);
+    if (!h.length) return "";
+    return (
+      '<div class="pc-ach"><span class="pc-ach-top"><strong>Recent points</strong></span></div>' +
+      '<div class="pc-ledger">' +
+      h.map((e) =>
+        '<div class="pc-ledger-row"><span class="pc-ledger-amt ' + (e.amt < 0 ? "spend" : "earn") + '">' +
+        (e.amt < 0 ? "−" : "+") + Math.abs(e.amt).toLocaleString() +
+        "</span><span class=\"pc-ledger-why\">" + escapeHtml(e.why || "") + "</span></div>"
       ).join("") +
       "</div>"
     );
@@ -424,7 +446,8 @@
       pointsBlock() +
       '<div class="pc-stats">' + rows + "</div>" +
       careerBlock() +
-      duelBlock();
+      duelBlock() +
+      historyBlock();
 
     const input = bodyEl.querySelector("#pc-name-input");
     const commit = function () {

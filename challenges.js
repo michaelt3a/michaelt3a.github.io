@@ -315,7 +315,7 @@
     try {
       const t = JSON.parse(localStorage.getItem(TOTALS_KEY)) || {};
       const g = t[game] || (t[game] = {});
-      for (const k of ["runs", "score", "served", "money", "seconds", "correct"]) {
+      for (const k of ["runs", "score", "served", "money", "seconds", "correct", "missed"]) {
         const v = Number(metrics[k]) || 0;
         if (v > 0) g[k] = (g[k] || 0) + v;
       }
@@ -386,6 +386,27 @@
     if (!s.streak.last) return 0;
     return s.streak.last === Daily.today() || s.streak.last === Daily.yesterday()
       ? s.streak.count : 0;
+  }
+  // A live streak that hasn't been fed today, once the evening rolls in.
+  // Returns the streak length at risk, or 0.
+  function streakAtRisk() {
+    const s = load();
+    if (s.streak.last === Daily.today()) return 0;
+    if (new Date().getHours() < 17) return 0;
+    return playStreak();
+  }
+
+  // One line for a game's start screen: the next quest worth chasing.
+  function startHint(game) {
+    if (!POOLS[game]) return "";
+    const s = load();
+    const set = todaysSet(game);
+    const open = set.filter((q) => !s.done[q.id]);
+    if (!open.length) return "Today's " + GAME_LABEL[game] + " quests: all done.";
+    // Single-run goals make better targets than slow accumulators.
+    const pick = open.find((q) => q.mode === "max") || open[0];
+    return "Quest: " + pick.label + " (+" + pick.pts + ")" +
+      (set.length - open.length > 0 ? " · " + (set.length - open.length) + " of " + set.length + " done" : "");
   }
 
   // Called by a customer game at the end of every run with that run's numbers.
@@ -520,7 +541,7 @@
   }
 
   window.PokeChallenges = {
-    report, active, markPlay, playStreak,
+    report, active, markPlay, playStreak, streakAtRisk, startHint,
     reroll, canReroll, hourly,
     checkDailyAward, checkTopBonus,
     awardPts: award, claimOnce, shieldCount, addShield,

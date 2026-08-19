@@ -795,6 +795,82 @@ body {
   transform: translateY(1px);
 }
 
+/* Jump back in: quiet pills under the tagline for things worth resuming. */
+.jump-back {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+.jb-chip {
+  border: 1px solid var(--chip-line);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  color: var(--on-dark-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.jb-chip:hover {
+  color: var(--on-dark);
+  border-color: var(--star-color, var(--on-dark-muted));
+}
+
+/* Evening streak warning on the daily card. */
+.dc-nudge {
+  flex: 1 1 100%;
+  margin-top: 0.5rem;
+  color: var(--gold, #ffd15a);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+/* Your own row on a leaderboard. */
+.lb-row.lb-me {
+  border: 1px solid var(--star-color, var(--accent));
+  border-radius: 8px;
+}
+.lb-you {
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--star-color, var(--accent));
+  margin-left: 0.3rem;
+}
+.lb-gap {
+  padding: 0.05rem 0;
+}
+
+/* Recent points ledger in the profile. */
+.pc-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.2rem 0 0.6rem;
+}
+.pc-ledger-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+.pc-ledger-amt {
+  flex: none;
+  min-width: 3.2em;
+  text-align: right;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pc-ledger-amt.earn { color: #7ddba0; }
+.pc-ledger-amt.spend { color: var(--on-dark-muted); }
+.pc-ledger-why {
+  color: var(--on-dark-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* "Did you know?" — one small rotating fact per spot. */
 .pk-fact {
   margin: 1.4rem auto 0;

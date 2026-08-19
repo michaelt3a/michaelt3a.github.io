@@ -49,6 +49,14 @@
           '<div class="dc-podium" id="dc-podium"></div>'
         : '<a class="dc-play" href="' + c.game.file + '?daily=1">Play ›</a>');
 
+    // A live play streak that hasn't been fed today gets one quiet warning
+    // in the evening.
+    const risk = window.PokeChallenges && PokeChallenges.streakAtRisk && PokeChallenges.streakAtRisk();
+    if (risk) {
+      el.innerHTML +=
+        '<div class="dc-nudge">🔥 ' + risk + "-day streak ends tonight. Play any customer game to keep it.</div>";
+    }
+
     if (done) {
       fillRank(el, c);
       fillPodium(el);

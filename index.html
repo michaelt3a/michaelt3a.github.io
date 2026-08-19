@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=54" />
+  <link rel="stylesheet" href="menu.css?v=55" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -65,6 +65,8 @@
       <img src="pokeworks-logo-circle-1.png" alt="Pokeworks" class="hub-logo" />
       <p class="hub-tag">play fun minigames for rewards!</p>
       <button class="hub-surprise" id="hub-surprise" type="button">🎲 surprise me</button>
+      <!-- Jump back in: only shows when there's something worth returning to -->
+      <div class="jump-back" id="jump-back" hidden></div>
     </header>
 
     <!-- data-latest names the game whose card wears the ✨ Updated tag.
@@ -435,13 +437,13 @@
   <script src="track.js?v=1"></script>
   <script src="points.js?v=2"></script>
   <script src="mail-sync.js?v=2"></script>
-  <script src="challenges.js?v=11"></script>
-  <script src="hub-leaderboard.js?v=13"></script>
+  <script src="challenges.js?v=12"></script>
+  <script src="hub-leaderboard.js?v=14"></script>
   <script src="wordfilter.js?v=1"></script>
-  <script src="player-card.js?v=14"></script>
+  <script src="player-card.js?v=15"></script>
   <script src="backup.js?v=1"></script>
   <script src="facts.js?v=1"></script>
-  <script src="daily-card.js?v=9"></script>
+  <script src="daily-card.js?v=10"></script>
   <script>
     DailyCard.render(document.getElementById("dc"));
 
@@ -509,6 +511,28 @@
           if (PokeChallenges.reroll(btn.dataset.game, btn.dataset.quest)) buildChallenges();
         });
       });
+    }
+
+    // Jump back in: the daily if it's unplayed, the Order Up save if one
+    // exists. Quiet pills; hidden entirely when there's nothing to resume.
+    {
+      const jb = document.getElementById("jump-back");
+      const chips = [];
+      if (window.Daily && !Daily.result()) {
+        const c = Daily.challenge();
+        chips.push('<a class="jb-chip" href="' + c.game.file + '?daily=1">🗓 Today\'s daily: ' + c.game.label + ' ›</a>');
+      }
+      try {
+        const t = JSON.parse(localStorage.getItem("pokeworks-orderup-tycoon"));
+        if (t && t.life && t.life.shifts > 0) {
+          chips.push('<a class="jb-chip" href="order-up.html">🏪 Continue Order Up: $' +
+            Math.floor(t.bank).toLocaleString() + ' banked ›</a>');
+        }
+      } catch (e) { /* no save */ }
+      if (jb && chips.length) {
+        jb.innerHTML = chips.join("");
+        jb.hidden = false;
+      }
     }
 
     // 🎲 Surprise me: a roulette over the customer-game cards. The highlight

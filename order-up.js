@@ -2121,6 +2121,14 @@ if (isDailyRun) {
   }
 }
 
+// The next quest worth chasing, on the start screen (normal play only).
+{
+  const qh = document.getElementById("quest-hint");
+  if (qh && !isDailyRun && window.PokeChallenges && PokeChallenges.startHint) {
+    qh.textContent = PokeChallenges.startHint("ou");
+  }
+}
+
 // Initial paint.
 T = loadTycoon();
 // You can't have a bank before you've worked a single shift — money only comes

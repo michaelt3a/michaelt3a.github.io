@@ -292,11 +292,12 @@
           arch.done = true;
           arch.won = won;
           locked = true;
+          recordArch(arch.dateKey, won);
           if (won) bounceRow(r);
           statusEl.textContent = won
             ? arch.word.w + " in " + arch.guesses.length + ". No points in archive rounds."
             : "It was " + arch.word.w + ". No points in archive rounds.";
-          archBtn.textContent = "🔄 Another old word";
+          archBtn.textContent = "📚 Pick another day";
         } else {
           locked = false;
           const leftTries = TRIES - arch.guesses.length;
@@ -339,6 +340,12 @@
     } else {
       s.career.streak = 0;
     }
+    // Guess distribution ("X" is a loss) and the day's outcome for the archive list.
+    s.career.dist = s.career.dist || {};
+    const bucket = won ? String(tries) : "X";
+    s.career.dist[bucket] = (s.career.dist[bucket] || 0) + 1;
+    s.arch = s.arch || {};
+    s.arch[Daily.today()] = won ? "solved" : "lost";
     save(s);
     locked = true;
     if (window.PokePoints) {
@@ -375,6 +382,26 @@
     document.getElementById("wb-end-pts").textContent = "+" + s.day.pts;
     document.getElementById("wb-end-solved").textContent = s.career.solved;
     document.getElementById("wb-end-streak").textContent = s.career.streak;
+    // Guess distribution, built from every daily played on this device.
+    const distEl = document.getElementById("wb-dist");
+    if (distEl) {
+      const dist = s.career.dist || {};
+      const buckets = ["1", "2", "3", "4", "5", "6"];
+      const max = Math.max(1, ...buckets.map((b) => dist[b] || 0));
+      const total = buckets.reduce((a, b) => a + (dist[b] || 0), 0);
+      distEl.hidden = !total;
+      if (total) {
+        const todayBucket = s.day.won ? String(s.day.guesses.length) : null;
+        distEl.innerHTML =
+          '<span class="wb-dist-title">Guess distribution</span>' +
+          buckets.map((b) => {
+            const n = dist[b] || 0;
+            const w = Math.max(9, Math.round((n / max) * 100));
+            return '<div class="wb-dist-row"><span class="wb-dist-n">' + b + "</span>" +
+              '<div class="wb-dist-bar' + (b === todayBucket ? " today" : "") + '" style="width:' + w + '%">' + n + "</div></div>";
+          }).join("");
+      }
+    }
     endEl.classList.remove("hidden");
   }
   document.getElementById("wb-end-close").addEventListener("click", () => {
@@ -458,25 +485,63 @@
     statusEl.textContent = "💡 Letter " + (i + 1) + " is " + answer[i] + ".";
   });
 
-  function startArchive() {
-    const days = Math.floor(Date.parse(Daily.today() + "T00:00:00Z") / 86400000);
-    const todayIdx = ((days % WORDS.length) + WORDS.length) % WORDS.length;
-    // Any past word except today's.
-    const back = 1 + Math.floor(Math.random() * (WORDS.length - 1));
-    const idx = ((todayIdx - back) % WORDS.length + WORDS.length) % WORDS.length;
+  // The archive is a picker now: the last 14 days, each marked solved,
+  // missed, or not played. Archive outcomes are remembered per date.
+  const archListEl = document.getElementById("wb-arch-list");
+  function dateBack(back) {
     const d = new Date();
     d.setDate(d.getDate() - back);
-    const label = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    arch = { word: WORDS[idx], label: label, guesses: [], done: false, won: false };
+    return {
+      key: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"),
+      label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    };
+  }
+  function recordArch(dateKey, won) {
+    if (!dateKey) return;
+    const s = load();
+    s.arch = s.arch || {};
+    s.arch[dateKey] = won ? "solved" : "lost";
+    save(s);
+  }
+  function toggleArchList() {
+    if (!archListEl) return;
+    if (!archListEl.classList.contains("hidden")) {
+      archListEl.classList.add("hidden");
+      return;
+    }
+    const s = load();
+    archListEl.innerHTML = "";
+    for (let back = 1; back <= 14; back++) {
+      const d = dateBack(back);
+      const st = (s.arch && s.arch[d.key]) || null;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "wb-arch-day" + (st ? " " + st : "");
+      b.innerHTML =
+        "<span>" + d.label + "</span><small>" +
+        (st === "solved" ? "solved" : st === "lost" ? "missed" : "not played") + "</small>";
+      b.addEventListener("click", () => {
+        archListEl.classList.add("hidden");
+        startArchive(back, d);
+      });
+      archListEl.appendChild(b);
+    }
+    archListEl.classList.remove("hidden");
+  }
+  function startArchive(back, d) {
+    const days = Math.floor(Date.parse(Daily.today() + "T00:00:00Z") / 86400000);
+    const todayIdx = ((days % WORDS.length) + WORDS.length) % WORDS.length;
+    const idx = ((todayIdx - back) % WORDS.length + WORDS.length) % WORDS.length;
+    arch = { word: WORDS[idx], label: d.label, dateKey: d.key, guesses: [], done: false, won: false };
     clearBoard();
     endEl.classList.add("hidden");
     shareBtn.hidden = true; // the share grid belongs to today's word
     if (hintBtn) hintBtn.hidden = false;
     locked = false;
-    statusEl.textContent = "📚 Archive: the word from " + label + ". No points, just practice.";
-    archBtn.textContent = "🎲 Different word";
+    statusEl.textContent = "📚 Archive: the word from " + d.label + ". No points, just practice.";
+    archBtn.textContent = "📚 Pick another day";
   }
-  if (archBtn) archBtn.addEventListener("click", startArchive);
+  if (archBtn) archBtn.addEventListener("click", toggleArchList);
 
   // --- Boot ----------------------------------------------------------------
   const boot = load();

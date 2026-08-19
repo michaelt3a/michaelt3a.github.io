@@ -190,9 +190,10 @@
     const my = ++reqId;
     // Shimmer placeholders while the board fetches.
     listEl.innerHTML = new Array(5).fill('<li class="lb-empty"><span class="skel wide"></span></li>').join("");
-    let list = [];
-    try { list = (await fetchBoard(key)).slice(0, 10); } catch { list = []; }
+    let full = [];
+    try { full = await fetchBoard(key); } catch { full = []; }
     if (my !== reqId) return; // superseded
+    const list = full.slice(0, 10);
     listEl.innerHTML = "";
     if (!list.length) {
       const li = document.createElement("li");
@@ -201,17 +202,29 @@
       listEl.appendChild(li);
       return;
     }
+    // "Where am I?" — the player's own row gets marked, and if they're
+    // below the top 10 their row is shown after the cut.
+    const meName = ((window.PlayerCard && PlayerCard.getName()) || "").trim().toLowerCase();
+    const meIdx = meName ? full.findIndex((e) => String(e.name).trim().toLowerCase() === meName) : -1;
     const statFn = BOARDS[key].stat;
-    list.forEach((e, i) => {
+    const rowFor = (e, i) => {
       const li = document.createElement("li");
       // The top spot wears a crown and a shine.
-      li.className = "lb-row" + (i === 0 ? " lb-first" : "");
+      li.className = "lb-row" + (i === 0 ? " lb-first" : "") + (i === meIdx ? " lb-me" : "");
       li.innerHTML =
         `<span class="lb-rank">${i === 0 ? "👑" : i + 1}</span>` +
-        `<span class="lb-name">${escapeHtml(e.name)}</span>` +
+        `<span class="lb-name">${escapeHtml(e.name)}${i === meIdx ? ' <em class="lb-you">you</em>' : ""}</span>` +
         `<span class="lb-score">${statFn(e)}</span>`;
-      listEl.appendChild(li);
-    });
+      return li;
+    };
+    list.forEach((e, i) => listEl.appendChild(rowFor(e, i)));
+    if (meIdx >= 10) {
+      const gap = document.createElement("li");
+      gap.className = "lb-empty lb-gap";
+      gap.textContent = "…";
+      listEl.appendChild(gap);
+      listEl.appendChild(rowFor(full[meIdx], meIdx));
+    }
   }
 
   function init(rootGames, rootCats, rootList) {

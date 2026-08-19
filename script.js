@@ -995,6 +995,7 @@ function endGame() {
   gameoverQuip.classList.toggle("hidden", !quip);
   gameoverSubtitle.textContent =
     `You added ${state.score} ingredient${state.score === 1 ? "" : "s"}.` +
+    (isNewBest && prevBest > 0 ? ` Your old best was ${prevBest}.` : "") +
     (!isNewBest && state.score < prevBest && prevBest - state.score <= 5
       ? ` ${prevBest - state.score} short of your best (${prevBest}).`
       : "");
@@ -2319,6 +2320,14 @@ function drawSplat() {
   ctx.restore();
 }
 
+// The next quest worth chasing, on the start screen (normal runs only).
+{
+  const qh = document.getElementById("quest-hint");
+  if (qh && !isDailyRun && !isDuelRun && window.PokeChallenges && PokeChallenges.startHint) {
+    qh.textContent = PokeChallenges.startHint("bowl");
+  }
+}
+
 // Duel: unmistakable chrome. Purple glow, its own title, a green Ready
 // button below the box, and the sabotage button; the game starts only once
 // BOTH players have readied up (the dots in the VS bar track who has).
@@ -2369,7 +2378,7 @@ if (isDuelRun) {
   readyBtn.addEventListener("click", () => {
     if (readyBtn.disabled) return;
     readyBtn.disabled = true;
-    readyBtn.textContent = "Waiting for opponent…";
+    readyBtn.textContent = "Waiting for " + ((PokeDuel.oppName && PokeDuel.oppName()) || "opponent") + " to ready up…";
     PokeDuel.setName(nameInput.value); // lock in whatever's in the box
     nameInput.disabled = true;
     PokeDuel.setReady();

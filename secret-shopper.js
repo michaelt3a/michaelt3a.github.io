@@ -466,8 +466,15 @@ function hush() {
   empBubble.classList.add("hidden");
   extraBubble.classList.add("hidden");
 }
+// The most recent ask()'s right answer, so a missed audit row can teach it.
+// Cleared on every log so it can't leak onto unrelated rows.
+let lastCorrectAnswer = null;
 function log(guest, key, pts, got, labelText) {
-  audit.push({ guest, key, label: labelText, pts, got: !!got });
+  audit.push({
+    guest, key, label: labelText, pts, got: !!got,
+    fix: !got && lastCorrectAnswer ? lastCorrectAnswer : null,
+  });
+  lastCorrectAnswer = null;
 }
 
 // --- Prompt / choices ---------------------------------------------------
@@ -506,6 +513,7 @@ function ask(title, options, timerSec) {
         timerEl.classList.add("hidden");
         for (const b of buttons) b.disabled = true;
         btn.classList.add(opt.good ? "picked-good" : "picked-bad");
+        lastCorrectAnswer = (options.find((o) => o.good) || {}).t || null;
         if (opt.good) SFX.good(); else SFX.bad();
         await wait(650);
         resolve({ good: opt.good, text: opt.t, reply: opt.r || null, inTime: true, timedOut: false });
@@ -522,6 +530,7 @@ function ask(title, options, timerSec) {
         for (const b of buttons) b.disabled = true;
         const goodBtn = buttons.find((b) => b.dataset.good === "1");
         if (goodBtn) goodBtn.classList.add("reveal-answer");
+        lastCorrectAnswer = (options.find((o) => o.good) || {}).t || null;
         SFX.bad();
         await wait(900);
         timerEl.classList.add("hidden");
@@ -1317,6 +1326,19 @@ function finishShift() {
         `<span class="ss-audit-label">${a.label}</span>` +
         `<span class="ss-audit-pts">${a.got ? a.pts : 0}/${a.pts}</span>`;
       auditRows.appendChild(row);
+      // A missed row can teach: tap it to see what the right move was.
+      if (!a.got && a.fix) {
+        row.classList.add("can-fix");
+        row.title = "See the right answer";
+        let fixEl = null;
+        row.addEventListener("click", () => {
+          if (fixEl) { fixEl.remove(); fixEl = null; return; }
+          fixEl = document.createElement("div");
+          fixEl.className = "ss-audit-fix";
+          fixEl.textContent = "Correct answer: " + a.fix;
+          row.after(fixEl);
+        });
+      }
     }
   }
 

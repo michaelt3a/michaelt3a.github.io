@@ -106,10 +106,17 @@
 
 .iq-feedback {
   margin: 0;
-  min-height: 1.3em;
+  min-height: 2.6em;
   text-align: center;
   color: #a8760a;
   font-weight: 800;
+}
+.iq-fact {
+  display: block;
+  margin-top: 0.15rem;
+  color: #5a6a6a;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 @media (max-width: 560px) {
