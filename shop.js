@@ -74,7 +74,6 @@
       const activeBySlot = {
         bowl: PokeSkins.active("bowl").id,
         blade: PokeSkins.active("blade").id,
-        belt: PokeSkins.active("belt").id,
       };
       for (const sk of PokeSkins.SKINS) {
         const owned = PokeSkins.owned(sk.id);
@@ -82,9 +81,7 @@
         const afford = data.balance >= sk.cost;
         const swatch = sk.slot === "bowl"
           ? `background:${sk.body};box-shadow: inset 0 -8px 0 ${sk.inner}${sk.rim ? `, 0 0 0 3px ${sk.rim}` : ""}`
-          : sk.slot === "blade"
-            ? `background:linear-gradient(135deg, transparent 42%, rgb(${sk.trail}) 42% 58%, transparent 58%) #20262a`
-            : `background:repeating-linear-gradient(90deg, ${sk.belt} 0 8px, rgba(0,0,0,0.2) 8px 10px)`;
+          : `background:linear-gradient(135deg, transparent 42%, rgb(${sk.trail}) 42% 58%, transparent 58%) #20262a`;
         const card = document.createElement("div");
         card.className = "shop-item" + (owned || afford ? "" : " locked");
         card.innerHTML =
@@ -108,7 +105,6 @@
         const links = {
           bowl: '<a href="bowl-builder.html">Bowl Builder</a> or <a href="topping-drop.html">Topping Drop</a>',
           blade: '<a href="poke-slice.html">Poke Slice</a>',
-          belt: '<a href="bowl-rush.html">Bowl Rush</a>',
         };
         const note = document.createElement("p");
         note.className = "shop-mail-sub shop-skin-note";
@@ -254,6 +250,20 @@
   if (testBtn) {
     testBtn.addEventListener("click", () => PokePoints.add(500, "Test points"));
   }
+
+  // Belt skins retired with Bowl Rush: anyone who bought one gets the points
+  // back, once. The owned ids stay in storage but never render.
+  try {
+    const REFUND_KEY = "pokeworks-belt-refund";
+    if (!localStorage.getItem(REFUND_KEY)) {
+      const owned = (JSON.parse(localStorage.getItem("pokeworks-skins")) || {}).owned || [];
+      const paid = { "belt-gold": 1000, "belt-teal": 1000 };
+      let back = 0;
+      for (const id of owned) back += paid[id] || 0;
+      localStorage.setItem(REFUND_KEY, "1");
+      if (back > 0) PokePoints.add(back, "Belt skin refund (Bowl Rush retired)");
+    }
+  } catch (e) { /* ignore */ }
 
   PokePoints.onChange(render);
   render();

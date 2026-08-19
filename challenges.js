@@ -15,7 +15,7 @@
   const TOP_PTS = 150;    // being #1 on yesterday's daily board
   const STREAK_PTS = 200; // every 7th day in a row with a customer game played
   const STREAK_DAYS = 7;
-  const CUSTOMER = { bowl: true, ou: true, td: true, br: true, ps: true };
+  const CUSTOMER = { bowl: true, ou: true, td: true, iq: true, ps: true };
   // How many challenges each game rolls per day, by tier.
   const PICKS = { starter: 1, mid: 2, hard: 2 };
 
@@ -104,27 +104,22 @@
       { id: "td-score80", tier: "hard", metric: "score", mode: "max", goal: 80, pts: 90, label: "Catch 80 toppings in one run" },
       { id: "td-runs8", tier: "hard", metric: "runs", mode: "sum", goal: 8, pts: 75, label: "Finish 8 Topping Drop runs" },
     ],
-    br: [
+    iq: [
       // starters
-      { id: "br-runs2", tier: "starter", metric: "runs", mode: "sum", goal: 2, pts: 20, label: "Work 2 Bowl Rush lines" },
-      { id: "br-score15", tier: "starter", metric: "score", mode: "max", goal: 15, pts: 20, label: "Sort 15 ingredients in one line" },
-      { id: "br-time5", tier: "starter", metric: "seconds", mode: "sum", goal: 300, pts: 20, label: "Work the conveyor for 5 minutes" },
-      { id: "br-streak5", tier: "starter", metric: "streak", mode: "max", goal: 5, pts: 20, label: "Sort 5 in a row without a miss" },
+      { id: "iq-runs2", tier: "starter", metric: "runs", mode: "sum", goal: 2, pts: 20, label: "Finish 2 trivia rounds" },
+      { id: "iq-correct5", tier: "starter", metric: "correct", mode: "max", goal: 5, pts: 20, label: "Get 5 questions right in one round" },
+      { id: "iq-streak3", tier: "starter", metric: "streak", mode: "max", goal: 3, pts: 20, label: "Get 3 right in a row" },
       // mid
-      { id: "br-score25", tier: "mid", metric: "score", mode: "max", goal: 25, pts: 40, label: "Sort 25 ingredients in one line" },
-      { id: "br-score32", tier: "mid", metric: "score", mode: "max", goal: 32, pts: 40, label: "Sort 32 ingredients in one line" },
-      { id: "br-streak10", tier: "mid", metric: "streak", mode: "max", goal: 10, pts: 40, label: "Sort 10 in a row without a miss" },
-      { id: "br-runs4", tier: "mid", metric: "runs", mode: "sum", goal: 4, pts: 40, label: "Work 4 Bowl Rush lines" },
-      { id: "br-score38", tier: "mid", metric: "score", mode: "max", goal: 38, pts: 40, label: "Sort 38 ingredients in one line" },
-      { id: "br-streak14", tier: "mid", metric: "streak", mode: "max", goal: 14, pts: 40, label: "Sort 14 in a row without a miss" },
-      { id: "br-time10", tier: "mid", metric: "seconds", mode: "sum", goal: 600, pts: 40, label: "Work the conveyor for 10 minutes" },
+      { id: "iq-correct7", tier: "mid", metric: "correct", mode: "max", goal: 7, pts: 40, label: "Get 7 questions right in one round" },
+      { id: "iq-correct8", tier: "mid", metric: "correct", mode: "max", goal: 8, pts: 40, label: "Get 8 questions right in one round" },
+      { id: "iq-streak6", tier: "mid", metric: "streak", mode: "max", goal: 6, pts: 40, label: "Get 6 right in a row" },
+      { id: "iq-score1000", tier: "mid", metric: "score", mode: "max", goal: 1000, pts: 40, label: "Score 1,000 in one round" },
+      { id: "iq-runs4", tier: "mid", metric: "runs", mode: "sum", goal: 4, pts: 40, label: "Finish 4 trivia rounds" },
       // hard
-      { id: "br-score42", tier: "hard", metric: "score", mode: "max", goal: 42, pts: 75, label: "Sort 42 ingredients in one line" },
-      { id: "br-score50", tier: "hard", metric: "score", mode: "max", goal: 50, pts: 90, label: "Sort 50 ingredients in one line" },
-      { id: "br-streak20", tier: "hard", metric: "streak", mode: "max", goal: 20, pts: 75, label: "Sort 20 in a row without a miss" },
-      { id: "br-streak28", tier: "hard", metric: "streak", mode: "max", goal: 28, pts: 90, label: "Sort 28 in a row without a miss" },
-      { id: "br-score60", tier: "hard", metric: "score", mode: "max", goal: 60, pts: 90, label: "Sort 60 ingredients in one line" },
-      { id: "br-runs7", tier: "hard", metric: "runs", mode: "sum", goal: 7, pts: 75, label: "Work 7 Bowl Rush lines" },
+      { id: "iq-perfect", tier: "hard", metric: "correct", mode: "max", goal: 10, pts: 90, label: "Get all 10 right in one round" },
+      { id: "iq-streak10", tier: "hard", metric: "streak", mode: "max", goal: 10, pts: 90, label: "Get 10 right in a row" },
+      { id: "iq-score1300", tier: "hard", metric: "score", mode: "max", goal: 1300, pts: 75, label: "Score 1,300 in one round" },
+      { id: "iq-runs7", tier: "hard", metric: "runs", mode: "sum", goal: 7, pts: 75, label: "Finish 7 trivia rounds" },
     ],
     ps: [
       // starters
@@ -151,7 +146,7 @@
   };
   const GAME_LABEL = {
     bowl: "Bowl Builder", ou: "Order Up",
-    td: "Topping Drop", br: "Bowl Rush", ps: "Poke Slice",
+    td: "Topping Drop", iq: "Poke IQ", ps: "Poke Slice",
   };
 
   // --- Per-day state -------------------------------------------------------
@@ -272,9 +267,9 @@
       { metric: "score", goal: 15, label: "Catch 15 toppings in one run" },
       { metric: "combo", goal: 6, label: "Catch 6 in a row without a drop" },
     ],
-    br: [
-      { metric: "score", goal: 12, label: "Sort 12 ingredients in one line" },
-      { metric: "streak", goal: 6, label: "Sort 6 in a row without a miss" },
+    iq: [
+      { metric: "correct", goal: 6, label: "Get 6 questions right in one round" },
+      { metric: "streak", goal: 4, label: "Get 4 right in a row" },
     ],
     ps: [
       { metric: "score", goal: 15, label: "Slice 15 pieces in one run" },
@@ -320,7 +315,7 @@
     try {
       const t = JSON.parse(localStorage.getItem(TOTALS_KEY)) || {};
       const g = t[game] || (t[game] = {});
-      for (const k of ["runs", "score", "served", "money", "seconds"]) {
+      for (const k of ["runs", "score", "served", "money", "seconds", "correct"]) {
         const v = Number(metrics[k]) || 0;
         if (v > 0) g[k] = (g[k] || 0) + v;
       }

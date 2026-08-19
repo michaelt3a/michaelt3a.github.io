@@ -1,6 +1,7 @@
-// Skins — cosmetics bought with points in the Rewards Shop. Three slots:
-// bowls (Bowl Builder + Topping Drop), blades (the Poke Slice trail), and
-// belts (the Bowl Rush conveyor). Purely local, like the rest of the wallet.
+// Skins — cosmetics bought with points in the Rewards Shop. Two slots:
+// bowls (Bowl Builder + Topping Drop) and blades (the Poke Slice trail).
+// Purely local, like the rest of the wallet. The belt slot retired with
+// Bowl Rush; the shop refunds anyone who owned a belt skin.
 (function () {
   const KEY = "pokeworks-skins";
 
@@ -18,14 +19,9 @@
     { id: "blade-gold", slot: "blade", icon: "✨", title: "Gold Blade", desc: "Gold slice trail.", cost: 800, trail: "255,209,90" },
     { id: "blade-teal", slot: "blade", icon: "💠", title: "Teal Blade", desc: "Teal slice trail.", cost: 800, trail: "80,214,216" },
     { id: "blade-pink", slot: "blade", icon: "💗", title: "Pink Blade", desc: "Pink slice trail.", cost: 800, trail: "255,111,165" },
-
-    // Belts: the conveyor color in Bowl Rush.
-    { id: "belt-white", slot: "belt", icon: "⬜", title: "White Belt", desc: "The standard conveyor.", cost: 0, belt: "#ffffff" },
-    { id: "belt-gold", slot: "belt", icon: "🟨", title: "Gold Belt", desc: "Gold conveyor.", cost: 1000, belt: "#ffe9a8" },
-    { id: "belt-teal", slot: "belt", icon: "🟦", title: "Teal Belt", desc: "Teal conveyor.", cost: 1000, belt: "#c9ecec" },
   ];
 
-  const DEFAULTS = { bowl: "classic", blade: "blade-white", belt: "belt-white" };
+  const DEFAULTS = { bowl: "classic", blade: "blade-white" };
 
   let cached = null;
   function load() {

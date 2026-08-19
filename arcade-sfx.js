@@ -1,4 +1,4 @@
-// Tiny shared synth for the arcade games (Topping Drop, Bowl Rush, Poke
+// Tiny shared synth for the arcade games (Topping Drop, Poke IQ, Poke
 // Slice). Everything is generated — no audio files — and the context runs
 // through sound.js's master-gain patch like every other game's audio.
 // First call must come after a user gesture, which the Start tap provides.

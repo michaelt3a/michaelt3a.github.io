@@ -43,7 +43,8 @@
     { id: "wb-hard", game: "Word Bowl", icon: "🧠", title: "No Training Wheels", how: "Solve a Word Bowl with hard mode on." },
 
     { id: "td-combo20", game: "Topping Drop", icon: "🧲", title: "Bowl Magnet", how: "Catch 20 toppings in a row without a drop." },
-    { id: "br-streak25", game: "Bowl Rush", icon: "🏭", title: "Line Boss", how: "Sort 25 ingredients in a row without a miss." },
+    { id: "iq-perfect", game: "Poke IQ", icon: "💯", title: "Perfect Round", how: "Get all 10 questions right in one round." },
+    { id: "iq-streak10", game: "Poke IQ", icon: "🧠", title: "Menu Master", how: "Get 10 questions right in a row." },
     { id: "ps-stroke5", game: "Poke Slice", icon: "🔪", title: "One Clean Cut", how: "Slice 5 pieces in a single stroke." },
     // Secret Shopper
     { id: "ss-first", game: "Secret Shopper", icon: "🕵️", title: "Clocked In", how: "Finish a shift." },
@@ -155,7 +156,7 @@
     "bb-25": () => [lsNum("pokeworks-high-score"), 25],
     "bb-50": () => [lsNum("pokeworks-high-score"), 50],
     "td-combo20": () => [lsNum("pokeworks-topping-combo-best"), 20],
-    "br-streak25": () => [lsNum("pokeworks-rush-streak-best"), 25],
+    "iq-streak10": () => [lsNum("pokeworks-iq-streak-best"), 10],
     "ps-stroke5": () => [lsNum("pokeworks-slice-stroke-best"), 5],
     "meta-streak7": () => {
       const s = window.PokeStreak ? PokeStreak.get() : { best: 0 };

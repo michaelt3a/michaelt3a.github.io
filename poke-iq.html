@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bowl Rush - Pokeworks</title>
-  <meta name="description" content="Sort ingredients to their station before the clock runs out." />
+  <title>Poke IQ - Pokeworks</title>
+  <meta name="description" content="Quick trivia about Pokeworks, its menu, and its ingredients." />
   <link rel="stylesheet" href="styles.css?v=25" />
-  <link rel="stylesheet" href="bowl-rush.css?v=5" />
+  <link rel="stylesheet" href="poke-iq.css?v=1" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -36,51 +36,28 @@
       </div>
     </header>
 
-    <main class="stage rush-stage">
-      <div class="rush-play" id="rush-play" hidden>
-        <div class="rush-timer"><i id="rush-timer-fill"></i></div>
-        <!-- Ingredients ride this belt; drag them off into the tubs below -->
-        <div class="rush-field" id="rush-field">
-          <div class="rush-conveyor" aria-hidden="true">
-            <span class="belt"></span>
-            <span class="roller left"></span>
-            <span class="roller right"></span>
-            <span class="leg left"></span>
-            <span class="leg right"></span>
-          </div>
-        </div>
-        <p class="rush-msg" id="rush-msg">&nbsp;</p>
-        <div class="rush-bins" id="rush-bins"></div>
+    <main class="stage iq-stage">
+      <div class="iq-play" id="iq-play" hidden>
+        <div class="iq-timer"><i id="iq-timer-fill"></i></div>
+        <p class="iq-progress" id="iq-progress">1 / 10</p>
+        <p class="iq-question" id="iq-question"></p>
+        <div class="iq-answers" id="iq-answers"></div>
+        <p class="iq-feedback" id="iq-feedback">&nbsp;</p>
       </div>
 
       <div id="overlay" class="overlay">
         <div id="screen-start" class="overlay-panel">
-          <h1 class="overlay-title" id="start-title">Bowl Rush</h1>
+          <h1 class="overlay-title" id="start-title">Poke IQ</h1>
           <p class="overlay-subtitle" id="start-subtitle">
-            The line is slammed. Ingredients ride the conveyor; drag each one
-            into its station tub before it rolls off the end. A wrong tub
-            costs 3 seconds.
+            10 quick questions about Pokeworks and its menu.
+            10 seconds each, and faster answers score more.
           </p>
           <button id="start-btn" class="btn" type="button">Start</button>
         </div>
 
-        <!-- 3-2-1 before the belt starts -->
-        <div id="screen-count" class="overlay-panel hidden">
-          <h1 class="overlay-title" id="count-num">3</h1>
-        </div>
-
-        <!-- Paused screen -->
-        <div id="screen-paused" class="overlay-panel hidden">
-          <h1 class="overlay-title">Paused</h1>
-          <div class="gameover-actions">
-            <button id="resume-btn" class="btn" type="button">Resume</button>
-            <a class="btn btn-secondary" href="index.html">Quit</a>
-          </div>
-        </div>
-
         <div id="screen-gameover" class="overlay-panel hidden">
-          <h1 class="overlay-title">Time!</h1>
-          <p class="overlay-subtitle" id="gameover-subtitle">You sorted 0 ingredients.</p>
+          <h1 class="overlay-title">Round Over</h1>
+          <p class="overlay-subtitle" id="gameover-subtitle">You got 0 of 10.</p>
           <p class="gameover-quip" id="points-line" hidden></p>
           <!-- Daily runs post to the day's board -->
           <div id="lb-entry" class="lb-entry hidden">
@@ -99,28 +76,24 @@
             <span>More games:</span>
             <a href="topping-drop.html">Topping Drop</a>
             <a href="poke-slice.html">Poke Slice</a>
-            <a href="order-up.html">Order Up</a>
+            <a href="word-bowl.html">Word Bowl</a>
           </div>
         </div>
       </div>
-
-      <!-- Pause lives in the box's corner; icon flips to ▶ while paused -->
-      <button id="pause-btn" class="control-btn" type="button" aria-label="Pause" style="display:none">⏸</button>
     </main>
   </div>
 
   <script src="transitions.js?v=4"></script>
   <script src="supabase-config.js?v=2"></script>
-  <script src="achievements.js?v=12"></script>
-  <script src="daily.js?v=6"></script>
+  <script src="achievements.js?v=13"></script>
+  <script src="daily.js?v=7"></script>
   <script src="track.js?v=1"></script>
   <script src="boost.js?v=2"></script>
   <script src="points.js?v=2"></script>
-  <script src="challenges.js?v=10"></script>
+  <script src="challenges.js?v=11"></script>
   <script src="wordfilter.js?v=1"></script>
-  <script src="skins.js?v=3"></script>
   <script src="arcade-sfx.js?v=1"></script>
-  <script src="bowl-rush.js?v=11"></script>
+  <script src="poke-iq.js?v=1"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

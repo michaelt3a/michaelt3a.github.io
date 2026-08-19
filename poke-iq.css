@@ -1,0 +1,103 @@
+/* Poke IQ: the trivia layout inside the shared game stage. The stage panel
+   is the light teal game screen, so everything here uses dark ink. */
+
+.iq-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px;
+  gap: 10px;
+}
+
+/* Per-question countdown across the top. */
+.iq-timer {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+.iq-timer i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--star-color, #ffd15a);
+  transition: width 0.1s linear;
+}
+.iq-timer i.low {
+  background: #ee435b;
+}
+
+.iq-progress {
+  margin: 0;
+  color: #7d8a8a;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.iq-question {
+  margin: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  color: #26333a;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.iq-answers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.iq-answer {
+  min-height: 62px;
+  padding: 0.6rem 0.9rem;
+  border-radius: 12px;
+  border: 1.5px solid #ccd8d8;
+  background: #ffffff;
+  color: #26333a;
+  font: inherit;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+}
+.iq-answer:hover:not(:disabled) {
+  border-color: #26333a;
+  transform: translateY(-1px);
+}
+.iq-answer:disabled {
+  cursor: default;
+}
+.iq-answer.good {
+  background: #39a85b;
+  border-color: #39a85b;
+  color: #fff;
+}
+.iq-answer.bad {
+  background: #ee435b;
+  border-color: #ee435b;
+  color: #fff;
+}
+
+.iq-feedback {
+  margin: 0;
+  min-height: 1.3em;
+  text-align: center;
+  color: #a8760a;
+  font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  .iq-question { font-size: 1.1rem; }
+  .iq-answers { grid-template-columns: 1fr; }
+  .iq-answer { min-height: 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iq-answer { transition: none; }
+  .iq-timer i { transition: none; }
+}

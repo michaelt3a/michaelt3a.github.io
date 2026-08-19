@@ -31,7 +31,9 @@
     // deck, and waves; hearts don't fall on daily Topping Drop so the run
     // really is the same for everyone.
     { id: "td", label: "Topping Drop", file: "topping-drop.html", color: "#f5c542", unit: "catches", setting: "standard", customer: true },
-    { id: "br", label: "Bowl Rush", file: "bowl-rush.html", color: "#8f6ef0", unit: "sorted", setting: "standard", customer: true },
+    // Poke IQ took Bowl Rush's slot in the rotation (same position, so the
+    // other games' days don't shift). Old "br" board rows just age out.
+    { id: "iq", label: "Poke IQ", file: "poke-iq.html", color: "#8f6ef0", unit: "pts", setting: "standard", customer: true },
     { id: "ps", label: "Poke Slice", file: "poke-slice.html", color: "#39a85b", unit: "slices", setting: "standard", customer: true },
   ];
 

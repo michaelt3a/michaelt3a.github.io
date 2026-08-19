@@ -181,13 +181,13 @@
       },
     },
     {
-      id: "br",
-      label: "Bowl Rush",
+      id: "iq",
+      label: "Poke IQ",
       color: "#8f6ef0",
       noRank: true,
       best() {
-        const n = lsNum("pokeworks-rush-best");
-        return n ? { value: n + " sorted", n: n } : null;
+        const n = lsNum("pokeworks-iq-best");
+        return n ? { value: n + " pts", n: n } : null;
       },
     },
     {
@@ -277,15 +277,16 @@
     const fmtN = (n) => Number(n || 0).toLocaleString();
     const rows = [];
     const arcade = [
-      ["bowl", "Bowl Builder", "#ee435b", "blocks stacked"],
-      ["td", "Topping Drop", "#f5c542", "toppings caught"],
-      ["br", "Bowl Rush", "#8f6ef0", "ingredients sorted"],
-      ["ps", "Poke Slice", "#39a85b", "pieces sliced"],
+      ["bowl", "Bowl Builder", "#ee435b", "blocks stacked", "score"],
+      ["td", "Topping Drop", "#f5c542", "toppings caught", "score"],
+      ["iq", "Poke IQ", "#8f6ef0", "answers right", "correct"],
+      ["ps", "Poke Slice", "#39a85b", "pieces sliced", "score"],
     ];
-    for (const [id, label, color, unit] of arcade) {
+    for (const [id, label, color, unit, metric] of arcade) {
       const g = t[id];
-      if (!g || !g.score) continue;
-      rows.push([label, color, fmtN(g.score) + " " + unit + (g.runs ? " · " + fmtN(g.runs) + " run" + (g.runs === 1 ? "" : "s") : "")]);
+      const v = g && g[metric];
+      if (!v) continue;
+      rows.push([label, color, fmtN(v) + " " + unit + (g.runs ? " · " + fmtN(g.runs) + " run" + (g.runs === 1 ? "" : "s") : "")]);
     }
     const ou = lsJson("pokeworks-orderup-tycoon");
     if (ou && ou.life && (ou.life.earned || ou.life.served)) {

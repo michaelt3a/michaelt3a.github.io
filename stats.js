@@ -16,8 +16,9 @@
     { id: "ss", label: "Secret Shopper", color: "#8f6ef0" },
     { id: "wb", label: "Word Bowl", color: "#4a9e58" },
     { id: "topping", label: "Topping Drop", color: "#e0bb3c" },
-    { id: "rush", label: "Bowl Rush", color: "#c9679f" },
+    { id: "rush", label: "Bowl Rush", color: "#c9679f" }, // retired; history stays
     { id: "slice", label: "Poke Slice", color: "#2fa8a0" },
+    { id: "iq", label: "Poke IQ", color: "#9aa5b1" },
   ];
 
   const chartEl = document.getElementById("st-chart");
