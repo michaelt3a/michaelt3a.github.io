@@ -496,6 +496,32 @@
     state.flash = 0.4;
   }
 
+  // Each ingredient splashes its own colors when cut.
+  const JUICE = {
+    "🐟": ["#ff8da1", "#ff6f8a", "#ffd9e0"],
+    "🍣": ["#ff9e80", "#ee6f57", "#fff1e8"],
+    "🥑": ["#7fce6e", "#4a9e58", "#e8f5c8"],
+    "🍤": ["#ffb08a", "#ff8a5c", "#fff1e8"],
+    "🥒": ["#8fd672", "#5cb85c", "#e0f5d0"],
+    "🥭": ["#ffc04d", "#ff9e27", "#ffe9b0"],
+  };
+  const GOLD_JUICE = ["#ffd15a", "#fff1c9", "#ffb52e"];
+
+  // A burst of droplets from the cut point, riding the existing spark physics.
+  function spawnJuice(x, y, colors, n) {
+    for (let k = 0; k < n; k++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 90 + Math.random() * 180;
+      state.sparks.push({
+        x: x, y: y,
+        vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 70,
+        size: 2 + Math.random() * 3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 0.35 + Math.random() * 0.3,
+      });
+    }
+  }
+
   function sliceAlong(a, b) {
     for (let i = state.items.length - 1; i >= 0; i--) {
       const it = state.items[i];
@@ -542,12 +568,18 @@
         if (state.strokeSlices > state.bestStroke) state.bestStroke = state.strokeSlices;
         if (state.strokeSlices >= 5 && window.PokeAch) PokeAch.unlock("ps-stroke5");
         sfx("swish");
+        // The hit itself: juice in the ingredient's colors, a hot streak
+        // along the blade, a nudge of screen shake, and a tap of haptics.
+        spawnJuice(it.x, it.y, it.golden ? GOLD_JUICE : JUICE[it.glyph] || GOLD_JUICE, it.golden ? 16 : 9);
+        if (!REDUCED_MOTION) state.shake = Math.max(state.shake, it.golden ? 0.16 : 0.09);
+        if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) { /* ignore */ } }
         if (it.golden) {
           setScore(state.score + 5);
           sfx("chime");
           state.floaters.push({ text: "✨ +5", x: it.x, y: it.y - 30, life: 0.9 });
         } else {
           setScore(state.score + 1);
+          state.floaters.push({ text: "+1", x: it.x, y: it.y - 26, life: 0.5, size: 16, color: "#ffffff" });
         }
         // Two REAL halves: each piece is the glyph clipped along the cut
         // line, drifting apart perpendicular to the blade.
@@ -568,6 +600,13 @@
             life: 1.0,
           });
         }
+        // A white-hot streak right where the blade went through.
+        const cx = Math.cos(ang) * 30;
+        const cy = Math.sin(ang) * 30;
+        state.cuts.push({
+          ax: it.x - cx, ay: it.y - cy, bx: it.x + cx, by: it.y + cy,
+          life: 0.22, maxLife: 0.22, hot: true,
+        });
       }
     }
   }
@@ -717,8 +756,11 @@
     ctx.lineCap = "round";
     for (const c of state.cuts) {
       const a = c.life / c.maxLife;
-      ctx.strokeStyle = "rgba(" + trailRGB + "," + (a * 0.55).toFixed(3) + ")";
-      ctx.lineWidth = 1 + a * 4;
+      // Hit streaks flash white and die fast; normal marks fade in the blade color.
+      ctx.strokeStyle = c.hot
+        ? "rgba(255,255,255," + (a * 0.95).toFixed(3) + ")"
+        : "rgba(" + trailRGB + "," + (a * 0.55).toFixed(3) + ")";
+      ctx.lineWidth = c.hot ? 2 + a * 7 : 1 + a * 4;
       ctx.beginPath();
       ctx.moveTo(c.ax, c.ay);
       ctx.lineTo(c.bx, c.by);
@@ -850,8 +892,8 @@
     for (const f of state.floaters) {
       ctx.save();
       ctx.globalAlpha = Math.min(1, f.life * 2);
-      ctx.font = "700 24px system-ui, sans-serif";
-      ctx.fillStyle = "#ffd15a";
+      ctx.font = "700 " + (f.size || 24) + "px system-ui, sans-serif";
+      ctx.fillStyle = f.color || "#ffd15a";
       ctx.fillText(f.text, f.x, f.y);
       ctx.restore();
     }
