@@ -28,6 +28,7 @@
     const done = Daily.result();
     const st = Daily.streak();
     const flame = st.count ? '<span class="dc-streak">🔥 ' + st.count + "</span>" : "";
+    const tw = Daily.twist ? Daily.twist() : null;
 
     el.style.setProperty("--g", c.game.color);
     el.innerHTML =
@@ -40,7 +41,8 @@
           " · new challenge in " + untilTomorrow()
         : "Same run for everyone. One attempt." +
           // Customer-game days pay Rewards Shop points.
-          (c.game.customer && window.PokeChallenges ? " Earns +" + PokeChallenges.DAILY_PTS + " pts." : "")) +
+          (c.game.customer && window.PokeChallenges ? " Earns +" + PokeChallenges.DAILY_PTS + " pts." : "") +
+          (tw ? '<br><span class="dc-twist">Twist: ' + escapeHtml(tw.label) + " · " + escapeHtml(tw.desc) + "</span>" : "")) +
       "</span></div>" +
       (done
         ? '<div class="dc-rank" id="dc-rank"><span class="skel"></span></div>' +

@@ -69,6 +69,9 @@
   border-color: #26333a;
   transform: translateY(-1px);
 }
+.iq-answer:active:not(:disabled) {
+  transform: scale(0.98);
+}
 .iq-answer:disabled {
   cursor: default;
 }

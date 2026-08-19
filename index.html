@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=53" />
+  <link rel="stylesheet" href="menu.css?v=54" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -328,6 +328,7 @@
         <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
       </div>
       <div class="sheet-body" id="pc-body"></div>
+      <p class="pk-fact pk-fact-sheet" data-fact="1"></p>
       <!-- theme.js mounts the light/dark switch into this slot -->
       <div class="sheet-foot">
         <span>Light / dark mode</span>
@@ -362,6 +363,7 @@
       </div>
       <div class="sheet-body">
         <section class="dc" id="dc"></section>
+        <p class="pk-fact" data-fact="0"></p>
       </div>
     </div>
   </div>
@@ -428,7 +430,7 @@
   <script src="achievements.js?v=13"></script>
   <!-- daily.js first: hub-leaderboard.js registers today's board from it,
        and challenges.js draws today's quest set from its seeded streams -->
-  <script src="daily.js?v=7"></script>
+  <script src="daily.js?v=8"></script>
   <script src="boost.js?v=2"></script>
   <script src="track.js?v=1"></script>
   <script src="points.js?v=2"></script>
@@ -436,9 +438,10 @@
   <script src="challenges.js?v=11"></script>
   <script src="hub-leaderboard.js?v=13"></script>
   <script src="wordfilter.js?v=1"></script>
-  <script src="player-card.js?v=13"></script>
+  <script src="player-card.js?v=14"></script>
   <script src="backup.js?v=1"></script>
-  <script src="daily-card.js?v=8"></script>
+  <script src="facts.js?v=1"></script>
+  <script src="daily-card.js?v=9"></script>
   <script>
     DailyCard.render(document.getElementById("dc"));
 

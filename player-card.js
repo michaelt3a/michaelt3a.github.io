@@ -312,6 +312,35 @@
     );
   }
 
+  // Duel record: overall and your most-played rivals, from the book duel.js
+  // keeps per opponent name.
+  function duelBlock() {
+    const book = lsJson("pokeworks-duel-h2h") || {};
+    const rivals = Object.values(book).filter((r) => r && r.w + r.l + r.t > 0);
+    if (!rivals.length) return "";
+    rivals.sort((x, y) => (y.w + y.l + y.t) - (x.w + x.l + x.t));
+    const tot = { w: 0, l: 0, t: 0 };
+    for (const r of rivals) { tot.w += r.w; tot.l += r.l; tot.t += r.t; }
+    const fmt = (x) => x.w + "-" + x.l + (x.t ? "-" + x.t : "");
+    const rows = rivals.slice(0, 3).map((r) => {
+      const n = r.w + r.l + r.t;
+      const pct = Math.round((r.w / n) * 100);
+      return (
+        '<div class="pc-stat" style="--g:#8f6ef0">' +
+        '<span class="pc-stat-game">vs ' + escapeHtml(r.name) + "</span>" +
+        '<span class="pc-stat-val">' + fmt(r) + " · " + pct + "% wins</span>" +
+        '<span class="pc-stat-rank">' +
+        (r.streak >= 2 ? r.streak + " in a row" : n + " game" + (n === 1 ? "" : "s")) +
+        "</span></div>"
+      );
+    }).join("");
+    return (
+      '<div class="pc-ach"><span class="pc-ach-top"><strong>Duels</strong><em>' +
+      fmt(tot) + "</em></span></div>" +
+      '<div class="pc-stats pc-totals">' + rows + "</div>"
+    );
+  }
+
   function achProgress() {
     const defs = (window.PokeAch && PokeAch.DEFS) || [];
     const map = lsJson("pokeworks-achievements") || {};
@@ -394,7 +423,8 @@
       calendarBlock() +
       pointsBlock() +
       '<div class="pc-stats">' + rows + "</div>" +
-      careerBlock();
+      careerBlock() +
+      duelBlock();
 
     const input = bodyEl.querySelector("#pc-name-input");
     const commit = function () {

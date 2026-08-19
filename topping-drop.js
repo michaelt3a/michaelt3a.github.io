@@ -41,6 +41,11 @@
   // so, it's actually Topping Drop's day, and today's attempt isn't spent.
   const wantsDaily = !!(window.Daily && Daily.isRun());
   const isDaily = wantsDaily && Daily.isTodaysGame("td") && !Daily.result();
+  // The day's seeded twist, daily runs only: one parameter changes, same for everyone.
+  const DAILY_TWIST = isDaily && Daily.twist ? Daily.twist() : null;
+  const STAR_CHANCE = DAILY_TWIST && DAILY_TWIST.id === "stars" ? 0.1 : 0.04;
+  const FEVER_EVERY = DAILY_TWIST && DAILY_TWIST.id === "fever" ? 7 : 10;
+  const SPAWN_MULT = DAILY_TWIST && DAILY_TWIST.id === "downpour" ? 0.8 : 1;
   // Duel plumbing (?duel=CODE): the room code seeds the rain so both players
   // fight the same drops; duel.js owns the realtime side.
   const isDuel = !wantsDaily && !!(window.PokeDuel && PokeDuel.active);
@@ -74,7 +79,8 @@
       startBtn.classList.add("hidden");
       startBtn.style.display = "none";
     } else {
-      startSub.textContent = "Everyone gets the same drops today. You get one attempt.";
+      startSub.textContent = "Everyone gets the same drops today. You get one attempt." +
+        (DAILY_TWIST ? " Today's twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
     }
   }
 
@@ -161,7 +167,7 @@
   }
 
   function fallSpeed() { return Math.min(150 + state.elapsed * 4.5, 330); }
-  function spawnEvery() { return Math.max(0.9 - state.elapsed * 0.008, 0.4); }
+  function spawnEvery() { return Math.max(0.9 - state.elapsed * 0.008, 0.4) * SPAWN_MULT; }
   function badChance() { return Math.min(0.16 + state.elapsed * 0.002, 0.3); }
 
   function spawn() {
@@ -204,7 +210,7 @@
     const glyphRoll = rng();
     const starRoll = rng();
     // A rare star doubles the bowl's width for 8 seconds.
-    const star = !bad && state.elapsed > 8 && starRoll < 0.04;
+    const star = !bad && state.elapsed > 8 && starRoll < STAR_CHANCE;
     const list = bad ? BAD : GOOD;
     state.items.push({
       x: x,
@@ -448,7 +454,7 @@
           if (state.combo > state.bestCombo) state.bestCombo = state.combo;
           if (state.combo >= 20 && window.PokeAch) PokeAch.unlock("td-combo20");
           // Every 10th straight catch lights the fever: 5 seconds of double.
-          if (state.combo % 10 === 0) {
+          if (state.combo % FEVER_EVERY === 0) {
             state.feverUntil = state.elapsed + 5;
             state.floaters.push({ text: "🔥 FEVER x2!", x: state.bowlX, y: BOWL_Y - 60, life: 1.1 });
             sfx("chime");

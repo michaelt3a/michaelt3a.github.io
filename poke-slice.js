@@ -45,6 +45,11 @@
 
   const wantsDaily = !!(window.Daily && Daily.isRun());
   const isDaily = wantsDaily && Daily.isTodaysGame("ps") && !Daily.result();
+  // The day's seeded twist, daily runs only: one parameter changes, same for everyone.
+  const DAILY_TWIST = isDaily && Daily.twist ? Daily.twist() : null;
+  const GOLD_CHANCE = DAILY_TWIST && DAILY_TWIST.id === "gold" ? 0.12 : 0.05;
+  const WILD_EVERY = DAILY_TWIST && DAILY_TWIST.id === "frenzy" ? 25 : 40;
+  const EXTRA_TOSS = DAILY_TWIST && DAILY_TWIST.id === "bigtoss";
   // Duel plumbing (?duel=CODE): the room code seeds the waves so both players
   // slice the same toss order; duel.js owns the realtime side.
   const isDuel = !wantsDaily && !!(window.PokeDuel && PokeDuel.active);
@@ -78,7 +83,8 @@
       startBtn.classList.add("hidden");
       startBtn.style.display = "none";
     } else {
-      startSub.textContent = "Everyone gets the same toss order today. You get one attempt.";
+      startSub.textContent = "Everyone gets the same toss order today. You get one attempt." +
+        (DAILY_TWIST ? " Today's twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
     }
   }
 
@@ -191,7 +197,7 @@
     const goldRoll = rng();
     const glyphRoll = rng();
     const bomb = !noBombs && bombRoll < bombChance();
-    const golden = !bomb && goldRoll < 0.05;
+    const golden = !bomb && goldRoll < GOLD_CHANCE;
     const glyph = bomb ? BOMB : golden ? "🐟" : GOOD[Math.floor(glyphRoll * GOOD.length)];
     state.items.push({
       x: x,
@@ -250,6 +256,7 @@
     let count = 1;
     if (roll2 < Math.min(0.25 + state.elapsed * 0.01, 0.7)) count++;
     if (state.elapsed > 20 && roll3 < 0.3) count++;
+    if (EXTRA_TOSS && count < 3) count++; // big-toss twist: one more per wave
     for (let i = 0; i < count; i++) tossOne(wild); // frenzy waves carry no bombs
     while (state.bombDebt > 0) {
       state.bombDebt--;
@@ -274,7 +281,7 @@
     state.strokeSlices = 0;
     state.bestStroke = 0;
     state.strokeId = 0;
-    state.wildAt = 40;
+    state.wildAt = WILD_EVERY;
     state.wildUntil = 0;
     state.bossAt = 30;
     state.waveIn = 0.7;
@@ -612,7 +619,7 @@
     state.elapsed += dt;
     // Natural frenzy every 40 seconds: four seconds of bomb-free downpour.
     if (state.elapsed >= state.wildAt) {
-      state.wildAt += 40;
+      state.wildAt += WILD_EVERY;
       state.wildUntil = state.elapsed + 4;
       say("🌊 FRENZY! Slice everything!");
       sfx("chime");

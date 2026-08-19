@@ -77,6 +77,39 @@
     return mulberry32(xmur3(today() + ":" + name)());
   }
 
+  // --- Daily twists ----------------------------------------------------------
+  // A small seeded rule change for the day's game, same for everyone. Games
+  // read Daily.twist() on a daily run and adjust one parameter; days whose
+  // game has no pool (ou, sw, ss) simply run straight.
+  const TWISTS = {
+    bowl: [
+      { id: "golden", label: "Golden rush", desc: "Golden blocks come every 10 instead of every 25." },
+      { id: "slow", label: "Slow belt", desc: "Blocks move a little slower." },
+      { id: "fast", label: "Fast belt", desc: "Blocks move a little faster." },
+    ],
+    td: [
+      { id: "stars", label: "Star shower", desc: "Wide-bowl stars fall more often." },
+      { id: "downpour", label: "Downpour", desc: "Toppings fall closer together." },
+      { id: "fever", label: "Easy fever", desc: "Fever starts at a 7 streak instead of 10." },
+    ],
+    ps: [
+      { id: "gold", label: "Gold run", desc: "Golden fish show up more often." },
+      { id: "frenzy", label: "Frenzy hour", desc: "Frenzy waves come every 25 seconds." },
+      { id: "bigtoss", label: "Big toss", desc: "More food per toss." },
+    ],
+    iq: [
+      { id: "quick", label: "Quick fire", desc: "7 seconds per question instead of 10." },
+      { id: "bonus", label: "Double bonus", desc: "The speed bonus counts double." },
+    ],
+  };
+  function twist(date) {
+    const d = date || today();
+    const pool = TWISTS[gameFor(d).id];
+    if (!pool) return null;
+    const rng = mulberry32(xmur3(d + ":twist")());
+    return pool[Math.floor(rng() * pool.length)];
+  }
+
   // Which game is today's. Rotates by the day number so it's stable worldwide
   // for a given date.
   function gameFor(date) {
@@ -213,7 +246,7 @@
   }
 
   window.Daily = {
-    GAMES, challenge, gameFor, stream, isRun, isTodaysGame,
+    GAMES, challenge, gameFor, stream, twist, isRun, isTodaysGame,
     isDone, result, complete, streak,
     submit, board, today, yesterday,
   };

@@ -32,8 +32,11 @@
   const STREAK_BEST_KEY = "pokeworks-iq-streak-best";
   const NAME_KEY = "pokeworks-lb-name";
   const ROUND = 10; // questions per round
-  const SECONDS = 10; // per question
   const isDaily = window.Daily && Daily.isRun();
+  // The day's seeded twist, daily runs only: one parameter changes, same for everyone.
+  const DAILY_TWIST = isDaily && Daily.twist ? Daily.twist() : null;
+  const SECONDS = DAILY_TWIST && DAILY_TWIST.id === "quick" ? 7 : 10; // per question
+  const BONUS_MULT = DAILY_TWIST && DAILY_TWIST.id === "bonus" ? 2 : 1;
 
   function sfx(name) {
     if (window.ArcadeSfx && ArcadeSfx[name]) { try { ArcadeSfx[name](); } catch (e) { /* ignore */ } }
@@ -196,7 +199,7 @@
     const item = state.deck[state.idx];
     markAnswers(i);
     if (item.options[i].good) {
-      const bonus = Math.round(50 * (state.remaining / SECONDS));
+      const bonus = Math.round(50 * BONUS_MULT * (state.remaining / SECONDS));
       setScore(state.score + 100 + bonus);
       state.correct++;
       state.streak++;
@@ -352,7 +355,8 @@
         "You've already played today: " + done.score + " pts. Come back tomorrow.";
       startBtn.hidden = true;
     } else {
-      startSub.textContent = "Everyone gets the same questions today. You get one attempt.";
+      startSub.textContent = "Everyone gets the same questions today. You get one attempt." +
+        (DAILY_TWIST ? " Today's twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
     }
   }
 })();

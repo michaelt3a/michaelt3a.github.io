@@ -57,7 +57,14 @@
     const GAME_LABELS = { bowl: "Bowl Builder", td: "Topping Drop", ps: "Poke Slice" };
     if (rerunBtn && last && GAME_FILES[last.game] && Date.now() - last.t < 7 * 86400000) {
       rerunBtn.hidden = false;
-      rerunBtn.textContent = "🥊 Run it back: " + (last.opp || "last opponent") + " · " + GAME_LABELS[last.game];
+      // Your lifetime record against them rides along, when there is one.
+      let rec = "";
+      try {
+        const book = JSON.parse(localStorage.getItem("pokeworks-duel-h2h")) || {};
+        const r = book[(last.opp || "").trim().toLowerCase()];
+        if (r && r.w + r.l + r.t > 0) rec = " (" + r.w + "-" + r.l + ")";
+      } catch (e) { /* no book yet */ }
+      rerunBtn.textContent = "🥊 Run it back: " + (last.opp || "last opponent") + rec + " · " + GAME_LABELS[last.game];
       rerunBtn.addEventListener("click", function () {
         selectGame(last.game);
         createBtn.click();

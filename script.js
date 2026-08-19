@@ -413,6 +413,12 @@ const TOPPINGS = [
 
 // Is this page load a Daily Challenge run? (bowl-builder.html?daily=1)
 const isDailyRun = !!(window.Daily && Daily.isRun());
+// The day's seeded twist, daily runs only: one parameter changes, same for everyone.
+const DAILY_TWIST = isDailyRun && Daily.twist ? Daily.twist() : null;
+const GOLDEN_EVERY = DAILY_TWIST && DAILY_TWIST.id === "golden" ? 10 : 25;
+const TWIST_SPEED =
+  DAILY_TWIST && DAILY_TWIST.id === "slow" ? 0.85 :
+  DAILY_TWIST && DAILY_TWIST.id === "fast" ? 1.15 : 1;
 // Duel runs (bowl-builder.html?duel=CODE) seed from the room instead, so both
 // players fight the exact same blocks. duel.js owns the realtime side.
 const isDuelRun = !isDailyRun && !!(window.PokeDuel && PokeDuel.active);
@@ -898,7 +904,7 @@ function spawnActive() {
     color: ingredient.base,
     dir: 1,
     // Every 25th block is golden: land it perfect for a +5 bonus.
-    golden: (state.placed.length + 1) % 25 === 0,
+    golden: (state.placed.length + 1) % GOLDEN_EVERY === 0,
   };
 }
 
@@ -1243,7 +1249,7 @@ function update(dt) {
   // for a few seconds. Capped together so stacking them stays playable.
   let sabMult = state.duelSpeedDrops > 0 ? 1.45 : 1;
   if (state.duelFrenzyUntil && performance.now() < state.duelFrenzyUntil) sabMult *= 1.55;
-  const speed = (cfg.speed + cfg.ramp * state.score) * Math.min(sabMult, 2);
+  const speed = (cfg.speed + cfg.ramp * state.score) * Math.min(sabMult, 2) * TWIST_SPEED;
 
   active.x += active.dir * speed * dt;
 
@@ -2200,7 +2206,8 @@ if (isDailyRun) {
     if (startBtn) startBtn.classList.add("hidden");
   } else if (sub) {
     sub.textContent =
-      "Everyone gets the same run today. You get one attempt.";
+      "Everyone gets the same run today. You get one attempt." +
+      (DAILY_TWIST ? " Today's twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
   }
   showStartScreen();
 }

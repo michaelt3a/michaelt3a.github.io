@@ -114,6 +114,7 @@
     ".duel-wait{font-weight:700;color:var(--star-deep,#8f6ef0);margin:0 0 .3rem}" +
     ".duel-series{margin:0 0 .9rem;font-weight:700;font-size:.9rem;color:#6b7a7a}" +
     ".duel-series.win{color:var(--star-deep,#8f6ef0);font-size:1rem}" +
+    ".duel-h2h{margin:-.5rem 0 .9rem;font-size:.8rem;color:#6b7a7a}" +
     "@keyframes duel-pulse{50%{opacity:.5}}.duel-wait i{animation:duel-pulse 1.2s ease-in-out infinite;font-style:normal}";
   document.head.appendChild(css);
 
@@ -195,6 +196,37 @@
 
   const GAME_LABEL = { bowl: "Bowl Builder", td: "Topping Drop", ps: "Poke Slice" }[PAGE_GAME];
 
+  // --- Head-to-head records ------------------------------------------------
+  // Lifetime record against each opponent, by name, kept locally like the
+  // rest of the wallet. Every finished duel game counts as one result.
+  const H2H_KEY = "pokeworks-duel-h2h";
+  function recordH2H(a, b) {
+    const name = (opp.name || "Player").trim();
+    const key = name.toLowerCase();
+    let all = {};
+    try { all = JSON.parse(localStorage.getItem(H2H_KEY)) || {}; } catch (e) { /* fresh book */ }
+    const r = all[key] || (all[key] = { name: name, w: 0, l: 0, t: 0, streak: 0, best: 0, games: {} });
+    r.name = name; // keep the latest capitalization
+    const g = r.games[PAGE_GAME] || (r.games[PAGE_GAME] = { w: 0, l: 0, t: 0 });
+    if (a > b) {
+      r.w++; g.w++;
+      r.streak++;
+      if (r.streak > r.best) r.best = r.streak;
+    } else if (a < b) {
+      r.l++; g.l++;
+      r.streak = 0;
+    } else {
+      r.t++; g.t++;
+      r.streak = 0;
+    }
+    r.last = Date.now();
+    try { localStorage.setItem(H2H_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ }
+    return r;
+  }
+  function fmtRec(x) {
+    return x.w + "-" + x.l + (x.t ? "-" + x.t : "");
+  }
+
   function showResult() {
     const a = mine.score;
     const b = opp.score;
@@ -216,6 +248,19 @@
       if (a > b) PokeAch.unlock("duel-win");
       if (s.clinched && s.me > s.them) PokeAch.unlock("duel-series");
     }
+    // The lifetime book against this opponent, updated with this game.
+    const rec = recordH2H(a, b);
+    const recGame = rec.games[PAGE_GAME];
+    const totalGames = rec.w + rec.l + rec.t;
+    let h2hLine = "";
+    if (totalGames > 1) {
+      const sameAsGame = totalGames === recGame.w + recGame.l + recGame.t;
+      h2hLine =
+        '<p class="duel-h2h">All-time vs ' + escapeHtml(rec.name) + ": " +
+        (sameAsGame ? fmtRec(rec) : fmtRec(recGame) + " here · " + fmtRec(rec) + " overall") +
+        (rec.streak >= 2 ? " · " + rec.streak + " wins in a row" : "") +
+        "</p>";
+    }
     const rematchUrl = "duel.html?room=" + nextCode(code) + "&game=" + PAGE_GAME;
     // The lobby's "run it back" chip remembers who you last fought and where.
     try {
@@ -229,6 +274,7 @@
       ({ td: "same drops for both", ps: "same fruit for both" }[PAGE_GAME] || "same blocks for both") +
       "</p>" +
       seriesLine +
+      h2hLine +
       '<div class="duel-score-row">' +
       '<span><b class="' + (a >= b ? "w" : "l") + '">' + a + "</b><br><small>" + escapeHtml(myName) + "</small></span>" +
       '<span class="vs">—</span>' +

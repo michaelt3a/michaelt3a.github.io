@@ -775,6 +775,39 @@ body {
   font-size: 0.76rem;
   color: var(--on-dark-muted);
 }
+/* The day's rule change, under the daily card note. */
+.dc-twist {
+  color: var(--gold, #ffd15a);
+}
+
+/* Pressed feedback on the hub's controls, matching the games' .btn:active. */
+.corner-btn:active,
+.hub-btn:active,
+.shop-buy:active,
+.sound-btn:active,
+.hub-surprise:active,
+.ch-swap:active,
+.duel-game:active,
+.hlb-game:active,
+.hlb-cat:active,
+.hlb-season:active,
+.dc-play:active {
+  transform: translateY(1px);
+}
+
+/* "Did you know?" — one small rotating fact per spot. */
+.pk-fact {
+  margin: 1.4rem auto 0;
+  max-width: 480px;
+  text-align: center;
+  color: var(--on-dark-muted);
+  font-size: 0.78rem;
+}
+.pk-fact-sheet {
+  margin: 0;
+  padding: 0 1.25rem 0.9rem;
+  text-align: left;
+}
 
 .dc-rank {
   flex: none;
