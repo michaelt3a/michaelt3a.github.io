@@ -434,6 +434,7 @@ let duelCanStart = false;
 // cosmetic and can't change an outcome.
 let rngIngredient = Math.random;
 let rngPowerup = Math.random;
+let rngBomb = Math.random; // null in duels: they have bomb sabotage already
 
 function randomFrom(keys) {
   return INGREDIENTS[keys[Math.floor(rngIngredient() * keys.length)]];
@@ -929,12 +930,15 @@ function startGame(difficulty) {
   if (isDailyRun) {
     rngIngredient = Daily.stream("bowl:ingredient");
     rngPowerup = Daily.stream("bowl:power");
+    rngBomb = Daily.stream("bowl:bomb");
   } else if (isDuelRun) {
     rngIngredient = PokeDuel.stream("ing");
     rngPowerup = PokeDuel.stream("power");
+    rngBomb = null;
   } else {
     rngIngredient = Math.random;
     rngPowerup = Math.random;
+    rngBomb = Math.random;
   }
   ensureAudio();
   state.running = true;
@@ -958,6 +962,9 @@ function startGame(difficulty) {
   state.baseIngredient = randomFrom(BASES);
   state.cam = { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 };
   state.goldenBonus = 0;
+  // Bombs land on a block-count schedule drawn up front, so seeded daily
+  // runs stay identical for everyone no matter how they play.
+  state.nextBombAt = rngBomb ? 12 + Math.floor(rngBomb() * 10) : Infinity;
   state.duelCharges = 0;
   state.duelNextChargeAt = 8;
   state.duelSpeedDrops = 0;
@@ -1251,6 +1258,7 @@ function dropActive() {
 
   spawnActive();
   notePerfectStreak(); // 3-in-a-row perfect streak earns a power-up
+  maybeSpawnBomb(); // the schedule says when; tap it or lose the top block
 }
 
 // --- Loop & rendering ---------------------------------------------------
@@ -1815,10 +1823,54 @@ function pickPowerType() {
   return c < 0.5 ? "expand" : "magnet";
 }
 
+// A bomb drops when the stack hits the next scheduled height. Tap it to
+// defuse it; let it fall and it takes the top block with it.
+function maybeSpawnBomb() {
+  if (!rngBomb || state.placed.length !== state.nextBombAt) return;
+  state.powerups.push({
+    x: 90 + rngBomb() * (W - 180),
+    y: -POWERUP_R - 12,
+    vy: POWERUP_FALL * 1.15, // falls a touch faster than the goodies
+    age: 0,
+    type: "bomb",
+  });
+  state.nextBombAt += 16 + Math.floor(rngBomb() * 14);
+}
+
+// The unattended bomb goes off: shards, shake, and the top block gone.
+// Never lethal — the stack keeps at least one block.
+function bombDetonate() {
+  if (state.placed.length >= 2) {
+    const b = state.placed.pop();
+    const topY = worldTopForIndex(state.placed.length);
+    spawnShard(b.x, topY, b.width / 2, b.color, -1);
+    spawnShard(b.x + b.width / 2, topY, b.width / 2, b.color, 1);
+    spawnLandParticles(b.x, b.x + b.width, topY + BLOCK_H, b.color);
+    setScore(state.placed.length + state.goldenBonus);
+    showToast("💣 It took your top block.");
+  } else {
+    showToast("💣 Just missed the stack.");
+  }
+  if (!REDUCED_MOTION) state.shake = 0.6;
+  playBombBoom();
+  buzz(60);
+}
+
+function playBombBoom() {
+  tone({ freq: 95, freqEnd: 34, type: "sawtooth", dur: 0.45, gain: 0.4 });
+  tone({ freq: 50, freqEnd: 28, type: "sine", dur: 0.5, gain: 0.35, delay: 0.03 });
+}
+
+function playDefuse() {
+  tone({ freq: 620, type: "square", dur: 0.05, gain: 0.14 });
+  tone({ freq: 420, type: "square", dur: 0.08, gain: 0.12, delay: 0.06 });
+}
+
 // Called after each drop: reward a power-up whenever the perfect streak reaches
 // a multiple of the requirement (state.combo counts consecutive perfects).
 function notePerfectStreak() {
-  if (state.powerups.length > 0) return; // one falling power-up at a time
+  // One falling power-up at a time; a falling bomb doesn't block the reward.
+  if (state.powerups.some((p) => p.type !== "bomb")) return;
   if (state.combo > 0 && state.combo % PERFECTS_PER_POWER === 0) {
     spawnPowerup(pickPowerType());
   }
@@ -1832,13 +1884,19 @@ function updatePowerups(dt) {
 
   for (let i = state.powerups.length - 1; i >= 0; i--) {
     const p = state.powerups[i];
+    if (p.type === "bomb" && p.y > H + POWERUP_R + 12) {
+      state.powerups.splice(i, 1);
+      bombDetonate();
+      continue;
+    }
     p.age += dt;
     p.y += p.vy * dt;
-    if (p.y > H + POWERUP_R + 12) state.powerups.splice(i, 1);
+    // Bombs aren't quietly discarded down here — the check at the top of the
+    // loop detonates them next frame instead.
+    if (p.type !== "bomb" && p.y > H + POWERUP_R + 12) state.powerups.splice(i, 1);
   }
 }
 
-// White disc + teal ring shared by every power-up glyph.
 // Each power-up wears its own color.
 const POWER_COLORS = {
   magnet: "#ee435b",
@@ -1846,6 +1904,7 @@ const POWER_COLORS = {
   saver: "#fd9f27",
   expand: "#8f6ef0",
   golden: "#ffd15a",
+  bomb: "#3a4348",
 };
 
 // The open aura behind a falling power-up: a soft glow, a slowly turning
@@ -2033,6 +2092,7 @@ function drawPowerups() {
     else if (p.type === "shield") drawShieldGlyph(p.x, p.y, gr);
     else if (p.type === "saver") drawSaverGlyph(p.x, p.y, gr);
     else if (p.type === "golden") drawGoldenGlyph(p.x, p.y, gr);
+    else if (p.type === "bomb") drawBombGlyph(p.x, p.y, gr, p.age);
     else drawExpandGlyph(p.x, p.y, gr);
     ctx.restore();
   }
@@ -2065,6 +2125,51 @@ function drawGoldenGlyph(x, y, r) {
   ctx.restore();
 }
 
+// The bomb: a black sphere with a lit, flickering fuse. Tap to defuse.
+function drawBombGlyph(x, y, r, age) {
+  ctx.save();
+  ctx.translate(x, y);
+  // fuse
+  ctx.strokeStyle = "#8a6a4a";
+  ctx.lineWidth = r * 0.12;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(r * 0.08, -r * 0.42);
+  ctx.quadraticCurveTo(r * 0.4, -r * 0.85, r * 0.6, -r * 0.62);
+  ctx.stroke();
+  // the spark, flickering
+  const fl = 0.55 + Math.sin(age * 22) * 0.45;
+  ctx.globalAlpha = fl;
+  ctx.fillStyle = "#ffd15a";
+  ctx.beginPath();
+  ctx.arc(r * 0.6, -r * 0.62, r * 0.13, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#ffd15a";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    ctx.moveTo(r * 0.6 + Math.cos(a) * r * 0.16, -r * 0.62 + Math.sin(a) * r * 0.16);
+    ctx.lineTo(r * 0.6 + Math.cos(a) * r * 0.26, -r * 0.62 + Math.sin(a) * r * 0.26);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  // cap, then the body over it
+  ctx.fillStyle = "#4a525a";
+  ctx.beginPath();
+  ctx.roundRect(-r * 0.14, -r * 0.6, r * 0.28, r * 0.2, 3);
+  ctx.fill();
+  ctx.fillStyle = "#2e3338";
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+  // highlight
+  ctx.fillStyle = "rgba(255,255,255,0.28)";
+  ctx.beginPath();
+  ctx.arc(-r * 0.18, -r * 0.18, r * 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 // Returns true if a power-up was collected at (px, py) — caller then skips the drop.
 function collectPowerupAt(px, py) {
   for (let i = 0; i < state.powerups.length; i++) {
@@ -2073,6 +2178,13 @@ function collectPowerupAt(px, py) {
     if ((px - p.x) ** 2 + (py - p.y) ** 2 <= hitR * hitR) {
       const type = p.type;
       state.powerups.splice(i, 1);
+      // A tapped bomb is defused: no reward, no damage, drop skipped.
+      if (type === "bomb") {
+        showToast("💣 Defused.");
+        playDefuse();
+        buzz(20);
+        return true;
+      }
       state.stats.powerups += 1;
       if (window.PokeAch && state.stats.powerups >= 5) PokeAch.unlock("bb-power5");
       applyPower(type);
