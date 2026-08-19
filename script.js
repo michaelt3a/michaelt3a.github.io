@@ -1839,28 +1839,65 @@ function updatePowerups(dt) {
 }
 
 // White disc + teal ring shared by every power-up glyph.
-function powerDisc(x, y, r) {
-  ctx.save();
-  ctx.shadowColor = "rgba(34,178,180,0.85)";
-  ctx.shadowBlur = 18;
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+// Each power-up wears its own color.
+const POWER_COLORS = {
+  magnet: "#ee435b",
+  shield: "#22b2b4",
+  saver: "#fd9f27",
+  expand: "#8f6ef0",
+  golden: "#ffd15a",
+};
 
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = "#22b2b4";
+// The open aura behind a falling power-up: a soft glow, a slowly turning
+// dashed halo, and three orbiting sparkles. No disc, no box.
+function powerAura(x, y, r, color, age) {
+  ctx.save();
+  const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 1.7);
+  g.addColorStop(0, color + "55");
+  g.addColorStop(1, color + "00");
+  ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.arc(x, y, r * 1.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = 0.7;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 10]);
+  ctx.lineDashOffset = -age * 26;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 1.18, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "#ffffff";
+  for (let i = 0; i < 3; i++) {
+    const a = age * 1.8 + (i * Math.PI * 2) / 3;
+    const sx = x + Math.cos(a) * r * 1.45;
+    const sy = y + Math.sin(a) * r * 1.45;
+    const tw = 0.5 + Math.sin(age * 5 + i * 2) * 0.5;
+    const s = 2.2 + tw * 2;
+    ctx.globalAlpha = 0.35 + tw * 0.6;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - s);
+    ctx.lineTo(sx + s * 0.4, sy - s * 0.4);
+    ctx.lineTo(sx + s, sy);
+    ctx.lineTo(sx + s * 0.4, sy + s * 0.4);
+    ctx.lineTo(sx, sy + s);
+    ctx.lineTo(sx - s * 0.4, sy + s * 0.4);
+    ctx.lineTo(sx - s, sy);
+    ctx.lineTo(sx - s * 0.4, sy - s * 0.4);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 // "grow" glyph: a little block with arrows pushing outward
 function drawExpandGlyph(x, y, r) {
   const bw = r * 0.5;
   const bh = r * 0.5;
-  ctx.fillStyle = "#ee435b";
+  ctx.fillStyle = "#8f6ef0"; // matches its purple aura
   ctx.beginPath();
   ctx.roundRect(x - bw / 2, y - bh / 2, bw, bh, 4);
   ctx.fill();
@@ -1982,12 +2019,22 @@ function drawPowerups() {
   for (const p of state.powerups) {
     const pulse = 1 + Math.sin(p.age * 6) * 0.06;
     const r = POWERUP_R * pulse;
-    powerDisc(p.x, p.y, r);
-    if (p.type === "magnet") drawMagnetGlyph(p.x, p.y, r);
-    else if (p.type === "shield") drawShieldGlyph(p.x, p.y, r);
-    else if (p.type === "saver") drawSaverGlyph(p.x, p.y, r);
-    else if (p.type === "golden") drawGoldenGlyph(p.x, p.y, r);
-    else drawExpandGlyph(p.x, p.y, r);
+    const color = POWER_COLORS[p.type] || "#22b2b4";
+    powerAura(p.x, p.y, r, color, p.age);
+    ctx.save();
+    // A gentle sway on the way down, and the glyph itself glows.
+    ctx.translate(p.x, p.y);
+    ctx.rotate(Math.sin(p.age * 3) * 0.1);
+    ctx.translate(-p.x, -p.y);
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 14;
+    const gr = r * 1.15; // glyphs grew once the disc went away
+    if (p.type === "magnet") drawMagnetGlyph(p.x, p.y, gr);
+    else if (p.type === "shield") drawShieldGlyph(p.x, p.y, gr);
+    else if (p.type === "saver") drawSaverGlyph(p.x, p.y, gr);
+    else if (p.type === "golden") drawGoldenGlyph(p.x, p.y, gr);
+    else drawExpandGlyph(p.x, p.y, gr);
+    ctx.restore();
   }
 }
 
