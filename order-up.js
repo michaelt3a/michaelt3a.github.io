@@ -909,6 +909,7 @@ function serve(c) {
   if (a.perfect) SFX.serve();
   else { SFX.serve(); SFX.remove(); } // a slightly sour note under the ring
   cashFloater(money, pay.tip, a.perfect);
+  serveFlash(a.perfect);
   if (c.special === "inspector") {
     // Pass or fail: the inspection is worth two reviews' weight either way.
     postReview(c, a.perfect
@@ -1024,6 +1025,15 @@ function renderPace() {
 }
 // A little "+$12" that floats up off the bowl when a serve pays out, with the
 // tip called out underneath so fast serves visibly pay better.
+// A ring pulses off the bowl on a serve: green for perfect, amber when the
+// bowl went out with mistakes.
+function serveFlash(perfect) {
+  if (!bowlWrapEl) return;
+  bowlWrapEl.classList.remove("serve-perfect", "serve-ok");
+  void bowlWrapEl.offsetWidth; // restart the animation
+  bowlWrapEl.classList.add(perfect ? "serve-perfect" : "serve-ok");
+}
+
 function cashFloater(money, tip, perfect) {
   if (!bowlWrapEl || money <= 0) return;
   const f = document.createElement("span");
@@ -1297,6 +1307,7 @@ function tutorialServe(c) {
   const a = bowlAccuracy(c);
   SFX.serve();
   cashFloater(20, 5, a.perfect); // a sample payout — nothing is banked in the tutorial
+  serveFlash(a.perfect);
   removeCustomer(c, "served");
   setTut(3);
   setTimeout(() => { if (S.tutorial) setTut(4); }, 1900);
@@ -1601,6 +1612,8 @@ function applyLive() {
   renderRating();
 }
 
+let justBoughtUpgrade = null; // the card pops once when its level goes up
+
 function renderShop() {
   if (!shopEl) return;
   bankEl.innerHTML = bankLineHTML();
@@ -1646,6 +1659,10 @@ function renderShop() {
     const cost = maxed ? 0 : u.costs[lvl];
     const card = document.createElement("div");
     card.className = "ou-up" + (maxed ? " maxed" : "");
+    if (key === justBoughtUpgrade) {
+      card.classList.add("just-bought");
+      justBoughtUpgrade = null;
+    }
     const pips = u.costs.map((_, i) => `<i class="${i < lvl ? "on" : ""}"></i>`).join("");
     card.innerHTML =
       `<span class="ou-up-icon">${u.icon}</span>` +
@@ -1665,6 +1682,7 @@ function renderShop() {
         if (T.bank < cost) return;
         T.bank -= cost;
         store().upgrades[key] = lvl + 1;
+        justBoughtUpgrade = key;
         saveTycoon();
         SFX.bell();
         if (window.PokeAch) PokeAch.unlock("ou-upgrade");

@@ -538,18 +538,21 @@ function renderChips() {
   }
 }
 
+let lastAdded = null; // the newest bowl chip pops in
+
 function renderContents() {
   contentsEl.innerHTML = "";
   const list = currentIngredientList();
   for (const { category, name } of list) {
     const chip = document.createElement("span");
-    chip.className = "content-chip";
+    chip.className = "content-chip" + (name === lastAdded ? " pop" : "");
     chip.style.setProperty("--cat", CATEGORY_COLOR[category]);
     chip.innerHTML = `${name} <span class="x">✕</span>`;
     chip.title = "Remove";
     chip.addEventListener("click", () => removeIngredient(category, name));
     contentsEl.appendChild(chip);
   }
+  lastAdded = null;
 }
 
 function refresh() {
@@ -572,6 +575,7 @@ function addIngredient(cat, name) {
     return;
   }
   selected[cat].add(name);
+  lastAdded = name;
   clearFeedback();
   SFX.add();
   refresh();

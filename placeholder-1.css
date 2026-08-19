@@ -321,6 +321,16 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .bowl-area.shake { animation: none; }
+  .content-chip.pop { animation: none; }
+}
+
+/* The chip you just added pops into the bowl list. */
+.content-chip.pop {
+  animation: chip-pop 0.25s ease;
+}
+@keyframes chip-pop {
+  from { transform: scale(0.6); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 @keyframes shake {

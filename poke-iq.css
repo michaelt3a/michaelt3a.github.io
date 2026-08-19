@@ -27,6 +27,10 @@
 }
 .iq-timer i.low {
   background: #ee435b;
+  animation: iq-low 0.5s ease-in-out infinite;
+}
+@keyframes iq-low {
+  50% { opacity: 0.55; }
 }
 
 .iq-progress {
@@ -79,6 +83,20 @@
   background: #39a85b;
   border-color: #39a85b;
   color: #fff;
+  animation: iq-pop 0.3s ease;
+}
+@keyframes iq-pop {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.04); }
+}
+/* A wrong pick (or a timeout) rattles the answer grid. */
+.iq-answers.iq-shake {
+  animation: iq-shake 0.32s ease;
+}
+@keyframes iq-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
 }
 .iq-answer.bad {
   background: #ee435b;
@@ -103,4 +121,7 @@
 @media (prefers-reduced-motion: reduce) {
   .iq-answer { transition: none; }
   .iq-timer i { transition: none; }
+  .iq-answer.good,
+  .iq-answers.iq-shake,
+  .iq-timer i.low { animation: none; }
 }

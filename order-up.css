@@ -442,6 +442,38 @@
   .ou-cust.urgent { animation: none; }
 }
 
+/* A serve pulses a ring off the bowl: green for perfect, amber for mistakes. */
+.ou-bowl-wrap.serve-perfect {
+  animation: ou-serve-good 0.5s ease;
+}
+.ou-bowl-wrap.serve-ok {
+  animation: ou-serve-ok 0.5s ease;
+}
+@keyframes ou-serve-good {
+  0% { box-shadow: 0 0 0 0 rgba(76, 175, 114, 0.65); }
+  100% { box-shadow: 0 0 0 26px rgba(76, 175, 114, 0); }
+}
+@keyframes ou-serve-ok {
+  0% { box-shadow: 0 0 0 0 rgba(240, 165, 44, 0.55); }
+  100% { box-shadow: 0 0 0 22px rgba(240, 165, 44, 0); }
+}
+
+/* A freshly bought upgrade pops once in the shop list. */
+.ou-up.just-bought {
+  animation: ou-bought 0.4s ease;
+}
+@keyframes ou-bought {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ou-bowl-wrap.serve-perfect,
+  .ou-bowl-wrap.serve-ok,
+  .ou-up.just-bought { animation: none; }
+}
+
 /* ---------------- Tycoon update: money, stars, tiers, Kai, shop ----------- */
 
 /* Restaurant rating in the HUD */

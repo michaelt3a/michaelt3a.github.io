@@ -209,6 +209,9 @@
     } else {
       state.streak = 0;
       feedbackEl.textContent = "Not this one.";
+      answersEl.classList.remove("iq-shake");
+      void answersEl.offsetWidth;
+      answersEl.classList.add("iq-shake");
       sfx("thunk");
     }
     setTimeout(next, 950);
@@ -221,6 +224,9 @@
     state.streak = 0;
     markAnswers(-1);
     feedbackEl.textContent = "Time!";
+    answersEl.classList.remove("iq-shake");
+    void answersEl.offsetWidth;
+    answersEl.classList.add("iq-shake");
     sfx("thunk");
     setTimeout(next, 950);
   }
