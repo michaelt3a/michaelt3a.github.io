@@ -34,6 +34,7 @@
   const NAME_KEY = "pokeworks-lb-name";
   const GOOD = ["🍣", "🥑", "🥒", "🍤", "🌽", "🥭", "🧅"];
   const BAD = ["🍴", "🌶️"];
+  const MAX_LIVES = 5; // 3 red hearts, plus up to 2 gold bonus hearts
   // OS-level "reduce motion" turns off the camera shake.
   const REDUCED_MOTION =
     window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -216,6 +217,20 @@
         glyph: "❤️",
         bad: false,
         heart: true,
+      });
+      return;
+    }
+    // At full health, a rare gold heart can push you PAST full — up to 5.
+    // Same rules as heals: normal runs only, nothing drawn from the stream.
+    if (!isDaily && !isDuel && state.lives >= 3 && state.lives < MAX_LIVES && Math.random() < 0.025) {
+      state.items.push({
+        x: 60 + Math.random() * (W - 120),
+        y: -30,
+        vy: fallSpeed() * 0.8,
+        spin: (Math.random() - 0.5) * 1.6,
+        glyph: "💛",
+        bad: false,
+        bonus: true,
       });
       return;
     }
@@ -521,9 +536,15 @@
           spawnSparks(it.x, BOWL_Y - 4, GOLD_JUICE, 14);
           sfx("chime");
         } else if (it.heart) {
-          state.lives = Math.min(3, state.lives + 1);
+          // Heals top you up to 3; they never touch gold bonus hearts.
+          if (state.lives < 3) state.lives++;
           state.floaters.push({ text: "+❤️", x: state.bowlX, y: BOWL_Y - 46, life: 0.9 });
           spawnSparks(it.x, BOWL_Y - 4, HEART_JUICE, 10);
+          sfx("chime");
+        } else if (it.bonus) {
+          if (state.lives < MAX_LIVES) state.lives++;
+          state.floaters.push({ text: "+💛", x: state.bowlX, y: BOWL_Y - 46, life: 0.9, color: "#ffd15a" });
+          spawnSparks(it.x, BOWL_Y - 4, GOLD_JUICE, 12);
           sfx("chime");
         } else if (it.bad) {
           state.lives--;
@@ -559,8 +580,8 @@
       }
       if (it.y > H + 40) {
         state.items.splice(i, 1);
-        // A missed heart or star is a shame, not a punishment.
-        if (!it.bad && !it.heart && !it.star) {
+        // A missed heart, gold heart, or star is a shame, not a punishment.
+        if (!it.bad && !it.heart && !it.star && !it.bonus) {
           state.combo = 0;
           state.lives--;
           state.flash = 0.35;
@@ -662,7 +683,11 @@
       ctx.globalAlpha = i < state.lives ? 1 : 0.18;
       ctx.fillText("❤️", 16 + i * 34, 30);
     }
+    // Bonus hearts past full show gold, tacked onto the row.
     ctx.globalAlpha = 1;
+    for (let i = 3; i < state.lives; i++) {
+      ctx.fillText("💛", 16 + i * 34, 30);
+    }
 
     ctx.textAlign = "center";
     for (const f of state.floaters) {
@@ -740,6 +765,9 @@
       },
       heart: () => {
         if (state.running) state.items.push({ x: 200 + Math.random() * 400, y: -30, vy: 260, spin: 0.5, glyph: "❤️", bad: false, heart: true });
+      },
+      goldHeart: () => {
+        if (state.running) state.items.push({ x: 200 + Math.random() * 400, y: -30, vy: 260, spin: 0.5, glyph: "💛", bad: false, bonus: true });
       },
       streak: () => { if (state.running) state.combo = 8; },
     });

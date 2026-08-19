@@ -325,6 +325,7 @@
       btn("Start fever", registry.td.fever);
       btn("Drop a star", registry.td.star);
       btn("Drop a heart", registry.td.heart);
+      btn("Drop a gold heart", registry.td.goldHeart);
       btn("Streak of 8", registry.td.streak);
     }
     if (registry.ps) {
