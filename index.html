@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=51" />
+  <link rel="stylesheet" href="menu.css?v=52" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -521,13 +521,66 @@
       });
     }
 
-    // 🎲 Surprise me: one tap opens a random customer game.
+    // 🎲 Surprise me: a roulette over the customer-game cards. The highlight
+    // hops card to card, fast at first, easing to a stop on the winner, then
+    // the page follows it there.
     {
       const btn = document.getElementById("hub-surprise");
+      const PAGES = ["bowl-builder.html", "order-up.html", "word-bowl.html",
+        "topping-drop.html", "bowl-rush.html", "poke-slice.html"];
+      let spinning = false;
+      let audio = null;
+      // Short blip per hop; the patched AudioContext keeps it behind the mute switch.
+      function blip(freq, dur, vol) {
+        try {
+          if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = audio.createOscillator();
+          const gain = audio.createGain();
+          osc.type = "triangle";
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(vol, audio.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + dur);
+          osc.connect(gain).connect(audio.destination);
+          osc.start();
+          osc.stop(audio.currentTime + dur);
+        } catch (e) { /* no sound is fine */ }
+      }
       if (btn) btn.addEventListener("click", () => {
-        const pages = ["bowl-builder.html", "order-up.html", "word-bowl.html",
-          "topping-drop.html", "bowl-rush.html", "poke-slice.html"];
-        location.href = pages[Math.floor(Math.random() * pages.length)];
+        if (spinning) return;
+        const entries = PAGES
+          .map((p) => ({ page: p, el: document.querySelector('.card[href="' + p + '"]') }))
+          .filter((e) => e.el);
+        if (!entries.length) return;
+        const n = entries.length;
+        const target = Math.floor(Math.random() * n);
+        spinning = true;
+        btn.disabled = true;
+        const land = () => {
+          const won = entries[target];
+          won.el.classList.add("spin-won");
+          blip(660, 0.25, 0.06);
+          won.el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          setTimeout(() => { location.href = won.page; }, 700);
+        };
+        // Reduced motion: no hopping, just light up the winner and go.
+        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          land();
+          return;
+        }
+        // Two full laps plus the distance to the winner; hop delays ease out
+        // on a cubic so it flies early and crawls at the end (~2.5s total).
+        const hops = n * 2 + target + 1;
+        let i = 0;
+        const step = () => {
+          if (i > 0) entries[(i - 1) % n].el.classList.remove("spin-on");
+          if (i >= hops) { land(); return; }
+          entries[i % n].el.classList.add("spin-on");
+          blip(340, 0.04, 0.03);
+          i++;
+          const t = i / (hops - 1);
+          setTimeout(step, 55 + 420 * t * t * t);
+        };
+        step();
       });
     }
 

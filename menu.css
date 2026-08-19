@@ -384,6 +384,31 @@ body {
   color: var(--on-dark);
   border-color: var(--star-color, var(--on-dark-muted));
 }
+.hub-surprise:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Surprise-me roulette: the moving highlight, then the landing pop. */
+.card.spin-on {
+  border-color: var(--star-color, var(--accent));
+  box-shadow: 0 0 0 3px var(--star-dim, rgba(255, 209, 90, 0.25)), 0 0 22px var(--star-glow, rgba(255, 209, 90, 0.45));
+  transform: scale(1.02);
+  transition-duration: 0.05s;
+}
+.card.spin-won {
+  border-color: var(--star-color, var(--accent));
+  box-shadow: 0 0 0 3px var(--star-color, var(--accent)), 0 0 30px var(--star-glow, rgba(255, 209, 90, 0.45));
+  animation: spin-won-pop 0.45s ease;
+}
+@keyframes spin-won-pop {
+  0% { transform: scale(1.02); }
+  40% { transform: scale(1.05); }
+  100% { transform: scale(1.02); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card.spin-won { animation: none; }
+}
 
 /* Countdown on the hourly challenge heading. */
 .ch-hour-left {
