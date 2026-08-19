@@ -82,5 +82,19 @@
       tone(311, 0.14, "triangle", 0.2, null, 0.13);
       tone(262, 0.24, "triangle", 0.2, null, 0.26);
     },
+    // a new personal best: rising major arpeggio
+    best: function () {
+      tone(523, 0.1, "triangle", 0.2);
+      tone(659, 0.1, "triangle", 0.2, null, 0.09);
+      tone(784, 0.22, "triangle", 0.22, null, 0.18);
+      tone(1046, 0.3, "sine", 0.16, null, 0.28);
+    },
+    // daily challenge finished: a short settled jingle
+    jingle: function () {
+      tone(659, 0.12, "sine", 0.18);
+      tone(784, 0.12, "sine", 0.18, null, 0.11);
+      tone(659, 0.1, "sine", 0.14, null, 0.22);
+      tone(880, 0.32, "sine", 0.18, null, 0.32);
+    },
   };
 })();

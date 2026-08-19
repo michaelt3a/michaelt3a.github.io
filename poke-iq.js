@@ -33,8 +33,13 @@
   const NAME_KEY = "pokeworks-lb-name";
   const ROUND = 10; // questions per round
   const isDaily = window.Daily && Daily.isRun();
-  // The day's seeded twist, daily runs only: one parameter changes, same for everyone.
-  const DAILY_TWIST = isDaily && Daily.twist ? Daily.twist() : null;
+  // Practice: yesterday's questions and twist, no attempt, no points, no board.
+  const isPractice = !isDaily && !!(window.Daily && Daily.isPractice &&
+    Daily.isPractice() && Daily.gameFor(Daily.yesterday()).id === "iq");
+  // The day's seeded twist (or yesterday's, when practicing).
+  const DAILY_TWIST =
+    isDaily && Daily.twist ? Daily.twist() :
+    isPractice ? Daily.twist(Daily.yesterday()) : null;
   const SECONDS = DAILY_TWIST && DAILY_TWIST.id === "quick" ? 7 : 10; // per question
   const BONUS_MULT = DAILY_TWIST && DAILY_TWIST.id === "bonus" ? 2 : 1;
 
@@ -144,7 +149,7 @@
   // The daily deck draws everything from the seeded stream, so the whole
   // round is identical for everyone before anyone answers.
   function buildDeck() {
-    const rng = isDaily ? Daily.stream("iq:deck") : Math.random;
+    const rng = isDaily || isPractice ? Daily.stream("iq:deck") : Math.random;
     const order = QUESTIONS.map((_, i) => i);
     for (let i = order.length - 1; i > 0; i--) {
       const j = Math.floor(rng() * (i + 1));
@@ -319,7 +324,7 @@
       if (state.bestStreak >= 10) PokeAch.unlock("iq-streak10");
     }
     // Feed the round into today's shop challenges (points for the Rewards Shop).
-    if (window.PokeChallenges) {
+    if (window.PokeChallenges && !isPractice) {
       PokeChallenges.report("iq", {
         score: state.score,
         correct: state.correct,
@@ -341,6 +346,7 @@
     if (isDaily) {
       // One attempt: post to the day's board; the +50 pts land via the hub.
       Daily.complete(state.score);
+      sfx("jingle");
       playAgainBtn.hidden = true;
       lbName.value = loadLbName();
       lbEntry.classList.remove("hidden");
@@ -348,7 +354,7 @@
       playAgainBtn.hidden = false;
       let pts = 0;
       const prevBest = best;
-      if (state.score > best) {
+      if (state.score > best && !isPractice) {
         // Scores run 0-1500, so scale the new-best award down to the same
         // capped range the other arcade games pay.
         pts = Math.min(20, Math.max(1, Math.round((state.score - best) / 25)));
@@ -361,6 +367,7 @@
       if (pts > 0) {
         pointsLine.hidden = false;
         pointsLine.textContent = "🏆 New best! +" + pts + " points";
+        sfx("best");
       }
     }
     screenStart.classList.add("hidden");
@@ -397,8 +404,17 @@
     b.className = "btn btn-secondary";
     b.textContent = "Share score";
     b.addEventListener("click", () => {
-      const text = "Pokeworks Daily · Poke IQ · " + state.score + " pts · " +
-        location.origin + location.pathname.replace(/[^/]*$/, "");
+      const url = location.origin + location.pathname.replace(/[^/]*$/, "");
+      if (window.PokeShareCard) {
+        PokeShareCard.share({
+          game: "Poke IQ",
+          score: state.score + " pts",
+          date: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          url: url,
+        }).then((r) => { if (r === "copied") b.textContent = "✓ Copied"; });
+        return;
+      }
+      const text = "Pokeworks Daily · Poke IQ · " + state.score + " pts · " + url;
       if (navigator.share) {
         navigator.share({ text: text }).catch(() => { /* backed out, fine */ });
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -424,6 +440,13 @@
     if (qh && !isDaily && window.PokeChallenges && PokeChallenges.startHint) {
       qh.textContent = PokeChallenges.startHint("iq");
     }
+  }
+
+  // Practice chrome: yesterday's questions, clearly marked.
+  if (isPractice) {
+    startTitle.textContent = "📚 Yesterday's Daily";
+    startSub.textContent = "Yesterday's questions, for practice. No points." +
+      (DAILY_TWIST ? " Twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
   }
 
   // Daily Challenge chrome: launched as poke-iq.html?daily=1.

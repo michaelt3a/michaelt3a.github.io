@@ -7,6 +7,16 @@
   const ok = !!SB.url && !!SB.anonKey && !/YOUR_/.test(SB.url) && !/YOUR_/.test(SB.anonKey);
 
   function hit(kind, game) {
+    // Every play also stamps a local last-played date for the hub cards.
+    if (kind === "play" || kind === "daily") {
+      try {
+        const d = new Date();
+        const key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        const m = JSON.parse(localStorage.getItem("pokeworks-lastplay")) || {};
+        m[game] = key;
+        localStorage.setItem("pokeworks-lastplay", JSON.stringify(m));
+      } catch (e) { /* ignore */ }
+    }
     if (!ok) return;
     fetch(SB.url + "/rest/v1/rpc/bump_event", {
       method: "POST",

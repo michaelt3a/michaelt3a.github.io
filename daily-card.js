@@ -49,6 +49,15 @@
           '<div class="dc-podium" id="dc-podium"></div>'
         : '<a class="dc-play" href="' + c.game.file + '?daily=1">Play ›</a>');
 
+    // Yesterday's run can be replayed for practice in the games that support
+    // seeded replays. Clearly no points.
+    const yGame = Daily.gameFor(Daily.yesterday());
+    if (["bowl", "td", "ps", "iq"].indexOf(yGame.id) !== -1) {
+      el.innerHTML +=
+        '<a class="dc-practice" href="' + yGame.file + '?practice=yesterday">' +
+        "Practice yesterday's " + escapeHtml(yGame.label) + " · no points ›</a>";
+    }
+
     // A live play streak that hasn't been fed today gets one quiet warning
     // in the evening.
     const risk = window.PokeChallenges && PokeChallenges.streakAtRisk && PokeChallenges.streakAtRisk();

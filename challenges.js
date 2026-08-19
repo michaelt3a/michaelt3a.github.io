@@ -525,6 +525,7 @@
       box = document.createElement("div");
       box.id = "pk-pts-toasts";
       box.className = "pk-pts-toasts";
+      box.setAttribute("aria-live", "polite"); // screen readers hear the award
       document.body.appendChild(box);
     }
     const el = document.createElement("div");

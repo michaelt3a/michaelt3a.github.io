@@ -72,9 +72,18 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  // An independent generator per stream name, seeded from the date.
+  // Practice mode: ?practice=yesterday replays yesterday's seed with no
+  // attempt, no board post, and no points. Streams follow the practice date.
+  function isPractice() {
+    try { return new URLSearchParams(location.search).get("practice") === "yesterday"; }
+    catch (e) { return false; }
+  }
+
+  // An independent generator per stream name, seeded from the date (or from
+  // yesterday when practicing yesterday's run).
   function stream(name) {
-    return mulberry32(xmur3(today() + ":" + name)());
+    const d = isPractice() ? yesterday() : today();
+    return mulberry32(xmur3(d + ":" + name)());
   }
 
   // --- Daily twists ----------------------------------------------------------
@@ -246,7 +255,7 @@
   }
 
   window.Daily = {
-    GAMES, challenge, gameFor, stream, twist, isRun, isTodaysGame,
+    GAMES, challenge, gameFor, stream, twist, isRun, isPractice, isTodaysGame,
     isDone, result, complete, streak,
     submit, board, today, yesterday,
   };

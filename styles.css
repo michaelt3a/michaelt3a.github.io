@@ -784,6 +784,12 @@ body.duel-mode .stage {
   transform: translateY(1px);
 }
 
+/* Keyboard users get a clear focus ring in the site's accent. */
+:focus-visible {
+  outline: 2px solid var(--star-color, #ffd15a);
+  outline-offset: 2px;
+}
+
 /* The one-line quest target on game start screens. */
 .quest-hint {
   margin: -0.5rem 0 1rem;

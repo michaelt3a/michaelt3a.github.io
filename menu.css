@@ -709,6 +709,17 @@ body {
   border-radius: 999px;
 }
 
+/* Today's finished daily wears this in the other corner. */
+.badge-daily {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(6, 10, 12, 0.7);
+  color: var(--gold, #ffd15a);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 /* The freshest game wears this in its banner corner (data-latest picks which). */
 .badge-new {
   position: absolute;
@@ -815,6 +826,59 @@ body {
 .jb-chip:hover {
   color: var(--on-dark);
   border-color: var(--star-color, var(--on-dark-muted));
+}
+
+/* The launch handoff: game name and one line while the page turns over. */
+.launch-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 10, 12, 0.92);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+.launch-veil.on {
+  opacity: 1;
+}
+.launch-card {
+  text-align: center;
+  color: var(--on-dark);
+  transform: translateY(10px);
+  transition: transform 0.3s ease;
+}
+.launch-veil.on .launch-card {
+  transform: none;
+}
+.launch-card strong {
+  display: block;
+  font-size: 2.1rem;
+  letter-spacing: -0.01em;
+}
+.launch-card span {
+  color: var(--on-dark-muted);
+  font-size: 0.95rem;
+}
+
+/* Keyboard users get a clear focus ring in the site's accent. */
+:focus-visible {
+  outline: 2px solid var(--star-color, #ffd15a);
+  outline-offset: 2px;
+}
+
+/* Yesterday's-run practice link on the daily card. */
+.dc-practice {
+  flex: 1 1 100%;
+  margin-top: 0.45rem;
+  color: var(--on-dark-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.dc-practice:hover {
+  color: var(--on-dark);
 }
 
 /* Evening streak warning on the daily card. */

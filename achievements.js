@@ -104,6 +104,7 @@
       el = document.createElement("div");
       el.id = "pk-ach-toasts";
       el.className = "pk-ach-toasts";
+      el.setAttribute("aria-live", "polite"); // screen readers hear the unlock
       document.body.appendChild(el);
     }
     return el;

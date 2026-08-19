@@ -45,8 +45,13 @@
 
   const wantsDaily = !!(window.Daily && Daily.isRun());
   const isDaily = wantsDaily && Daily.isTodaysGame("ps") && !Daily.result();
-  // The day's seeded twist, daily runs only: one parameter changes, same for everyone.
-  const DAILY_TWIST = isDaily && Daily.twist ? Daily.twist() : null;
+  // Practice: yesterday's seed and twist, no attempt, no points, no board.
+  const isPractice = !wantsDaily && !!(window.Daily && Daily.isPractice &&
+    Daily.isPractice() && Daily.gameFor(Daily.yesterday()).id === "ps");
+  // The day's seeded twist (or yesterday's, when practicing).
+  const DAILY_TWIST =
+    isDaily && Daily.twist ? Daily.twist() :
+    isPractice ? Daily.twist(Daily.yesterday()) : null;
   const GOLD_CHANCE = DAILY_TWIST && DAILY_TWIST.id === "gold" ? 0.12 : 0.05;
   const WILD_EVERY = DAILY_TWIST && DAILY_TWIST.id === "frenzy" ? 25 : 40;
   const EXTRA_TOSS = DAILY_TWIST && DAILY_TWIST.id === "bigtoss";
@@ -86,6 +91,10 @@
       startSub.textContent = "Everyone gets the same toss order today. You get one attempt." +
         (DAILY_TWIST ? " Today's twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
     }
+  } else if (isPractice) {
+    startTitle.textContent = "📚 Yesterday's Daily";
+    startSub.textContent = "Yesterday's run, for practice. No points." +
+      (DAILY_TWIST ? " Twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
   }
 
   const ITEM_SIZE = 52; // glyph font size; hit radius scales with it
@@ -314,7 +323,7 @@
     pauseBtn.style.display = "";
     pauseBtn.textContent = "⏸";
     trailRGB = window.PokeSkins ? PokeSkins.active("blade").trail : "255,255,255";
-    rng = isDaily ? Daily.stream("ps:wave") : isDuel ? PokeDuel.stream("ps:wave") : Math.random;
+    rng = isDaily || isPractice ? Daily.stream("ps:wave") : isDuel ? PokeDuel.stream("ps:wave") : Math.random;
     overlay.classList.add("hidden");
     if (window.PokeStreak) PokeStreak.mark();
     if (window.PokeTrack) PokeTrack.hit(isDaily ? "daily" : "play", "slice");
@@ -361,7 +370,7 @@
       }
     } catch (e) { /* ignore */ }
     // Feed the run into today's shop challenges (points for the Rewards Shop).
-    if (window.PokeChallenges) {
+    if (window.PokeChallenges && !isPractice) {
       PokeChallenges.report("ps", {
         score: state.score,
         combo: state.bestStroke,
@@ -392,6 +401,7 @@
 
     if (isDaily) {
       Daily.complete(state.score);
+      sfx("jingle");
       playAgainBtn.hidden = true;
       lbName.value = loadLbName();
       lbEntry.classList.remove("hidden");
@@ -399,7 +409,7 @@
       playAgainBtn.hidden = false;
       let pts = 0;
       const prevBest = best;
-      if (state.score > best) {
+      if (state.score > best && !isPractice) {
         pts = Math.min(20, state.score - best);
         best = state.score;
         try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* ignore */ }
@@ -410,6 +420,7 @@
       if (pts > 0) {
         pointsLine.hidden = false;
         pointsLine.textContent = "🏆 New best! +" + pts + " points";
+        sfx("best");
       }
     }
     screenStart.classList.add("hidden");
@@ -442,8 +453,17 @@
     b.className = "btn btn-secondary";
     b.textContent = "Share score";
     b.addEventListener("click", () => {
-      const text = "Pokeworks Daily · Poke Slice · " + state.score + " slices · " +
-        location.origin + location.pathname.replace(/[^/]*$/, "");
+      const url = location.origin + location.pathname.replace(/[^/]*$/, "");
+      if (window.PokeShareCard) {
+        PokeShareCard.share({
+          game: "Poke Slice",
+          score: state.score + " slices",
+          date: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          url: url,
+        }).then((r) => { if (r === "copied") b.textContent = "✓ Copied"; });
+        return;
+      }
+      const text = "Pokeworks Daily · Poke Slice · " + state.score + " slices · " + url;
       if (navigator.share) {
         navigator.share({ text: text }).catch(() => { /* backed out, fine */ });
       } else if (navigator.clipboard && navigator.clipboard.writeText) {

@@ -413,8 +413,13 @@ const TOPPINGS = [
 
 // Is this page load a Daily Challenge run? (bowl-builder.html?daily=1)
 const isDailyRun = !!(window.Daily && Daily.isRun());
-// The day's seeded twist, daily runs only: one parameter changes, same for everyone.
-const DAILY_TWIST = isDailyRun && Daily.twist ? Daily.twist() : null;
+// Practice: yesterday's seed and twist, no best, no points, no board.
+const isPracticeRun = !isDailyRun && !!(window.Daily && Daily.isPractice &&
+  Daily.isPractice() && Daily.gameFor(Daily.yesterday()).id === "bowl");
+// The day's seeded twist (or yesterday's, when practicing).
+const DAILY_TWIST =
+  isDailyRun && Daily.twist ? Daily.twist() :
+  isPracticeRun ? Daily.twist(Daily.yesterday()) : null;
 const GOLDEN_EVERY = DAILY_TWIST && DAILY_TWIST.id === "golden" ? 10 : 25;
 const TWIST_SPEED =
   DAILY_TWIST && DAILY_TWIST.id === "slow" ? 0.85 :
@@ -935,6 +940,10 @@ function startGame(difficulty) {
     rngIngredient = PokeDuel.stream("ing");
     rngPowerup = PokeDuel.stream("power");
     rngBomb = null;
+  } else if (isPracticeRun) {
+    rngIngredient = Daily.stream("bowl:ingredient"); // streams follow yesterday
+    rngPowerup = Daily.stream("bowl:power");
+    rngBomb = Daily.stream("bowl:bomb");
   } else {
     rngIngredient = Math.random;
     rngPowerup = Math.random;
@@ -994,7 +1003,7 @@ function endGame() {
   clearPowerups();
 
   const prevBest = state.highScore;
-  const isNewBest = updateHighScore();
+  const isNewBest = isPracticeRun ? false : updateHighScore();
   buzz(80);
 
   const quip = pickQuip(state.score, isNewBest);
@@ -1016,7 +1025,8 @@ function endGame() {
   if (gsPower) gsPower.textContent = state.stats.powerups;
 
   // Feed the run into today's shop challenges (points for the Rewards Shop).
-  if (window.PokeChallenges) {
+  // Practice runs stay out of the economy entirely.
+  if (window.PokeChallenges && !isPracticeRun) {
     PokeChallenges.report("bowl", {
       score: state.score,
       combo: state.stats.bestCombo,
@@ -2482,8 +2492,19 @@ function drawSplat() {
 // The next quest worth chasing, on the start screen (normal runs only).
 {
   const qh = document.getElementById("quest-hint");
-  if (qh && !isDailyRun && !isDuelRun && window.PokeChallenges && PokeChallenges.startHint) {
+  if (qh && !isDailyRun && !isDuelRun && !isPracticeRun && window.PokeChallenges && PokeChallenges.startHint) {
     qh.textContent = PokeChallenges.startHint("bowl");
+  }
+}
+
+// Practice chrome: yesterday's run, clearly marked.
+if (isPracticeRun) {
+  const title = screenStart.querySelector(".overlay-title");
+  const sub = screenStart.querySelector(".overlay-subtitle");
+  if (title) title.textContent = "📚 Yesterday's Daily";
+  if (sub) {
+    sub.textContent = "Yesterday's run, for practice. No points." +
+      (DAILY_TWIST ? " Twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
   }
 }
 

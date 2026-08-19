@@ -57,8 +57,13 @@
   // so, it's actually Topping Drop's day, and today's attempt isn't spent.
   const wantsDaily = !!(window.Daily && Daily.isRun());
   const isDaily = wantsDaily && Daily.isTodaysGame("td") && !Daily.result();
-  // The day's seeded twist, daily runs only: one parameter changes, same for everyone.
-  const DAILY_TWIST = isDaily && Daily.twist ? Daily.twist() : null;
+  // Practice: yesterday's seed and twist, no attempt, no points, no board.
+  const isPractice = !wantsDaily && !!(window.Daily && Daily.isPractice &&
+    Daily.isPractice() && Daily.gameFor(Daily.yesterday()).id === "td");
+  // The day's seeded twist (or yesterday's, when practicing).
+  const DAILY_TWIST =
+    isDaily && Daily.twist ? Daily.twist() :
+    isPractice ? Daily.twist(Daily.yesterday()) : null;
   const STAR_CHANCE = DAILY_TWIST && DAILY_TWIST.id === "stars" ? 0.1 : 0.04;
   const FEVER_EVERY = DAILY_TWIST && DAILY_TWIST.id === "fever" ? 7 : 10;
   const SPAWN_MULT = DAILY_TWIST && DAILY_TWIST.id === "downpour" ? 0.8 : 1;
@@ -98,6 +103,10 @@
       startSub.textContent = "Everyone gets the same drops today. You get one attempt." +
         (DAILY_TWIST ? " Today's twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
     }
+  } else if (isPractice) {
+    startTitle.textContent = "📚 Yesterday's Daily";
+    startSub.textContent = "Yesterday's run, for practice. No points." +
+      (DAILY_TWIST ? " Twist: " + DAILY_TWIST.label + ". " + DAILY_TWIST.desc : "");
   }
 
   const state = {
@@ -208,7 +217,7 @@
     // Stray hearts heal in normal runs. Daily and duel runs skip them (and
     // draw nothing extra from the stream) so the seeded rain stays identical
     // for every player.
-    if (!isDaily && !isDuel && state.lives < 3 && Math.random() < 0.08) {
+    if (!isDaily && !isDuel && !isPractice && state.lives < 3 && Math.random() < 0.08) {
       state.items.push({
         x: 60 + Math.random() * (W - 120),
         y: -30,
@@ -222,7 +231,7 @@
     }
     // At full health, a rare gold heart can push you PAST full — up to 5.
     // Same rules as heals: normal runs only, nothing drawn from the stream.
-    if (!isDaily && !isDuel && state.lives >= 3 && state.lives < MAX_LIVES && Math.random() < 0.025) {
+    if (!isDaily && !isDuel && !isPractice && state.lives >= 3 && state.lives < MAX_LIVES && Math.random() < 0.025) {
       state.items.push({
         x: 60 + Math.random() * (W - 120),
         y: -30,
@@ -285,7 +294,7 @@
     screenPaused.classList.add("hidden");
     pauseBtn.style.display = "";
     pauseBtn.textContent = "⏸";
-    rng = isDaily ? Daily.stream("td:spawn") : isDuel ? PokeDuel.stream("td:spawn") : Math.random;
+    rng = isDaily || isPractice ? Daily.stream("td:spawn") : isDuel ? PokeDuel.stream("td:spawn") : Math.random;
     overlay.classList.add("hidden");
     if (window.PokeStreak) PokeStreak.mark();
     if (window.PokeTrack) PokeTrack.hit(isDaily ? "daily" : "play", "topping");
@@ -327,8 +336,17 @@
     b.className = "btn btn-secondary";
     b.textContent = "Share score";
     b.addEventListener("click", () => {
-      const text = "Pokeworks Daily · Topping Drop · " + state.score + " catches · " +
-        location.origin + location.pathname.replace(/[^/]*$/, "");
+      const url = location.origin + location.pathname.replace(/[^/]*$/, "");
+      if (window.PokeShareCard) {
+        PokeShareCard.share({
+          game: "Topping Drop",
+          score: state.score + " catches",
+          date: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          url: url,
+        }).then((r) => { if (r === "copied") b.textContent = "✓ Copied"; });
+        return;
+      }
+      const text = "Pokeworks Daily · Topping Drop · " + state.score + " catches · " + url;
       if (navigator.share) {
         navigator.share({ text: text }).catch(() => { /* backed out, fine */ });
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -352,7 +370,8 @@
       }
     } catch (e) { /* ignore */ }
     // Feed the run into today's shop challenges (points for the Rewards Shop).
-    if (window.PokeChallenges) {
+    // Practice runs stay out of the economy entirely.
+    if (window.PokeChallenges && !isPractice) {
       PokeChallenges.report("td", {
         score: state.score,
         combo: state.bestCombo,
@@ -384,6 +403,7 @@
     if (isDaily) {
       // One attempt: post to the day's board; the +50 pts land via the hub.
       Daily.complete(state.score);
+      sfx("jingle");
       playAgainBtn.hidden = true;
       lbName.value = loadLbName();
       lbEntry.classList.remove("hidden");
@@ -391,7 +411,7 @@
       playAgainBtn.hidden = false;
       let pts = 0;
       const prevBest = best;
-      if (state.score > best) {
+      if (state.score > best && !isPractice) {
         pts = Math.min(20, state.score - best);
         best = state.score;
         try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* ignore */ }
@@ -402,6 +422,7 @@
       if (pts > 0) {
         pointsLine.hidden = false;
         pointsLine.textContent = "🏆 New best! +" + pts + " points";
+        sfx("best");
       }
     }
     screenStart.classList.add("hidden");
