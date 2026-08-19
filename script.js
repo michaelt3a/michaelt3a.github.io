@@ -470,6 +470,7 @@ const state = {
   placed: [], // ingredients in the bowl: { x, width, color, landAnim }, index 0 = floor
   active: null, // the moving ingredient: { x, width, color, dir }
   particles: [], // splash bits (world space)
+  rings: [], // perfect-landing blooms (world space)
   shards: [], // trimmed overhang tumbling away (world space)
   powerups: [], // falling power-ups (screen/canvas space): { x, y, vy, age, type }
   toastTimer: 0, // seconds remaining on the collect toast
@@ -671,6 +672,11 @@ function spawnShard(x, topY, width, color, dir) {
   });
 }
 
+// A ring that blooms out of a perfect landing and fades.
+function spawnRing(x, y, color, maxR) {
+  state.rings.push({ x: x, y: y, r: 10, color: color, maxR: maxR, life: 0.35, maxLife: 0.35 });
+}
+
 function updateEffects(dt) {
   for (let i = state.particles.length - 1; i >= 0; i--) {
     const p = state.particles[i];
@@ -679,6 +685,12 @@ function updateEffects(dt) {
     p.y += p.vy * dt;
     p.life -= dt;
     if (p.life <= 0) state.particles.splice(i, 1);
+  }
+  for (let i = state.rings.length - 1; i >= 0; i--) {
+    const g = state.rings[i];
+    g.r += (g.maxR - g.r) * Math.min(1, dt * 12);
+    g.life -= dt;
+    if (g.life <= 0) state.rings.splice(i, 1);
   }
   for (let i = state.shards.length - 1; i >= 0; i--) {
     const s = state.shards[i];
@@ -936,6 +948,7 @@ function startGame(difficulty) {
 
   state.placed = [];
   state.particles = [];
+  state.rings = [];
   state.shards = [];
   state.floaters = [];
   state.shake = 0;
@@ -1206,6 +1219,10 @@ function dropActive() {
     playPerfect(state.combo);
     buzz(12);
     addFloater(state.combo > 1 ? `Perfect x${state.combo}!` : "Perfect!", "#fd9f27", midX, topY);
+    // The bloom grows with the combo, gold on a golden block.
+    spawnRing(midX, activeTopWorld + BLOCK_H / 2,
+      active.golden ? "#ffd15a" : "#fd9f27",
+      44 + Math.min(state.combo, 10) * 5);
   } else {
     playLand();
     if (!REDUCED_MOTION) state.shake = Math.max(state.shake, 0.14); // rough landing rattles the camera
@@ -1502,6 +1519,14 @@ function drawParticles() {
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
     ctx.fill();
+  }
+  for (const g of state.rings) {
+    ctx.globalAlpha = Math.max(0, g.life / g.maxLife) * 0.9;
+    ctx.strokeStyle = g.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+    ctx.stroke();
   }
   ctx.globalAlpha = 1;
 }

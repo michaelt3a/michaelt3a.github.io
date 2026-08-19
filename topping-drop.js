@@ -34,6 +34,21 @@
   const NAME_KEY = "pokeworks-lb-name";
   const GOOD = ["🍣", "🥑", "🥒", "🍤", "🌽", "🥭", "🧅"];
   const BAD = ["🍴", "🌶️"];
+  // OS-level "reduce motion" turns off the camera shake.
+  const REDUCED_MOTION =
+    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Each topping splashes its own colors when it lands in the bowl.
+  const JUICE = {
+    "🍣": ["#ff9e80", "#fff1e8", "#ee6f57"],
+    "🥑": ["#7fce6e", "#4a9e58", "#e8f5c8"],
+    "🥒": ["#8fd672", "#5cb85c", "#e0f5d0"],
+    "🍤": ["#ffb08a", "#ff8a5c", "#fff1e8"],
+    "🌽": ["#ffe066", "#ffd15a", "#fff7cc"],
+    "🥭": ["#ffc04d", "#ff9e27", "#ffe9b0"],
+    "🧅": ["#e8d5f0", "#c8a5e0", "#ffffff"],
+  };
+  const GOLD_JUICE = ["#ffd15a", "#fff1c9", "#ffb52e"];
+  const HEART_JUICE = ["#ff8da1", "#ffd9e0", "#ffffff"];
   const BOWL_HALF = 68;
   const BOWL_Y = 540;
 
@@ -99,6 +114,9 @@
     lastTime: 0,
     flash: 0,
     floaters: [],
+    sparks: [], // splash droplets from catches
+    shake: 0, // seconds of camera shake left (bad catches, drops)
+    squash: 0, // the bowl's catch squash, decaying
     feverUntil: 0, // every 10-catch streak: 5s of golden rain worth double
     wideUntil: 0, // caught a ⭐: double-width bowl until this time
     // duel bits
@@ -236,6 +254,9 @@
     state.lastTime = 0;
     state.flash = 0;
     state.floaters = [];
+    state.sparks = [];
+    state.shake = 0;
+    state.squash = 0;
     state.feverUntil = 0;
     state.wideUntil = 0;
     state.duelCharges = 0;
@@ -416,6 +437,21 @@
   pauseBtn.addEventListener("click", () => setPause(!state.manualPause));
   document.getElementById("resume-btn").addEventListener("click", () => setPause(false));
 
+  // A burst of droplets where something lands in the bowl.
+  function spawnSparks(x, y, colors, n) {
+    for (let k = 0; k < n; k++) {
+      const ang = -Math.PI * (0.15 + Math.random() * 0.7); // fan upward
+      const sp = 80 + Math.random() * 160;
+      state.sparks.push({
+        x: x, y: y,
+        vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+        size: 2 + Math.random() * 3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 0.35 + Math.random() * 0.3,
+      });
+    }
+  }
+
   // --- Update / render -------------------------------------------------------
   function update(dt) {
     state.elapsed += dt;
@@ -434,18 +470,23 @@
       it.y += it.vy * dt * speedMult;
       if (it.y >= BOWL_Y - 14 && it.y <= BOWL_Y + 26 && Math.abs(it.x - state.bowlX) <= half) {
         state.items.splice(i, 1);
+        state.squash = Math.max(state.squash, 0.16); // the bowl takes the catch
         if (it.star) {
           state.wideUntil = state.elapsed + 8;
           state.floaters.push({ text: "⭐ WIDE BOWL!", x: state.bowlX, y: BOWL_Y - 60, life: 1.1 });
+          spawnSparks(it.x, BOWL_Y - 4, GOLD_JUICE, 14);
           sfx("chime");
         } else if (it.heart) {
           state.lives = Math.min(3, state.lives + 1);
           state.floaters.push({ text: "+❤️", x: state.bowlX, y: BOWL_Y - 46, life: 0.9 });
+          spawnSparks(it.x, BOWL_Y - 4, HEART_JUICE, 10);
           sfx("chime");
         } else if (it.bad) {
           state.lives--;
           state.combo = 0;
           state.flash = 0.35;
+          if (!REDUCED_MOTION) state.shake = 0.22;
+          spawnSparks(it.x, BOWL_Y - 4, ["#ee435b", "#8a2f28", "#3a4348"], 10);
           sfx("thunk");
           if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) { /* ignore */ } }
           if (state.lives <= 0) { endGame(); return; }
@@ -457,10 +498,18 @@
           if (state.combo % FEVER_EVERY === 0) {
             state.feverUntil = state.elapsed + 5;
             state.floaters.push({ text: "🔥 FEVER x2!", x: state.bowlX, y: BOWL_Y - 60, life: 1.1 });
+            spawnSparks(state.bowlX, BOWL_Y - 4, GOLD_JUICE, 16);
             sfx("chime");
           }
           sfx("pop");
-          setScore(state.score + (state.feverUntil > state.elapsed ? 2 : 1));
+          const fever = state.feverUntil > state.elapsed;
+          spawnSparks(it.x, BOWL_Y - 4, fever ? GOLD_JUICE : JUICE[it.glyph] || GOLD_JUICE, 7);
+          state.floaters.push({
+            text: fever ? "+2" : "+1",
+            x: it.x, y: BOWL_Y - 30, life: 0.5,
+            size: 16, color: fever ? "#ffd15a" : "#ffffff",
+          });
+          setScore(state.score + (fever ? 2 : 1));
         }
         continue;
       }
@@ -471,6 +520,8 @@
           state.combo = 0;
           state.lives--;
           state.flash = 0.35;
+          if (!REDUCED_MOTION) state.shake = 0.18;
+          state.floaters.push({ text: "✗", x: it.x, y: H - 60, life: 0.7, size: 26, color: "#ee435b" });
           sfx("thunk");
           if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) { /* ignore */ } }
           if (state.lives <= 0) { endGame(); return; }
@@ -478,6 +529,16 @@
       }
     }
     if (state.flash > 0) state.flash = Math.max(0, state.flash - dt);
+    if (state.shake > 0) state.shake = Math.max(0, state.shake - dt);
+    if (state.squash > 0) state.squash = Math.max(0, state.squash - dt * 1.4);
+    for (let i = state.sparks.length - 1; i >= 0; i--) {
+      const s = state.sparks[i];
+      s.vy += 700 * dt;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.life -= dt;
+      if (s.life <= 0) state.sparks.splice(i, 1);
+    }
     for (let i = state.floaters.length - 1; i >= 0; i--) {
       const f = state.floaters[i];
       f.y -= 40 * dt;
@@ -491,6 +552,12 @@
     const half = (state.wideUntil > state.elapsed ? BOWL_HALF * 1.8 : BOWL_HALF) + 6;
     const skin = window.PokeSkins ? PokeSkins.active() : null;
     ctx.save();
+    // A catch squashes the bowl for a beat: wider, flatter, then back.
+    if (state.squash > 0) {
+      ctx.translate(x, BOWL_Y + 10);
+      ctx.scale(1 + state.squash * 0.45, 1 - state.squash * 0.55);
+      ctx.translate(-x, -(BOWL_Y + 10));
+    }
     ctx.fillStyle = "rgba(0,0,0,0.25)";
     ctx.beginPath();
     ctx.ellipse(x, BOWL_Y + 34, half + 4, 9, 0, 0, Math.PI * 2);
@@ -515,6 +582,12 @@
 
   function render() {
     ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    // Bad catches and drops rattle the box for a beat.
+    if (state.shake > 0) {
+      const m = 20 * state.shake;
+      ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m);
+    }
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -529,6 +602,16 @@
 
     drawBowl();
 
+    for (const s of state.sparks) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, s.life * 2.2);
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
     ctx.font = "26px system-ui, sans-serif";
     ctx.textAlign = "left";
     for (let i = 0; i < 3; i++) {
@@ -541,7 +624,8 @@
     for (const f of state.floaters) {
       ctx.save();
       ctx.globalAlpha = Math.min(1, f.life * 2);
-      ctx.font = "700 24px system-ui, sans-serif";
+      ctx.font = "700 " + (f.size || 24) + "px system-ui, sans-serif";
+      ctx.fillStyle = f.color || "#ffd15a";
       ctx.fillText(f.text, f.x, f.y);
       ctx.restore();
     }
@@ -575,6 +659,7 @@
       ctx.strokeRect(0, 0, W, H);
       ctx.restore();
     }
+    ctx.restore(); // shake transform
   }
 
   function frame(t) {

@@ -229,6 +229,39 @@
     row.classList.add("shake");
   }
 
+  // A graded row reveals tile by tile, left to right; `after` runs once the
+  // last tile lands. Reduced motion paints instantly.
+  const WB_REDUCED =
+    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function revealRow(r, guess, marks, after) {
+    if (WB_REDUCED) {
+      for (let c = 0; c < 5; c++) {
+        ROWS[r][c].textContent = guess[c];
+        ROWS[r][c].classList.add("filled", marks[c]);
+        paintKey(guess[c], marks[c]);
+      }
+      after();
+      return;
+    }
+    locked = true; // no typing while the row turns over
+    for (let c = 0; c < 5; c++) {
+      setTimeout(() => {
+        ROWS[r][c].textContent = guess[c];
+        ROWS[r][c].classList.add("filled", marks[c], "reveal");
+        paintKey(guess[c], marks[c]);
+      }, c * 90);
+    }
+    setTimeout(after, 5 * 90 + 140);
+  }
+  // The little victory hop, tile by tile.
+  function bounceRow(r) {
+    if (WB_REDUCED) return;
+    ROWS[r].forEach((t, i) => {
+      t.style.animationDelay = i * 60 + "ms";
+      t.classList.add("bounce");
+    });
+  }
+
   function submit() {
     if (entry.length < 5) {
       statusEl.textContent = "Five letters first.";
@@ -253,24 +286,23 @@
       arch.guesses.push(guess);
       const marks = grade(guess, arch.word.w);
       const r = arch.guesses.length - 1;
-      for (let c = 0; c < 5; c++) {
-        ROWS[r][c].textContent = guess[c];
-        ROWS[r][c].classList.add("filled", marks[c]);
-        paintKey(guess[c], marks[c]);
-      }
       const won = guess === arch.word.w;
-      if (won || arch.guesses.length >= TRIES) {
-        arch.done = true;
-        arch.won = won;
-        locked = true;
-        statusEl.textContent = won
-          ? arch.word.w + " in " + arch.guesses.length + ". No points in archive rounds."
-          : "It was " + arch.word.w + ". No points in archive rounds.";
-        archBtn.textContent = "🔄 Another old word";
-      } else {
-        const leftTries = TRIES - arch.guesses.length;
-        statusEl.textContent = leftTries + (leftTries === 1 ? " try left" : " tries left");
-      }
+      revealRow(r, guess, marks, () => {
+        if (won || arch.guesses.length >= TRIES) {
+          arch.done = true;
+          arch.won = won;
+          locked = true;
+          if (won) bounceRow(r);
+          statusEl.textContent = won
+            ? arch.word.w + " in " + arch.guesses.length + ". No points in archive rounds."
+            : "It was " + arch.word.w + ". No points in archive rounds.";
+          archBtn.textContent = "🔄 Another old word";
+        } else {
+          locked = false;
+          const leftTries = TRIES - arch.guesses.length;
+          statusEl.textContent = leftTries + (leftTries === 1 ? " try left" : " tries left");
+        }
+      });
       return;
     }
     const s = load();
@@ -278,22 +310,20 @@
     const guess = entry;
     entry = "";
     s.day.guesses.push(guess);
+    save(s); // the guess is in before the reveal plays, reload-safe
     const marks = grade(guess, word.w);
     const r = s.day.guesses.length - 1;
-    for (let c = 0; c < 5; c++) {
-      ROWS[r][c].textContent = guess[c];
-      ROWS[r][c].classList.add("filled", marks[c]);
-      paintKey(guess[c], marks[c]);
-    }
-
     const won = guess === word.w;
-    if (won || s.day.guesses.length >= TRIES) {
-      finish(s, won, word);
-    } else {
-      const leftTries = TRIES - s.day.guesses.length;
-      statusEl.textContent = leftTries + (leftTries === 1 ? " try left" : " tries left");
-      save(s);
-    }
+    revealRow(r, guess, marks, () => {
+      if (won || s.day.guesses.length >= TRIES) {
+        if (won) bounceRow(r);
+        finish(s, won, word);
+      } else {
+        locked = false;
+        const leftTries = TRIES - s.day.guesses.length;
+        statusEl.textContent = leftTries + (leftTries === 1 ? " try left" : " tries left");
+      }
+    });
   }
 
   function finish(s, won, word) {

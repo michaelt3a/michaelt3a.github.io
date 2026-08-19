@@ -106,6 +106,24 @@
   margin-top: 0.2rem;
 }
 
+/* Graded tiles flip into view one by one. */
+.wb-tile.reveal {
+  animation: wb-reveal 0.28s ease;
+}
+@keyframes wb-reveal {
+  from { transform: rotateX(90deg); }
+  to { transform: rotateX(0); }
+}
+/* Solving it: the row hops, tile by tile. */
+.wb-tile.bounce {
+  animation: wb-bounce 0.5s ease both;
+}
+@keyframes wb-bounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-14px); }
+  70% { transform: translateY(3px); }
+}
+
 /* A rejected guess shakes its row. */
 .wb-row.shake {
   animation: wb-shake 0.4s ease;
@@ -118,7 +136,9 @@
   80% { transform: translateX(5px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .wb-row.shake { animation: none; }
+  .wb-row.shake,
+  .wb-tile.reveal,
+  .wb-tile.bounce { animation: none; }
 }
 
 /* High contrast mode: orange/blue instead of green/gold, for red-green
