@@ -162,19 +162,7 @@
       }
     });
   }
-  // A big Enter under the keyboard: same job as the little ⏎ key, but
-  // impossible to miss on a phone. Green once five letters are in.
-  const enterBtn = document.getElementById("wb-enter");
-  if (enterBtn) enterBtn.addEventListener("click", () => press("⏎"));
-  function syncEnter() {
-    if (enterBtn) {
-      enterBtn.hidden = locked;
-      enterBtn.classList.toggle("ready", entry.length === 5);
-    }
-  }
-
   function paintEntry() {
-    syncEnter();
     const r = curGuesses().length;
     if (r >= TRIES) return;
     for (let c = 0; c < 5; c++) {
@@ -262,7 +250,6 @@
     if (arch) {
       const guess = entry;
       entry = "";
-      syncEnter();
       arch.guesses.push(guess);
       const marks = grade(guess, arch.word.w);
       const r = arch.guesses.length - 1;
@@ -276,7 +263,6 @@
         arch.done = true;
         arch.won = won;
         locked = true;
-        syncEnter();
         statusEl.textContent = won
           ? arch.word.w + " in " + arch.guesses.length + ". No points in archive rounds."
           : "It was " + arch.word.w + ". No points in archive rounds.";
@@ -291,7 +277,6 @@
     const word = todaysWord();
     const guess = entry;
     entry = "";
-    syncEnter();
     s.day.guesses.push(guess);
     const marks = grade(guess, word.w);
     const r = s.day.guesses.length - 1;
@@ -326,7 +311,6 @@
     }
     save(s);
     locked = true;
-    syncEnter();
     if (window.PokePoints) {
       PokePoints.add(pts, won ? "Word Bowl: solved in " + tries : "Word Bowl: played");
     }
@@ -459,7 +443,6 @@
     shareBtn.hidden = true; // the share grid belongs to today's word
     if (hintBtn) hintBtn.hidden = false;
     locked = false;
-    syncEnter();
     statusEl.textContent = "📚 Archive: the word from " + label + ". No points, just practice.";
     archBtn.textContent = "🎲 Different word";
   }
@@ -481,7 +464,6 @@
     paintSaved(boot);
     overlayEl.classList.add("hidden");
     locked = false;
-    syncEnter();
     const leftTries = TRIES - boot.day.guesses.length;
     statusEl.textContent = leftTries + (leftTries === 1 ? " try left" : " tries left");
   }
@@ -516,7 +498,6 @@
     }
     overlayEl.classList.add("hidden");
     locked = false;
-    syncEnter();
     statusEl.textContent = load().day.hard ? "Hard mode on. Guess the word" : "Guess the 5-letter word";
   });
 

@@ -103,33 +103,6 @@
   margin-top: 0.2rem;
 }
 
-/* The big Enter under the keyboard. Green once five letters are typed
-   (orange in high contrast mode, matching the tiles). */
-.wb-enter {
-  display: block;
-  width: 100%;
-  max-width: 420px;
-  margin: 0.55rem auto 0;
-  padding: 0.6rem;
-  border-radius: 10px;
-  border: 1px solid var(--chip-line);
-  background: var(--chip);
-  color: var(--on-dark);
-  font: inherit;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-}
-.wb-enter.ready {
-  background: #39a85b;
-  border-color: #39a85b;
-  color: #fff;
-}
-body.wb-contrast .wb-enter.ready {
-  background: #f5793a;
-  border-color: #f5793a;
-}
-
 /* A rejected guess shakes its row. */
 .wb-row.shake {
   animation: wb-shake 0.4s ease;
