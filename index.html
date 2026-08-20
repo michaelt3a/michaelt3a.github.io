@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=56" />
+  <link rel="stylesheet" href="menu.css?v=57" />
   <link rel="stylesheet" href="theme.css?v=8" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -75,7 +75,7 @@
          One flat grid, neal.fun style: every game is a single banner tile
          with its name on the art. Training games carry a Training chip and
          raise a caution barrier on hover; they still open on click. -->
-    <div class="cards" data-latest="poke-iq">
+    <div class="cards" data-latest="shift">
           <a class="card" data-game="bowl-builder" href="bowl-builder.html">
             <div class="card-icon icon-bowl">
               <!-- A block hovers over the ingredient stack, ghost line and all. -->
@@ -249,6 +249,44 @@
               </svg>
             </div>
             <span class="card-name">Poke Slice</span>
+          </a>
+
+          <a class="card" data-game="shift" href="shift.html">
+            <div class="card-icon icon-shift">
+              <!-- The store before open: dark line, one glowing switch, the sign
+                   flickering awake. -->
+              <svg viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect x="18" y="18" width="56" height="72" rx="6" fill="#2c4250" />
+                <path d="M24 84 L44 22 L56 22 L36 84 Z" fill="rgba(159,196,216,0.25)" />
+                <rect x="308" y="24" width="66" height="34" rx="8" fill="#1c2a33" />
+                <text x="341" y="47" font-size="16" font-weight="800" fill="#ff5a76" text-anchor="middle" class="shi-open">OPEN</text>
+                <circle cx="120" cy="52" r="34" fill="#ffd15a" class="shi-glow" />
+                <rect x="108" y="32" width="24" height="40" rx="4" fill="#d7dce0" />
+                <rect x="113" y="38" width="14" height="12" rx="2" fill="#8d949c" />
+                <rect x="113" y="54" width="14" height="12" rx="2" fill="#8d949c" />
+                <rect x="90" y="88" width="310" height="10" fill="#3f5058" />
+                <rect x="90" y="98" width="310" height="32" fill="#33424a" />
+                <rect x="104" y="74" width="64" height="18" rx="3" fill="#5c6a72" />
+                <g fill="#c23b4a">
+                  <rect x="110" y="78" width="11" height="9" rx="2" /><rect x="125" y="80" width="11" height="9" rx="2" />
+                  <rect x="140" y="77" width="11" height="9" rx="2" /><rect x="153" y="80" width="10" height="9" rx="2" />
+                </g>
+                <rect x="176" y="74" width="64" height="18" rx="3" fill="#5c6a72" />
+                <g fill="#7cc25e">
+                  <circle cx="190" cy="84" r="4.5" /><circle cx="202" cy="86" r="4.5" />
+                  <circle cx="214" cy="83" r="4.5" /><circle cx="226" cy="85" r="4.5" />
+                </g>
+                <rect x="248" y="74" width="64" height="18" rx="3" fill="#5c6a72" />
+                <g fill="#f5923e">
+                  <circle cx="262" cy="85" r="3.4" /><circle cx="272" cy="83" r="3.4" /><circle cx="282" cy="86" r="3.4" />
+                  <circle cx="292" cy="84" r="3.4" /><circle cx="301" cy="85" r="3.4" />
+                </g>
+                <circle cx="356" cy="88" r="15" fill="#e8e4dc" />
+                <line x1="356" y1="88" x2="356" y2="78" stroke="#333" stroke-width="2.4" stroke-linecap="round" />
+                <line x1="356" y1="88" x2="364" y2="91" stroke="#333" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </div>
+            <span class="card-name">The Shift</span>
           </a>
 
           <a class="card card-training" data-game="signature-works" href="placeholder-1.html">
@@ -551,6 +589,7 @@
         "topping-drop": "Catch the toppings.",
         "poke-slice": "Swipe to slice.",
         "poke-iq": "10 quick questions.",
+        "shift": "You open at 11.",
       };
       const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (!reduced) {
@@ -591,7 +630,7 @@
     {
       const btn = document.getElementById("hub-surprise");
       const PAGES = ["bowl-builder.html", "order-up.html", "word-bowl.html",
-        "topping-drop.html", "poke-iq.html", "poke-slice.html"];
+        "topping-drop.html", "poke-iq.html", "poke-slice.html", "shift.html"];
       let spinning = false;
       let audio = null;
       // Short blip per hop; the patched AudioContext keeps it behind the mute switch.
@@ -758,12 +797,13 @@
         "poke-slice": () => { const n = num("pokeworks-slice-best"); return n ? n + " slices" : ""; },
         "signature-works": () => { const b = json("sigworks_speedrun_best"); return b && typeof b.perfect === "number" ? b.perfect + "/9 speedrun" : ""; },
         "secret-shopper": () => { const n = num("pokeworks-shopper-best"); return n ? n + "%" : ""; },
+        "shift": () => { const n = num("pokeworks-shift-best"); return n ? n + " pts" : ""; },
       };
       // Last-played stamps (only "today"/"yesterday" — older is just noise).
       const TRACK_IDS = {
         "bowl-builder": "bowl", "order-up": "ou", "word-bowl": "wb",
         "topping-drop": "topping", "poke-slice": "slice", "poke-iq": "iq",
-        "signature-works": "sw", "secret-shopper": "ss",
+        "signature-works": "sw", "secret-shopper": "ss", "shift": "shift",
       };
       const lastplay = json("pokeworks-lastplay") || {};
       const dayKey = (off) => {

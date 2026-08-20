@@ -1,0 +1,187 @@
+/* The Shift — page-specific styles. The canvas is 960x600, so the stage
+   runs a wider aspect than the arcade games. Sheets (POS, tickets, the
+   clipboard) sit inside the stage so they read as part of the equipment. */
+
+.shift-shell { max-width: 980px; }
+.shift-stage { aspect-ratio: 8 / 5; }
+
+/* quiet self-talk chip, bottom-left of the stage */
+.shift-thought {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  max-width: 62%;
+  background: rgba(10, 18, 24, 0.88);
+  color: #f4ede3;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* Mahalo follow-up buttons floated near the customer */
+.svc-btns {
+  position: absolute;
+  display: flex;
+  gap: 0.4rem;
+  z-index: 6;
+}
+.svc-btn {
+  background: rgba(10, 18, 24, 0.88);
+  color: #f4ede3;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.svc-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* in-stage sheets */
+.shift-sheet {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 14, 18, 0.45);
+  z-index: 8;
+}
+.sheet-inner {
+  background: #14202a;
+  color: #f4ede3;
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  padding: 0.9rem 1.1rem;
+  width: min(560px, 92%);
+  max-height: 92%;
+  overflow-y: auto;
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+.sheet-x {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.sheet-actions { text-align: center; margin-top: 0.6rem; }
+
+/* printed-paper look for tickets and posters */
+.ticket-paper {
+  background: #f4ede3;
+  color: #26333b;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+.tv-body { font-size: 0.86rem; line-height: 1.45; white-space: pre-wrap; }
+.tv-item { font-weight: 700; margin-top: 0.35rem; }
+.board-list { font-size: 0.88rem; line-height: 1.6; }
+
+/* POS */
+.pos-sheet .sheet-inner { width: min(620px, 94%); }
+.pos-said {
+  font-size: 0.83rem;
+  color: #b8c6ce;
+  font-style: italic;
+  margin: 0 0 0.5rem;
+  line-height: 1.35;
+}
+.pos-sec { margin-bottom: 0.45rem; }
+.pos-sec-h {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8fa3ae;
+  margin-bottom: 0.2rem;
+}
+.pos-row { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.pos-chip {
+  background: rgba(255, 255, 255, 0.07);
+  color: #f4ede3;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.pos-chip.on {
+  background: #22b2b4;
+  border-color: #22b2b4;
+  color: #06282a;
+  font-weight: 700;
+}
+
+/* customer question */
+.ask-sheet { background: rgba(8, 14, 18, 0.25); align-items: flex-end; }
+.ask-sheet .sheet-inner { width: min(440px, 92%); margin-bottom: 1rem; }
+.ask-q { font-style: italic; margin: 0 0 0.6rem; }
+.ask-opts { display: flex; flex-direction: column; gap: 0.4rem; }
+.ask-opt { font-size: 0.82rem; padding: 0.45rem 0.9rem; }
+
+/* low boy */
+.fv-hint { font-size: 0.8rem; color: #8fa3ae; margin: 0 0 0.5rem; }
+.fv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.4rem;
+}
+.fv-item {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  color: #f4ede3;
+  padding: 0.45rem 0.5rem;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.fv-item b { font-weight: 700; }
+.fv-item span { color: #8fa3ae; }
+.fv-item.out { opacity: 0.4; cursor: default; }
+.fv-sauce { border-color: rgba(255, 209, 90, 0.5); }
+
+/* end of shift summary */
+.sum-line { margin: 0.15rem 0; font-size: 0.92rem; }
+.sum-best { color: var(--accent, #ee435b); font-weight: 600; }
+.sum-notes { font-size: 0.82rem; opacity: 0.85; margin: 0.4rem 0; }
+.sum-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0.75rem;
+  max-height: 180px;
+  overflow-y: auto;
+  width: min(420px, 92%);
+}
+.sum-fb {
+  background: rgba(0, 0, 0, 0.14);
+  border-radius: 10px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  text-align: left;
+  line-height: 1.35;
+}
+.fb-stars { color: #d9a520; }
+.fb-stars i { font-style: normal; opacity: 0.25; }
+
+@media (max-width: 640px) {
+  .sheet-inner { padding: 0.7rem 0.8rem; }
+  .pos-chip { font-size: 0.72rem; padding: 0.24rem 0.5rem; }
+}

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Shift - Pokeworks</title>
+  <meta name="description" content="Open the store, run your shift, figure it out." />
+  <link rel="stylesheet" href="styles.css?v=28" />
+  <link rel="stylesheet" href="theme.css?v=8" />
+  <link rel="stylesheet" href="shift.css?v=1" />
+  <meta name="theme-color" content="#0a1010" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <script src="demo.js?v=2"></script>
+  <script src="theme.js?v=7"></script>
+  <script src="sound.js?v=4"></script>
+  <script src="streak.js?v=2"></script>
+</head>
+<body>
+  <a href="index.html" class="back-link">← Minigames</a>
+
+  <div class="game-shell page-content shift-shell">
+    <header class="hud">
+      <div class="hud-left">
+        <img src="pokeworks-logo-circle-1.png" alt="Pokeworks" class="logo" />
+      </div>
+      <div class="hud-right">
+        <div class="score">
+          <span class="score-label">Clock</span>
+          <span id="shift-clock" class="score-value">10:30am</span>
+        </div>
+        <div class="score">
+          <span class="score-label">Best</span>
+          <span id="high-score" class="score-value">0</span>
+        </div>
+        <div class="score">
+          <span class="score-label">Shift</span>
+          <span id="score" class="score-value">0</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="stage shift-stage">
+      <canvas id="game" class="game-canvas" width="960" height="600"></canvas>
+
+      <!-- quiet self-talk when the player is stuck; the only nudge in the game -->
+      <div id="thought" class="shift-thought" hidden></div>
+
+      <!-- Mahalo follow-ups after a handoff -->
+      <div id="service-btns" class="svc-btns" hidden>
+        <button id="svc-thanks" class="svc-btn" type="button">🙏 Thanks</button>
+        <button id="svc-feedback" class="svc-btn" type="button">💬 How was everything?</button>
+      </div>
+
+      <!-- POS -->
+      <div id="pos" class="shift-sheet pos-sheet" hidden>
+        <div class="sheet-inner">
+          <div class="sheet-head">
+            <strong>Register</strong>
+            <button class="sheet-x" type="button" id="pos-cancel">✕</button>
+          </div>
+          <p id="pos-said" class="pos-said"></p>
+          <div id="pos-grid" class="pos-grid"></div>
+          <div class="sheet-actions">
+            <button id="pos-send" class="btn" type="button">Send order</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- customer question -->
+      <div id="ask" class="shift-sheet ask-sheet" hidden>
+        <div class="sheet-inner">
+          <p id="ask-q" class="ask-q"></p>
+          <div id="ask-opts" class="ask-opts"></div>
+        </div>
+      </div>
+
+      <!-- expanded ticket -->
+      <div id="ticket-view" class="shift-sheet ticket-sheet" hidden>
+        <div class="sheet-inner ticket-paper">
+          <div class="sheet-head">
+            <strong id="tv-head"></strong>
+            <button class="sheet-x" type="button" data-close>✕</button>
+          </div>
+          <div id="tv-body" class="tv-body"></div>
+        </div>
+      </div>
+
+      <!-- opening clipboard -->
+      <div id="board-view" class="shift-sheet" hidden>
+        <div class="sheet-inner ticket-paper">
+          <div class="sheet-head">
+            <strong>OPENING</strong>
+            <button class="sheet-x" type="button" data-close>✕</button>
+          </div>
+          <div class="board-list">
+            <div>· lights on, both switches</div>
+            <div>· wash in: water, soap, scrub, rinse, dry</div>
+            <div>· gloves</div>
+            <div>· rice pots on early, they take a while</div>
+            <div>· stock the line from the low boy</div>
+            <div>· sauce bottles out, two live in the low boy</div>
+            <div>· check the screen for catering and pickups</div>
+            <div>· sign on at 11</div>
+            <div>· wipe as you go</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- portion guide zoom -->
+      <div id="portion-view" class="shift-sheet" hidden>
+        <div class="sheet-inner ticket-paper">
+          <div class="sheet-head">
+            <strong>PORTION GUIDE</strong>
+            <button class="sheet-x" type="button" data-close>✕</button>
+          </div>
+          <div class="board-list">
+            <div><b>Regular</b> · 1 rice scoop · 2 protein scoops</div>
+            <div><b>Large</b> · 2 rice scoops · 3 protein scoops</div>
+            <div>&nbsp;</div>
+            <div>rice paddle for rice</div>
+            <div>spoodle for proteins</div>
+            <div>tongs for mix-ins and toppings</div>
+            <div>mixed bowls: build in the metal bowl, sauce, mix, pour over rice</div>
+            <div>sauce on top: build in the serving bowl, drizzle to finish</div>
+            <div>toppings always go on last</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- mahalo poster zoom -->
+      <div id="mahalo-view" class="shift-sheet" hidden>
+        <div class="sheet-inner ticket-paper">
+          <div class="sheet-head">
+            <strong>MAHALO</strong>
+            <button class="sheet-x" type="button" data-close>✕</button>
+          </div>
+          <div class="board-list">
+            <div><b>M</b>eet and greet. Say hi when they walk in.</div>
+            <div><b>A</b>ssist and educate. Know the menu, answer straight.</div>
+            <div><b>H</b>andle with care. Their food, their day.</div>
+            <div><b>A</b>dd value. A little extra goes a long way.</div>
+            <div><b>L</b>eave thanks. Every guest, every time.</div>
+            <div><b>O</b>btain feedback. Ask how it was. Mean it.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- low boy -->
+      <div id="fridge-view" class="shift-sheet" hidden>
+        <div class="sheet-inner">
+          <div class="sheet-head">
+            <strong>Low boy</strong>
+            <button class="sheet-x" type="button" data-close>✕</button>
+          </div>
+          <p class="fv-hint">Grab a backup pan, then set it in a well on the line.</p>
+          <div id="fv-grid" class="fv-grid"></div>
+        </div>
+      </div>
+
+      <div id="overlay" class="overlay">
+        <div id="screen-start" class="overlay-panel">
+          <h1 class="overlay-title">The Shift</h1>
+          <p class="overlay-subtitle" id="start-subtitle">Saturday. You open at 11. Nobody is coming to show you around.</p>
+          <button id="start-btn" class="btn" type="button">Clock in</button>
+        </div>
+
+        <div id="screen-paused" class="overlay-panel hidden">
+          <h1 class="overlay-title">Break</h1>
+          <div class="gameover-actions">
+            <button id="resume-btn" class="btn" type="button">Back to it</button>
+            <a class="btn btn-secondary" href="index.html">Clock out</a>
+          </div>
+        </div>
+
+        <div id="screen-gameover" class="overlay-panel hidden">
+          <h1 class="overlay-title">Shift over</h1>
+          <p class="overlay-subtitle"><span id="sum-score">0</span> shift score</p>
+          <p class="sum-line" id="sum-line"></p>
+          <p class="sum-line sum-best" id="sum-best"></p>
+          <div id="sum-notes" class="sum-notes"></div>
+          <div id="sum-feedback" class="sum-feedback"></div>
+          <div class="gameover-actions">
+            <button id="play-again-btn" class="btn" type="button">Next shift</button>
+            <a class="btn btn-secondary" href="index.html">Done</a>
+          </div>
+        </div>
+      </div>
+
+      <button id="pause-btn" class="control-btn" type="button" aria-label="Pause" style="display:none">⏸</button>
+    </main>
+
+    <div class="controls"></div>
+  </div>
+
+  <script src="transitions.js?v=4"></script>
+  <script src="supabase-config.js?v=2"></script>
+  <script src="track.js?v=2"></script>
+  <script src="arcade-sfx.js?v=2"></script>
+  <script src="shift-data.js?v=1"></script>
+  <script src="shift-food.js?v=1"></script>
+  <script src="shift.js?v=1"></script>
+  <script src="back-guard.js?v=1"></script>
+  <script src="pwa.js?v=1"></script>
+</body>
+</html>

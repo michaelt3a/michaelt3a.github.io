@@ -691,8 +691,31 @@ body {
   100% { transform: translateX(0); }
 }
 
+.icon-shift {
+  background: linear-gradient(135deg, #16232b, #2c4250);
+}
+/* The switch glow breathes; the OPEN sign flickers awake like a real neon. */
+.shi-glow {
+  opacity: 0.12;
+  animation: shiGlow 2.8s ease-in-out infinite;
+}
+@keyframes shiGlow {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.28; }
+}
+.shi-open {
+  opacity: 0.25;
+  animation: shiOpen 4.5s steps(1) infinite;
+}
+@keyframes shiOpen {
+  0%, 58% { opacity: 0.25; }
+  62%, 66% { opacity: 1; }
+  68%, 71% { opacity: 0.3; }
+  73%, 100% { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .bbi-float, .oui-coin, .oui-coin2, .ssi-lens, .tdi-fall, .iqi-scan, .psl-swoosh { animation: none; }
+  .bbi-float, .oui-coin, .oui-coin2, .ssi-lens, .tdi-fall, .iqi-scan, .psl-swoosh, .shi-glow, .shi-open { animation: none; }
 }
 
 .icon-placeholder {
