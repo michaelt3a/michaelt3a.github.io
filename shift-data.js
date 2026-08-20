@@ -2,25 +2,32 @@
 // generation, customer names and dialogue. No state, no DOM, no canvas.
 (function () {
   // Every ingredient the line can hold. utensil = the right tool for it.
+  // Roster follows the store's Toppings SOP: scooped toppings ring the bowl,
+  // sprinkles go on top of the protein with a (gloved) pinch.
   const INGREDIENTS = {
-    tuna:      { name: "Ahi Tuna",      kind: "protein", utensil: "spoodle" },
-    salmon:    { name: "Salmon",        kind: "protein", utensil: "spoodle" },
-    chicken:   { name: "Chicken",       kind: "protein", utensil: "spoodle" },
-    tofu:      { name: "Tofu",          kind: "protein", utensil: "spoodle" },
-    shrimp:    { name: "Shrimp",        kind: "protein", utensil: "spoodle" },
-    cucumber:  { name: "Cucumber",      kind: "mixin",   utensil: "tongs" },
-    edamame:   { name: "Edamame",       kind: "mixin",   utensil: "tongs" },
-    corn:      { name: "Sweet Corn",    kind: "mixin",   utensil: "tongs" },
-    gonion:    { name: "Green Onion",   kind: "mixin",   utensil: "tongs" },
-    avocado:   { name: "Avocado",       kind: "topping", utensil: "tongs" },
-    seaweed:   { name: "Seaweed Salad", kind: "topping", utensil: "tongs" },
-    masago:    { name: "Masago",        kind: "topping", utensil: "tongs" },
-    crisponion:{ name: "Crispy Onions", kind: "topping", utensil: "tongs" },
-    wonton:    { name: "Wonton Crisps", kind: "topping", utensil: "tongs" },
+    tuna:      { name: "Ahi Tuna",      kind: "protein",  utensil: "spoodle" },
+    salmon:    { name: "Salmon",        kind: "protein",  utensil: "spoodle" },
+    chicken:   { name: "Chicken",       kind: "protein",  utensil: "spoodle" },
+    tofu:      { name: "Tofu",          kind: "protein",  utensil: "spoodle" },
+    shrimp:    { name: "Shrimp",        kind: "protein",  utensil: "spoodle" },
+    cucumber:  { name: "Cucumber",      kind: "mixin",    utensil: "tongs" },
+    slonion:   { name: "Sliced Onion",  kind: "mixin",    utensil: "tongs" },
+    cabbage:   { name: "Cabbage",       kind: "mixin",    utensil: "tongs" },
+    edamame:   { name: "Edamame",       kind: "mixin",    utensil: "tongs" },
+    corn:      { name: "Sweet Corn",    kind: "mixin",    utensil: "tongs" },
+    avocado:   { name: "Avocado",       kind: "topping",  utensil: "tongs" },
+    surimi:    { name: "Surimi Salad",  kind: "topping",  utensil: "tongs" },
+    seaweed:   { name: "Seaweed Salad", kind: "topping",  utensil: "tongs" },
+    masago:    { name: "Masago",        kind: "topping",  utensil: "tongs" },
+    gonion:    { name: "Green Onion",   kind: "sprinkle", utensil: "pinch" },
+    sesame:    { name: "Sesame Seeds",  kind: "sprinkle", utensil: "pinch" },
+    crisponion:{ name: "Crispy Onion",  kind: "sprinkle", utensil: "pinch" },
+    wonton:    { name: "Wontons",       kind: "sprinkle", utensil: "pinch" },
   };
   const PROTEINS = ["tuna", "salmon", "chicken", "tofu", "shrimp"];
-  const MIXINS = ["cucumber", "edamame", "corn", "gonion"];
-  const TOPPINGS = ["avocado", "seaweed", "masago", "crisponion", "wonton"];
+  const MIXINS = ["cucumber", "slonion", "cabbage", "edamame", "corn"];
+  const TOPPINGS = ["avocado", "surimi", "seaweed", "masago"];
+  const SPRINKLES = ["gonion", "sesame", "crisponion", "wonton"];
 
   const SAUCES = {
     classic:  { name: "Pokeworks Classic", color: "#8a5a2b", cap: "#c98a3d" },
@@ -119,6 +126,7 @@
       mixins: pickN(MIXINS, 1 + Math.floor(Math.random() * 2)),
       sauce: pick(Object.keys(SAUCES)),
       toppings: pickN(TOPPINGS, 1 + Math.floor(Math.random() * 2)),
+      sprinkles: pickN(SPRINKLES, 1 + Math.floor(Math.random() * 2)),
       mixed: Math.random() < 0.65,
     };
   }
@@ -163,7 +171,7 @@
       parts.push("a " + b.size + " " + prots + " bowl on " + b.rice + " rice, " +
         b.mixins.map(function (m) { return INGREDIENTS[m].name.toLowerCase(); }).join(" and ") +
         ", " + SAUCES[b.sauce].name.toLowerCase() + (b.mixed ? ", mixed" : ", sauce on top") +
-        ", topped with " + b.toppings.map(function (t) { return INGREDIENTS[t].name.toLowerCase(); }).join(" and "));
+        ", topped with " + b.toppings.concat(b.sprinkles || []).map(function (t) { return INGREDIENTS[t].name.toLowerCase(); }).join(" and "));
     }
     if (o.drink) parts.push("a " + DRINKS[o.drink].name.toLowerCase());
     if (o.side) parts.push(SIDES[o.side].name.toLowerCase());
@@ -181,6 +189,8 @@
       lines.push("  " + b.mixins.map(function (m) { return INGREDIENTS[m].name; }).join(", "));
       lines.push("  " + SAUCES[b.sauce].name + (b.mixed ? " (mixed)" : " (on top)"));
       lines.push("  + " + b.toppings.map(function (t) { return INGREDIENTS[t].name; }).join(", "));
+      if (b.sprinkles && b.sprinkles.length)
+        lines.push("  ~ " + b.sprinkles.map(function (t) { return INGREDIENTS[t].name; }).join(", "));
     }
     if (o.drink) lines.push(DRINKS[o.drink].name);
     if (o.side) lines.push(SIDES[o.side].name);
@@ -188,7 +198,7 @@
   }
 
   window.ShiftData = {
-    INGREDIENTS: INGREDIENTS, PROTEINS: PROTEINS, MIXINS: MIXINS, TOPPINGS: TOPPINGS,
+    INGREDIENTS: INGREDIENTS, PROTEINS: PROTEINS, MIXINS: MIXINS, TOPPINGS: TOPPINGS, SPRINKLES: SPRINKLES,
     SAUCES: SAUCES, DRINKS: DRINKS, SIDES: SIDES, RICES: RICES,
     NAMES: NAMES, QUESTIONS: QUESTIONS, COMMENTS: COMMENTS,
     genOrder: genOrder, genCatering: genCatering,

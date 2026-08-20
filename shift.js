@@ -1,82 +1,101 @@
-// The Shift — a full opening-shift simulation. One wide canvas world the
-// player pans across; one held item at a time; no quest markers. The
-// clipboard by the back door and the wall posters are the only guidance.
+// The Shift — first-person 3D shift simulation. The store is modeled on the
+// real Union Sq layout: the line runs down the RIGHT side, you work behind
+// it, dining and the pickup shelf are out front. Rendering is Shift3D
+// (software quads + billboards); food art comes from ShiftFood.
 //
-// Depends on shift-data.js (ShiftData) and shift-food.js (ShiftFood).
+// Files: shift-data.js (menu/orders), shift-food.js (2D food art),
+// shift-3d.js (renderer), this file (world + game logic).
 (function () {
-  const SD = window.ShiftData, SF = window.ShiftFood;
+  const SD = window.ShiftData, SF = window.ShiftFood, S3 = window.Shift3D;
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
-  const VW = 960, VH = 600, WORLD_W = 3560;
+  const VW = 960, VH = 600;
   const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const SFX = () => window.ArcadeSfx || {};
   const sfx = (n) => { const s = SFX(); if (s[n]) try { s[n](); } catch (e) {} };
+  const R = new S3.Renderer(ctx, VW, VH, 66);
 
-  // Layout bands. The kitchen wall runs to FRONT_X; past it is the dining room.
-  const FRONT_X = 3000;
-  const COUNTER_TOP = 380, COUNTER_BOT = 505;
-
-  // Game-minute length in real seconds. 10:30 arrival = minute 0.
   const OPEN_MIN = 30, CLOSE_MIN = 150, HARD_END = 168;
+  const REACH = 2.35;         // how far the worker can reach, in meters
+  const EYE = 1.55;
 
-  // ---- persistent bits ---------------------------------------------------
   const shiftsPlayed = parseInt(localStorage.getItem("pokeworks-shift-count") || "0", 10) || 0;
   const storedBest = parseInt(localStorage.getItem("pokeworks-shift-best") || "0", 10) || 0;
   const MIN_SEC = shiftsPlayed === 0 ? 2.4 : 2.0;
 
+  // ---- store layout (meters; x -5..5, z 0 door .. 14 back wall) ----------
+  const CT = 0.95;            // counter height
+  // line counter (right side), worker aisle behind it, back counter on wall
+  const LINE = { x0: 2.6, x1: 3.6, z0: 2.5, z1: 10.6 };
+  const BACK = { x0: 4.55, x1: 5.0, z0: 2.5, z1: 10.6 };
+  const DRINK = { x0: 0.2, x1: 2.4, z0: 13.25, z1: 14 };
+  const SHELF = { x0: -3.4, x1: -1.6, z0: 13.4, z1: 14 };
+  const DOOR = { x0: -2.6, x1: -1.4 };
+
+  // pans: row A (customer side) proteins + toppings, row B (worker side)
+  // mix-ins + sprinkle tins
+  function panRow(x0, x1, zs, len) {
+    return zs.map((z, i) => ({ x0: x0, x1: x1, z0: z, z1: z + len, pan: null, seed: 100 + x0 * 10 + i }));
+  }
+  const PROT_Z = [2.95, 3.55, 4.15, 4.75, 5.35];
+  const TOP_Z = [6.15, 6.75, 7.35, 7.95];
+  const MIX_Z = [2.95, 3.55, 4.15, 4.75, 5.35];
+  const SPR_Z = [6.15, 6.62, 7.09, 7.56];
+
   // ---- state -------------------------------------------------------------
   let state = null;
   function freshState() {
-    const pans = [];
-    // back row: five wide pans for proteins
-    for (let i = 0; i < 5; i++) pans.push({ x: 912 + i * 152, y: 292, w: 138, h: 52, pan: null, row: 0, seed: 100 + i });
-    // front row: nine narrow pans for mix-ins and toppings
-    for (let i = 0; i < 9; i++) pans.push({ x: 912 + i * 99, y: 356, w: 88, h: 46, pan: null, row: 1, seed: 200 + i });
+    const pans = []
+      .concat(panRow(2.7, 3.04, PROT_Z, 0.5))
+      .concat(panRow(2.7, 3.04, TOP_Z, 0.5))
+      .concat(panRow(3.18, 3.52, MIX_Z, 0.5))
+      .concat(panRow(3.18, 3.52, SPR_Z, 0.38));
+    // sprinkle tins come stocked (tiny amounts used per pinch)
+    SD.SPRINKLES.forEach((ing, i) => { pans[14 + i].pan = { ing: ing, fill: 1 }; pans[14 + i].tin = true; });
     const fridgeStock = {};
     for (const k of SD.PROTEINS) fridgeStock[k] = 2;
     for (const k of SD.MIXINS) fridgeStock[k] = 2;
     for (const k of SD.TOPPINGS) fridgeStock[k] = 2;
     return {
       running: false, over: false, paused: false,
-      min: 0, cam: 0, camTarget: 0,
+      min: 0, clock: 0,
+      px: -2.0, pz: 1.1, yaw: 0.35, pitch: -0.06,
       lights: { kitchen: false, foh: false }, sign: false, signOnMin: null,
       hands: { level: "dirty", wet: false, soaped: false, scrub: 0, dirtyGloves: false },
       waterOn: false,
       held: null,
       cookers: [
-        { type: "white", x: 618, y: 330, R: 56, on: false, open: false, cooked: false, cookLeft: 18, level: 14, capacity: 14 },
-        { type: "brown", x: 772, y: 330, R: 50, on: false, open: false, cooked: false, cookLeft: 18, level: 10, capacity: 10 },
+        { type: "white", z: 3.95, on: false, open: false, cooked: false, cookLeft: 18, level: 14, capacity: 14 },
+        { type: "brown", z: 4.85, on: false, open: false, cooked: false, cookLeft: 18, level: 10, capacity: 10 },
       ],
       linePans: pans,
       fridge: fridgeStock,
       fridgeBottles: ["ginger", "chili"],
       rack: { classic: 1, shoyu: 1, sriracha: 1, wasabi: 1, ginger: 0, chili: 0 },
       spots: [
-        { id: "A", x: 1856, y: 336, item: null },
-        { id: "B", x: 1948, y: 336, item: null },
-        { id: "C", x: 2360, y: 336, item: null },
+        { id: "A", x: 2.87, z: 8.5, item: null },
+        { id: "B", x: 2.87, z: 9.15, item: null },
+        { id: "C", x: 2.87, z: 9.8, item: null },
       ],
-      metalStack: 2, dirtyMetal: 0,
+      metalStack: 2,
       cupAtTray: null,
       shelf: [
-        { x: 3196, y: 292, items: [] }, { x: 3286, y: 292, items: [] },
-        { x: 3196, y: 374, items: [] }, { x: 3286, y: 374, items: [] },
+        { x: -3.0, y: 1.45, z: 13.7, items: [] }, { x: -2.0, y: 1.45, z: 13.7, items: [] },
+        { x: -3.0, y: 0.95, z: 13.7, items: [] }, { x: -2.0, y: 0.95, z: 13.7, items: [] },
       ],
       orders: [], customers: [], stickers: [],
       messes: [], steam: [], floats: [],
       score: 0, served: 0, lostCount: 0,
       bareFlag: false, feedback: [],
-      nextWalkIn: 0, walkSpawned: 0,
-      lastProgress: 0, thoughtAt: -99, clock: 0,
+      nextWalkIn: 0,
+      lastProgress: 0, thoughtAt: -99,
       mixing: null, scrubbing: false, holdFill: null, holdSauce: null,
       posFor: null, askFor: null, serviceFor: null,
     };
   }
-  // Objects registered below read positions off a live state, so build one
-  // now; startShift() rebuilds it fresh (all coordinates are constant).
   state = freshState();
 
-  // ---- helpers -----------------------------------------------------------
+  // ---- misc helpers ------------------------------------------------------
   function clockStr(min) {
     let h = 10, m = 30 + Math.floor(min);
     h += Math.floor(m / 60); m = m % 60;
@@ -92,12 +111,17 @@
     state.thoughtAt = state.clock;
   }
   function hideThought() { document.getElementById("thought").hidden = true; }
-  function float(x, y, txt, color) {
-    state.floats.push({ x: x, y: y, txt: txt, color: color || "#f4ede3", t: 0 });
+  function float(x, y, z, txt, color) {
+    state.floats.push({ x: x, y: y, z: z, txt: txt, color: color || "#f4ede3", t: 0 });
   }
   function isGloved() { return state.hands.level === "gloved" && !state.hands.dirtyGloves; }
-  function touchFood() { if (!isGloved()) state.bareFlag = true; }
-  function mess(x, y) { state.messes.push({ x: x, y: y }); }
+  function mess(x, y, z) { state.messes.push({ x: x, y: y, z: z }); }
+  // which light zone a point belongs to; returns current darkness 0..1
+  function dimAt(x, z) {
+    const kitchen = x > 2.45 || z > 12.9;
+    if (kitchen) return state.lights.kitchen ? 0 : 0.72;
+    return state.lights.foh ? 0 : 0.55;
+  }
 
   function newBowl(size) {
     return { kind: "bowl", size: size, riceType: null, rice: 0, base: [], pour: null, sauce: null, toppings: [], lid: false, bare: false };
@@ -117,6 +141,246 @@
     m.mix = Math.min(m.mix, 0.2);
   }
 
+  // ---- texture factory ---------------------------------------------------
+  // Small offscreen canvases mapped onto quads. Static ones build once;
+  // dynamic ones (pans, KDS, rail, cooker tops, switches, sign) rebuild on a
+  // short throttle.
+  function makeTex(w, h, draw) {
+    const cv = document.createElement("canvas");
+    cv.width = w; cv.height = h;
+    draw(cv.getContext("2d"), w, h);
+    return cv;
+  }
+  const TEX = {};
+  TEX.wood = makeTex(256, 256, (c, w, h) => {
+    c.fillStyle = "#b98d5e"; c.fillRect(0, 0, w, h);
+    for (let i = -8; i < 16; i++) {
+      c.strokeStyle = i % 2 ? "#a97e50" : "#c49a6a";
+      c.lineWidth = 18;
+      c.beginPath(); c.moveTo(i * 32, h); c.lineTo(i * 32 + h, 0); c.stroke();
+    }
+    c.strokeStyle = "rgba(90,60,30,0.35)"; c.lineWidth = 2;
+    for (let i = -8; i < 16; i++) {
+      c.beginPath(); c.moveTo(i * 32 + 9, h); c.lineTo(i * 32 + 9 + h, 0); c.stroke();
+    }
+  });
+  TEX.union = makeTex(256, 256, (c, w, h) => {
+    c.drawImage(TEX.wood, 0, 0);
+    c.save();
+    c.translate(128, 128); c.rotate(-0.5);
+    c.fillStyle = "#1c2429"; c.font = "800 46px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("UNION", 0, 0);
+    c.font = "800 20px system-ui, sans-serif";
+    c.fillText("SQ", 86, 24);
+    c.restore();
+  });
+  TEX.tile = makeTex(256, 128, (c, w, h) => {
+    c.fillStyle = "#f2efe9"; c.fillRect(0, 0, w, h);
+    c.strokeStyle = "rgba(190,190,185,0.8)"; c.lineWidth = 2;
+    for (let y = 0; y < h; y += 22) {
+      for (let x = -22; x < w; x += 44) {
+        c.strokeRect(x + (y % 44 ? 22 : 0), y, 44, 22);
+      }
+    }
+  });
+  TEX.mahalo = makeTex(160, 224, (c, w, h) => {
+    c.fillStyle = "#f4ede3"; c.fillRect(0, 0, w, h);
+    c.fillStyle = "#22b2b4"; c.font = "800 26px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("MAHALO", w / 2, 38);
+    c.fillStyle = "#41535e"; c.font = "600 13px system-ui, sans-serif";
+    ["Meet + greet", "Assist + educate", "Handle with care", "Add value", "Leave thanks", "Obtain feedback"].forEach((l, i) => {
+      c.fillText(l, w / 2, 70 + i * 26);
+    });
+  });
+  TEX.portion = makeTex(256, 160, (c, w, h) => {
+    c.fillStyle = "#f4ede3"; c.fillRect(0, 0, w, h);
+    c.fillStyle = "#ee435b"; c.font = "800 20px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("PORTION GUIDE", w / 2, 30);
+    c.fillStyle = "#41535e"; c.font = "600 14px system-ui, sans-serif";
+    c.fillText("Regular: 1 rice · 2 protein scoops", w / 2, 62);
+    c.fillText("Large: 2 rice · 3 protein scoops", w / 2, 86);
+    c.font = "600 11px system-ui, sans-serif";
+    c.fillText("right tool for the job", w / 2, 116);
+    c.fillText("lids on everything", w / 2, 134);
+  });
+  TEX.sop = makeTex(288, 256, (c, w, h) => {
+    c.fillStyle = "#f4ede3"; c.fillRect(0, 0, w, h);
+    c.strokeStyle = "#e0a32d"; c.lineWidth = 4; c.strokeRect(8, 8, w - 16, h - 16);
+    c.fillStyle = "#26333b"; c.font = "800 18px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("TOPPINGS SOP", w / 2, 34);
+    c.font = "600 11px system-ui, sans-serif";
+    c.fillText("10:00 avocado · 11:00 surimi", w / 2, 60);
+    c.fillText("12:00 seaweed · center masago", w / 2, 78);
+    // the bowl
+    c.fillStyle = "#e8e0d0"; c.beginPath(); c.arc(w / 2, 140, 44, 0, 7); c.fill();
+    SF.drawRiceMound(c, w / 2, 140, 70, 54, "white", 5);
+    SF.drawChunk(c, "avocado", w / 2 - 26, 118, 8, 0.4);
+    SF.drawChunk(c, "surimi", w / 2 - 6, 110, 8, 0);
+    SF.drawChunk(c, "seaweed", w / 2 + 16, 114, 8, 0.2);
+    SF.drawChunk(c, "masago", w / 2, 140, 7, 0);
+    SF.drawChunk(c, "tuna", w / 2 - 14, 152, 7, 0.3);
+    SF.drawChunk(c, "tuna", w / 2 + 12, 150, 7, 1.1);
+    c.fillStyle = "#26333b"; c.font = "700 11px system-ui, sans-serif";
+    c.fillText("SPRINKLED ON TOP OF PROTEIN:", w / 2, 208);
+    c.font = "600 10px system-ui, sans-serif";
+    c.fillText("green onion · sesame · crispy onion", w / 2, 226);
+    c.fillText("wontons · furikake · thai chili", w / 2, 242);
+  });
+  TEX.pickupSign = makeTex(256, 56, (c, w, h) => {
+    c.fillStyle = "#e8a33d"; c.beginPath(); c.roundRect(4, 8, 40, 40, 6); c.fill();
+    c.fillStyle = "#1c2429"; c.font = "800 22px system-ui, sans-serif"; c.textAlign = "left";
+    c.fillText("ORDER PICK-UP", 56, 38);
+    c.fillStyle = "#f4ede3";
+    c.font = "800 22px system-ui, sans-serif";
+    c.fillText("⤴", 14, 38);
+  });
+  TEX.promo = makeTex(144, 240, (c, w, h) => {
+    c.fillStyle = "#c8302e"; c.fillRect(0, 0, w, h);
+    c.fillStyle = "#fff"; c.font = "800 20px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("DYNAMITE", w / 2, 44);
+    c.fillText("LOBSTER", w / 2, 70);
+    c.fillText("BOWL", w / 2, 96);
+    c.fillStyle = "#f7f4ee";
+    c.beginPath(); c.ellipse(w / 2, 160, 44, 30, 0, 0, 7); c.fill();
+    SF.drawRiceMound(c, w / 2, 158, 66, 40, "white", 9);
+    SF.drawChunk(c, "shrimp", w / 2 - 14, 152, 8, 0.5);
+    SF.drawChunk(c, "shrimp", w / 2 + 10, 156, 8, 2.2);
+    SF.drawChunk(c, "masago", w / 2, 146, 7, 0);
+    c.fillStyle = "#fff"; c.font = "600 11px system-ui, sans-serif";
+    c.fillText("LIMITED TIME ONLY", w / 2, 220);
+  });
+  TEX.menu = makeTex(384, 96, (c, w, h) => {
+    c.fillStyle = "#1c2429"; c.fillRect(0, 0, w, h);
+    c.fillStyle = "#f4ede3"; c.font = "800 17px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("CHOOSE YOUR FLAVOR", w / 2, 28);
+    c.font = "600 12px system-ui, sans-serif";
+    c.fillStyle = "#c9d2d2";
+    c.fillText("signature works · poke your way", w / 2, 52);
+    c.fillText("regular 2 scoops · large 3 scoops", w / 2, 72);
+  });
+
+  // dynamic textures, rebuilt on a throttle
+  const dyn = { at: -1 };
+  function panTex(slot) {
+    if (!slot._tex) { slot._tex = document.createElement("canvas"); slot._tex.width = 72; slot._tex.height = 104; }
+    const c = slot._tex.getContext("2d");
+    c.clearRect(0, 0, 72, 104);
+    if (slot.pan) SF.drawHotelPan(c, 4, 4, 64, 96, slot.pan.ing, slot.pan.fill, slot.seed, null);
+    else {
+      c.fillStyle = "#6f767d"; c.beginPath(); c.roundRect(2, 2, 68, 100, 4); c.fill();
+      c.strokeStyle = "#5b6167"; c.lineWidth = 3; c.strokeRect(6, 6, 60, 92);
+    }
+    return slot._tex;
+  }
+  function cookerTopTex(ck) {
+    if (!ck._tex) { ck._tex = document.createElement("canvas"); ck._tex.width = 96; ck._tex.height = 96; }
+    const c = ck._tex.getContext("2d");
+    c.clearRect(0, 0, 96, 96);
+    c.fillStyle = "#5c6268"; c.beginPath(); c.arc(48, 48, 46, 0, 7); c.fill();
+    if (!ck.open) {
+      c.fillStyle = "#d7dce0"; c.beginPath(); c.arc(48, 48, 44, 0, 7); c.fill();
+      c.fillStyle = "#b6bdc4"; c.beginPath(); c.arc(48, 48, 12, 0, 7); c.fill();
+    } else if (ck.level > 0 && ck.cooked) {
+      SF.drawRiceMound(c, 48, 48, 80 * Math.max(0.5, ck.level / ck.capacity), 74 * Math.max(0.5, ck.level / ck.capacity), ck.type, 11);
+    } else if (ck.level > 0) {
+      c.fillStyle = ck.type === "brown" ? "#a8916c" : "#dcd6c6";
+      c.beginPath(); c.arc(48, 48, 30, 0, 7); c.fill();
+    }
+    return ck._tex;
+  }
+  TEX.kds = makeTex(384, 160, () => {});
+  function kdsTex() {
+    const c = TEX.kds.getContext("2d");
+    const w = 384, h = 160;
+    c.fillStyle = "#141b20"; c.fillRect(0, 0, w, h);
+    const act = state.orders.filter((o) => o.status === "pending");
+    c.textAlign = "left";
+    if (!act.length) {
+      c.fillStyle = "#4d6a58"; c.font = "700 16px ui-monospace, monospace";
+      c.fillText("NO ACTIVE ORDERS", 24, 86);
+    }
+    act.slice(0, 4).forEach((o, i) => {
+      const x = 8 + i * 94;
+      const late = state.min > o.dueMin, soon = state.min > o.dueMin - 8;
+      c.fillStyle = late ? "#5e2a30" : soon ? "#5e522a" : "#2a4234";
+      c.beginPath(); c.roundRect(x, 8, 88, 144, 5); c.fill();
+      c.fillStyle = "#e8ecef"; c.font = "700 15px ui-monospace, monospace";
+      c.fillText("#" + o.num, x + 7, 28);
+      c.font = "600 13px ui-monospace, monospace";
+      c.fillText(o.name.slice(0, 9), x + 7, 46);
+      c.fillStyle = "#9fb6c4";
+      c.fillText(o.type === "walkin" ? "here" : o.type, x + 7, 64);
+      if (o.type !== "walkin") c.fillText("due " + clockStr(o.dueMin), x + 7, 82);
+      c.fillText(o.spec.bowls.length + " bowl" + (o.spec.bowls.length > 1 ? "s" : ""), x + 7, 102);
+      if (o.spec.drink) c.fillText("+ drink", x + 7, 120);
+      if (o.spec.side) c.fillText("+ side", x + 7, 138);
+    });
+    if (act.length > 4) {
+      c.fillStyle = "#9fb6c4"; c.font = "700 15px ui-monospace, monospace";
+      c.fillText("+" + (act.length - 4), 356, 86);
+    }
+  }
+  TEX.rail = makeTex(384, 88, () => {});
+  function railTex() {
+    const c = TEX.rail.getContext("2d");
+    c.clearRect(0, 0, 384, 88);
+    c.fillStyle = "#b6bdc4"; c.fillRect(0, 0, 384, 10);
+    c.textAlign = "center";
+    state.stickers.slice(0, 5).forEach((st, i) => {
+      const x = 6 + i * 76;
+      c.fillStyle = "#f4ede3"; c.beginPath(); c.roundRect(x, 10, 70, 70, 3); c.fill();
+      c.fillStyle = "#333"; c.font = "700 16px ui-monospace, monospace";
+      c.fillText("#" + st.order.num, x + 35, 34);
+      c.font = "600 12px ui-monospace, monospace";
+      c.fillText(st.order.name.slice(0, 9), x + 35, 52);
+      c.fillText(st.order.type === "walkin" ? "here" : st.order.type, x + 35, 68);
+    });
+  }
+  TEX.switches = makeTex(72, 112, () => {});
+  function switchTex() {
+    const c = TEX.switches.getContext("2d");
+    c.fillStyle = "#d7dce0"; c.fillRect(0, 0, 72, 112);
+    [state.lights.kitchen, state.lights.foh].forEach((on, i) => {
+      c.fillStyle = on ? "#39a85b" : "#8d949c";
+      c.beginPath(); c.roundRect(16, 10 + i * 52, 40, 40, 6); c.fill();
+      c.fillStyle = "#f4ede3";
+      c.beginPath(); c.roundRect(22, (on ? 14 : 28) + i * 52, 28, 18, 3); c.fill();
+    });
+    c.fillStyle = "#41535e"; c.font = "700 9px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("KITCHEN", 36, 8);
+    c.fillText("DINING", 36, 110);
+  }
+  TEX.open = makeTex(160, 80, () => {});
+  function openTex() {
+    const c = TEX.open.getContext("2d");
+    c.fillStyle = "#1c2a33"; c.beginPath(); c.roundRect(0, 0, 160, 80, 14); c.fill();
+    c.fillStyle = state.sign ? "#ff5a76" : "#5e6b73";
+    c.font = "800 42px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("OPEN", 80, 56);
+    if (state.sign) {
+      c.strokeStyle = "rgba(255,90,118,0.6)"; c.lineWidth = 6;
+      c.beginPath(); c.roundRect(6, 6, 148, 68, 12); c.stroke();
+    }
+  }
+  TEX.board = makeTex(96, 128, () => {});
+  function boardTex() {
+    const c = TEX.board.getContext("2d");
+    c.fillStyle = "#8a6a42"; c.fillRect(0, 0, 96, 128);
+    c.fillStyle = "#f4ede3"; c.beginPath(); c.roundRect(8, 14, 80, 104, 3); c.fill();
+    c.fillStyle = "#b6bdc4"; c.beginPath(); c.roundRect(32, 4, 32, 16, 4); c.fill();
+    c.fillStyle = "#41535e"; c.font = "700 12px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("OPENING", 48, 34);
+    c.strokeStyle = "#c9ced2"; c.lineWidth = 2;
+    for (let i = 0; i < 6; i++) { c.beginPath(); c.moveTo(18, 46 + i * 12); c.lineTo(78, 46 + i * 12); c.stroke(); }
+  }
+  function refreshDynamicTex() {
+    if (state.clock - dyn.at < 0.15) return;
+    dyn.at = state.clock;
+    kdsTex(); railTex(); switchTex(); openTex(); boardTex();
+    for (const ck of state.cookers) cookerTopTex(ck);
+    for (const slot of state.linePans) panTex(slot);
+  }
+
   // ---- orders ------------------------------------------------------------
   function pushOrder(o, dueMin) {
     o.status = "pending";
@@ -126,7 +390,7 @@
     o.sat = 100; o.greeted = false; o.thanked = false; o.askedFeedback = false;
     o.satNotes = [];
     if (o.type !== "walkin") {
-      o.ticket = o; // pickups and catering come in printed
+      o.ticket = o;
       printSticker(o);
       sfx("tick"); setTimeout(() => sfx("tick"), 120);
     } else {
@@ -135,13 +399,15 @@
     state.orders.push(o);
     return o;
   }
-  function printSticker(o) {
-    state.stickers.push({ order: o });
-  }
+  function printSticker(o) { state.stickers.push({ order: o }); }
   function activeOrders() { return state.orders.filter((o) => o.status === "pending"); }
+  function removeSticker(o) {
+    if (!o) return;
+    state.stickers = state.stickers.filter((s) => s.order !== o);
+  }
 
   // ---- scoring -----------------------------------------------------------
-  function near(a, b, tol) { return Math.abs(a - b) <= tol; }
+  function near2(a, b, tol) { return Math.abs(a - b) <= tol; }
   function scoreBowl(b, spec) {
     const errs = [];
     if (!b) return ["a bowl was missing"];
@@ -149,8 +415,7 @@
     const wantRice = spec.size === "large" ? 2 : 1;
     if (b.riceType && b.riceType !== spec.rice) errs.push("wrong rice");
     if (b.rice === 0) errs.push("no rice");
-    else if (!near(b.rice, wantRice, 0.4)) errs.push(b.rice < wantRice ? "rice was short" : "too much rice");
-    // gather protein and mixin amounts from base + pour
+    else if (!near2(b.rice, wantRice, 0.4)) errs.push(b.rice < wantRice ? "rice was short" : "too much rice");
     const got = {};
     for (const it of b.base) got[it.ing] = (got[it.ing] || 0) + it.amount;
     let gotSauce = b.sauce ? { id: b.sauce.id, amount: b.sauce.amount } : null;
@@ -174,10 +439,11 @@
       if (SD.INGREDIENTS[k] && SD.INGREDIENTS[k].kind === "mixin" && spec.mixins.indexOf(k) < 0 && got[k] > 0.3)
         errs.push("extra " + SD.INGREDIENTS[k].name.toLowerCase());
     }
+    const wantTop = spec.toppings.concat(spec.sprinkles || []);
     const gotTops = {};
     for (const t of b.toppings) gotTops[t.ing] = (gotTops[t.ing] || 0) + t.amount;
-    for (const t of spec.toppings) if ((gotTops[t] || 0) < 0.5) errs.push("missing " + SD.INGREDIENTS[t].name.toLowerCase());
-    for (const k in gotTops) if (spec.toppings.indexOf(k) < 0 && gotTops[k] > 0.3) errs.push("extra " + SD.INGREDIENTS[k].name.toLowerCase());
+    for (const t of wantTop) if ((gotTops[t] || 0) < 0.5) errs.push("missing " + SD.INGREDIENTS[t].name.toLowerCase());
+    for (const k in gotTops) if (wantTop.indexOf(k) < 0 && gotTops[k] > 0.3) errs.push("extra " + SD.INGREDIENTS[k].name.toLowerCase());
     if (!gotSauce || gotSauce.amount <= 0.1) errs.push("no sauce");
     else {
       if (gotSauce.id !== spec.sauce) errs.push("wrong sauce");
@@ -194,7 +460,6 @@
     const specBowls = o.spec.bowls.slice();
     const del = o.delivered.bowls.slice();
     if (del.length < specBowls.length) errs.push((specBowls.length - del.length) + " bowl(s) missing");
-    // pair each spec bowl with the delivered bowl that fits it best
     for (const sb of specBowls) {
       if (!del.length) break;
       let bi = 0, bestErrs = null;
@@ -241,8 +506,8 @@
     state.feedback.push({ name: o.name, stars: stars, comment: comment, revealed: o.askedFeedback });
     updateHud();
     if (cust) {
-      float(cust.x, cust.y - 110, "★".repeat(stars), stars >= 4 ? "#ffd15a" : stars >= 3 ? "#f4ede3" : "#ee435b");
-      if (o.askedFeedback) float(cust.x, cust.y - 130, "“" + comment + "”", "#9fd6c0");
+      float(cust.x, 2.05, cust.z, "★".repeat(stars), stars >= 4 ? "#ffd15a" : stars >= 3 ? "#f4ede3" : "#ee435b");
+      if (o.askedFeedback) float(cust.x, 2.3, cust.z, "“" + comment + "”", "#9fd6c0");
     }
     sfx(stars >= 4 ? "chime" : errs.length > 2 ? "thunk" : "pop");
     if (stars === 5) sfx("jingle");
@@ -256,21 +521,22 @@
     custSeq++;
     const c = {
       id: "c" + custSeq, kind: kind, order: order || null,
-      x: WORLD_W + 40, y: 470, targetX: WORLD_W + 40,
+      x: -2.0, z: 0.4, tx: -2.0, tz: 0.4,
       shirt: SD.pick(SHIRTS), skin: SD.pick(SKINS),
       walkPhase: Math.random() * 6, state: "entering",
       arrivedAt: state.min, stateAt: state.min,
       bubble: null, bubbleUntil: 0, mood: "happy",
-      handedNote: false,
     };
     if (order) order.custId = c.id;
     if (!state.lights.foh) {
-      // dark dining room: they hesitate at the door and most turn around
       if (kind === "walkin") {
-        c.state = "balked"; c.bubble = "Are they open?"; c.bubbleUntil = state.min + 3; c.targetX = WORLD_W + 60;
+        c.state = "balked"; c.bubble = "Are they open?"; c.bubbleUntil = state.min + 3;
+        c.tx = -2.0; c.tz = -1;
         if (c.order) { c.order.status = "lost"; state.lostCount++; removeSticker(c.order); c.order = null; }
+      } else {
+        c.darkArrival = true;
+        if (c.order) { c.order.sat -= 10; c.order.satNotes.push("dark store"); }
       }
-      else { c.darkArrival = true; if (c.order) { c.order.sat -= 10; c.order.satNotes.push("dark store"); } }
     }
     state.customers.push(c);
     return c;
@@ -279,12 +545,14 @@
     return state.customers.filter((c) => c.kind === "walkin" &&
       (c.state === "queue" || c.state === "greeted" || c.state === "asking" || c.state === "ordering"));
   }
+  function custDist(c) { return Math.hypot(c.x - c.tx, c.z - c.tz); }
   function updateCustomer(c, dt) {
     const gm = dt / MIN_SEC;
-    // movement
-    if (Math.abs(c.x - c.targetX) > 3) {
-      const dir = c.targetX > c.x ? 1 : -1;
-      c.x += dir * dt * 120;
+    if (custDist(c) > 0.08) {
+      const d = custDist(c);
+      const step = Math.min(d, dt * 1.35);
+      c.x += ((c.tx - c.x) / d) * step;
+      c.z += ((c.tz - c.z) / d) * step;
       c.walkPhase += dt * 9;
       c.walking = true;
     } else c.walking = false;
@@ -293,16 +561,16 @@
 
     switch (c.state) {
       case "balked":
-        if (Math.abs(c.x - c.targetX) < 5) c.state = "leaving";
+        if (c.z < 0.1) c.gone = true;
         break;
       case "entering": {
         if (c.kind === "walkin") {
           const q = registerQueue().filter((o) => o !== c && o.state !== "ordering").length;
-          c.targetX = 3115 + Math.min(q, 3) * 72;
-          if (Math.abs(c.x - c.targetX) < 5) { c.state = "queue"; c.stateAt = state.min; }
+          c.tx = 1.95; c.tz = 10.25 - Math.min(q, 3) * 0.8;
+          if (custDist(c) < 0.12) { c.state = "queue"; c.stateAt = state.min; }
         } else {
-          c.targetX = 3195 + (Math.random() * 20 - 10);
-          if (Math.abs(c.x - c.targetX) < 5) {
+          c.tx = -2.5 + Math.random() * 0.8; c.tz = 12.65;
+          if (custDist(c) < 0.15) {
             c.state = "atShelf"; c.stateAt = state.min;
             c.bubble = c.kind === "catering" ? "Catering for " + c.order.name + "." : "Pickup for " + c.order.name + "?";
             c.bubbleUntil = state.min + 4;
@@ -311,25 +579,22 @@
         break;
       }
       case "queue": {
-        // shuffle up as the line moves
-        const ahead = registerQueue().filter((o) => o !== c && o.x < c.x - 10 && o.state !== "ordering").length;
-        c.targetX = 3115 + ahead * 72;
+        const ahead = registerQueue().filter((o) => o !== c && o.z > c.z + 0.1 && o.state !== "ordering").length;
+        c.tx = 1.95; c.tz = 10.25 - ahead * 0.8;
         const waited = state.min - c.stateAt;
         if (c.order && waited > 6) c.order.sat -= gm * 1.4;
-        if (waited > 20) { // gave up
+        if (waited > 20) {
           c.state = "leaving"; c.bubble = "Forget it."; c.bubbleUntil = state.min + 3;
-          if (c.order) { c.order.status = "lost"; state.lostCount++; }
-          removeSticker(c.order);
+          if (c.order) { c.order.status = "lost"; state.lostCount++; removeSticker(c.order); }
         }
         break;
       }
-      case "greeted": break;   // waiting on the register
-      case "asking": break;    // waiting on an answer
-      case "ordering": break;  // POS open
+      case "greeted": break;
+      case "asking": break;
+      case "ordering": break;
       case "waiting": {
         const waited = state.min - c.stateAt;
-        const grace = 14;
-        if (c.order && waited > grace) c.order.sat -= gm * 1.4;
+        if (c.order && waited > 14) c.order.sat -= gm * 1.4;
         if (c.order && waited > 38) {
           c.state = "leaving"; c.bubble = "I don't have all day."; c.bubbleUntil = state.min + 3;
           c.order.status = "lost"; state.lostCount++;
@@ -338,7 +603,6 @@
         break;
       }
       case "atShelf": {
-        // look for their labeled bag on the shelf
         if (state.min - (c.lastScan || 0) > 1.2) {
           c.lastScan = state.min;
           tryShelfPickup(c);
@@ -352,25 +616,21 @@
         }
         if (state.min - c.stateAt > 5 && state.min - (c.reAsk || 0) > 8) {
           c.reAsk = state.min;
-          c.bubble = c.order.name + "? Order " + "#" + c.order.num + "?";
+          c.bubble = c.order.name + "? Order #" + c.order.num + "?";
           c.bubbleUntil = state.min + 3;
         }
         break;
       }
       case "served": {
-        if (state.min - c.stateAt > 2.2) { c.state = "leaving"; }
+        if (state.min - c.stateAt > 2.2) c.state = "leaving";
         break;
       }
       case "leaving": {
-        c.targetX = WORLD_W + 80;
-        if (c.x > WORLD_W + 50) c.gone = true;
+        c.tx = -2.0; c.tz = -0.6;
+        if (c.z < 0.1) c.gone = true;
         break;
       }
     }
-  }
-  function removeSticker(o) {
-    if (!o) return;
-    state.stickers = state.stickers.filter((s) => s.order !== o);
   }
   function orderNeedsMore(o) {
     const needBowls = o.spec.bowls.length - o.delivered.bowls.length;
@@ -380,7 +640,6 @@
     return null;
   }
   function acceptItem(c, o) {
-    // player clicked this customer while holding something
     const h = state.held;
     if (!h) return false;
     if (h.kind === "bag") {
@@ -400,7 +659,6 @@
     } else if (h.kind === "side") {
       o.delivered.side = h.side; state.held = null;
     } else if (h.kind === "bowl") {
-      // handing a naked bowl across the counter: allowed, sloppy
       o.delivered.bowls.push(h.bowl); o.sat -= 4; o.satNotes.push("no bag");
       state.held = null;
     } else return false;
@@ -428,8 +686,6 @@
     for (const slot of state.shelf) {
       const bag = slot.items.find((it) => it.kind === "bag" && it.label && it.label.orderId === o.id);
       if (!bag) continue;
-      // take the bag plus any loose cup or side on the same slot;
-      // someone else's bag stays put
       const keep = [];
       for (const it of slot.items) {
         if (it === bag) {
@@ -448,12 +704,37 @@
         c.bubble = "This is missing " + more + ".";
         c.bubbleUntil = state.min + 4;
         o.sat -= 8; o.satNotes.push("incomplete on shelf");
-        c.state = "atShelf"; // stays until handed the rest
       } else {
         completeHandoff(c, o);
       }
       return;
     }
+  }
+  function tapCustomer(c) {
+    const o = c.order;
+    if (state.held && o && ["waiting", "atShelf", "queue", "greeted"].indexOf(c.state) >= 0) {
+      if (acceptItem(c, o)) return;
+    }
+    if (c.kind === "walkin" && c.state === "queue") {
+      c.state = "greeted"; c.stateAt = state.min;
+      const waited = state.min - c.arrivedAt;
+      if (o) {
+        o.greeted = true;
+        if (waited < 4) o.sat += 4;
+      }
+      if (!o) { c.state = "leaving"; return; }
+      if (Math.random() < 0.3 && SD.QUESTIONS.length) {
+        c.state = "asking";
+        c.question = SD.pick(SD.QUESTIONS);
+        c.bubble = c.question.q; c.bubbleUntil = state.min + 99;
+        openAsk(c);
+      } else {
+        c.bubble = SD.speakOrder(o); c.bubbleUntil = state.min + 99;
+      }
+      sfx("pop"); markProgress();
+      return;
+    }
+    if (c.state === "greeted" && !state.held) thought("Ring it in at the register.");
   }
 
   // ---- Mahalo service buttons -------------------------------------------
@@ -468,7 +749,7 @@
     const s = state.serviceFor;
     if (!s || state.min > s.until || s.cust.gone) { wrap.hidden = true; state.serviceFor = null; return; }
     wrap.hidden = false;
-    positionOver(wrap, s.cust.x, s.cust.y - 150);
+    positionOver(wrap, s.cust.x, 2.15, s.cust.z);
   }
   document.getElementById("svc-thanks").addEventListener("click", () => {
     const s = state.serviceFor;
@@ -476,7 +757,7 @@
     s.order.thanked = true;
     s.cust.bubble = "You're welcome."; s.cust.bubbleUntil = state.min + 2;
     document.getElementById("svc-thanks").disabled = true;
-    recompute(s);
+    applyService(s);
   });
   document.getElementById("svc-feedback").addEventListener("click", () => {
     const s = state.serviceFor;
@@ -487,126 +768,38 @@
     s.cust.bubble = fb ? "“" + fb.comment + "”" : "It was fine.";
     s.cust.bubbleUntil = state.min + 4;
     document.getElementById("svc-feedback").disabled = true;
-    recompute(s);
+    applyService(s);
   });
-  function recompute(s) {
-    // thanks and feedback arrive after scoring, so patch the totals lightly
-    const fb = state.feedback[state.feedback.length - 1];
+  function applyService(s) {
     if (s.order.thanked && !s.order._thankApplied) { s.order._thankApplied = true; state.score += 6; }
     if (s.order.askedFeedback && !s.order._fbApplied) { s.order._fbApplied = true; state.score += 8; }
-    if (fb && fb.name === s.order.name && fb.stars < 5 && (s.order.thanked || s.order.askedFeedback)) fb.stars = Math.min(5, fb.stars + 0);
     updateHud();
     markProgress();
   }
 
-  // ---- world objects -----------------------------------------------------
+  // ---- interactables -----------------------------------------------------
   const objs = [];
   function add(o) { objs.push(o); return o; }
-  function hitObj(wx, wy) {
-    // two passes: real objects first, z:-1 catch-all zones (customers) last
-    for (let i = objs.length - 1; i >= 0; i--) {
-      const o = objs[i];
-      if ((o.z || 0) < 0) continue;
-      if (wx >= o.x && wx <= o.x + o.w && wy >= o.y && wy <= o.y + o.h) return o;
-    }
-    for (let i = objs.length - 1; i >= 0; i--) {
-      const o = objs[i];
-      if ((o.z || 0) >= 0) continue;
-      if (wx >= o.x && wx <= o.x + o.w && wy >= o.y && wy <= o.y + o.h) return o;
-    }
-    return null;
-  }
-  function heldIsUtensil() {
-    return state.held && ["paddle", "spoodle", "tongs", "spoon", "towel"].indexOf(state.held.kind) >= 0;
-  }
   function dropHeldBlocked() { sfx("thunk"); }
 
-  // -- back area
-  add({ x: 30, y: 190, w: 62, h: 86, label: "opening checklist",
-    tap: () => { openSheet("board-view"); markProgress(); } });
-  add({ x: 108, y: 196, w: 46, h: 70, label: "light switches",
-    tap: () => {
-      // two rockers stacked: top = kitchen, bottom = front of house
-      state.lights.kitchen = !state.lights.kitchen;
-      sfx("pop"); markProgress();
-    } });
-  // split rocker: define two small zones layered above the panel
-  objs.pop();
-  add({ x: 108, y: 196, w: 46, h: 34, label: "kitchen lights",
+  // switches, clipboard and posters on the right wall, behind the line
+  add({ box: { x0: 4.86, y0: 1.46, z0: 2.86, x1: 5.0, y1: 1.74, z1: 3.18 }, label: "kitchen lights",
     tap: () => { state.lights.kitchen = !state.lights.kitchen; sfx("pop"); markProgress(); } });
-  add({ x: 108, y: 232, w: 46, h: 34, label: "dining lights",
+  add({ box: { x0: 4.86, y0: 1.16, z0: 2.86, x1: 5.0, y1: 1.46, z1: 3.18 }, label: "dining lights",
     tap: () => { state.lights.foh = !state.lights.foh; sfx("pop"); markProgress(); } });
+  add({ box: { x0: 4.88, y0: 1.28, z0: 3.4, x1: 5.0, y1: 1.78, z1: 3.78 }, label: "opening checklist",
+    tap: () => { openSheet("board-view"); markProgress(); } });
+  add({ box: { x0: 4.9, y0: 1.3, z0: 3.9, x1: 5.0, y1: 2.15, z1: 4.98 }, label: "portion guide",
+    tap: () => { openSheet("portion-view"); markProgress(); } });
+  add({ box: { x0: 4.9, y0: 1.3, z0: 5.1, x1: 5.0, y1: 2.2, z1: 6.34 }, label: "toppings SOP",
+    tap: () => { openSheet("portion-view"); markProgress(); } });
 
-  // -- wash station
-  add({ x: 246, y: 236, w: 118, h: 100, label: "hand sink",
-    tap: () => {
-      const h = state.hands;
-      if (state.held && state.held.kind === "metal") {
-        if (!state.waterOn) { thought("Water's off."); return; }
-        state.held = null; state.metalStack++; sfx("swish"); float(300, 260, "rinsed", "#9fd6c0"); markProgress(); return;
-      }
-      if (state.held) { dropHeldBlocked(); return; }
-      if (!state.waterOn) { thought("Water's off."); return; }
-      if (h.soaped && h.scrub >= 1) {
-        h.soaped = false; h.wet = true; h.rinsed = true; sfx("swish"); float(300, 250, "rinsed", "#9fd6c0");
-      } else {
-        h.wet = true;
-      }
-      markProgress();
-    },
-    holdStart: () => {
-      // scrubbing happens by rubbing over the basin with soapy hands
-      if (!state.held && state.hands.soaped) { state.scrubbing = true; return true; }
-      return false;
-    } });
-  add({ x: 296, y: 196, w: 26, h: 42, label: "faucet",
-    tap: () => { state.waterOn = !state.waterOn; sfx(state.waterOn ? "swish" : "pop"); markProgress(); } });
-  add({ x: 372, y: 226, w: 34, h: 52, label: "soap",
-    tap: () => {
-      if (state.held) { dropHeldBlocked(); return; }
-      if (!state.hands.wet) { thought("Dry hands. Soap won't lather."); return; }
-      state.hands.soaped = true; state.hands.scrub = 0; sfx("pop"); markProgress();
-    } });
-  add({ x: 424, y: 216, w: 44, h: 62, label: "paper towels",
-    tap: () => {
-      if (state.held && state.held.kind === "towel") { state.held = null; sfx("pop"); return; }
-      if (state.held) { dropHeldBlocked(); return; }
-      const h = state.hands;
-      if (h.rinsed && h.wet) {
-        h.wet = false; h.level = "clean"; h.rinsed = false;
-        sfx("chime"); float(446, 230, "clean hands", "#9fd6c0");
-      } else if (h.wet) {
-        h.wet = false; // dried, but never actually washed
-      } else {
-        state.held = { kind: "towel" };
-      }
-      markProgress();
-    } });
-  add({ x: 480, y: 250, w: 52, h: 40, label: "gloves",
-    tap: () => {
-      if (state.held) { dropHeldBlocked(); return; }
-      const h = state.hands;
-      h.dirtyGloves = h.level !== "clean";
-      h.level = "gloved";
-      sfx("pop"); float(506, 240, h.dirtyGloves ? "gloves on" : "gloves on ✓", h.dirtyGloves ? "#f4ede3" : "#9fd6c0");
-      markProgress();
-    } });
-  add({ x: 196, y: 420, w: 58, h: 92, label: "trash",
-    tap: () => {
-      if (!state.held) return;
-      const k = state.held.kind;
-      if (["bowl", "cup", "bag", "side", "panBackup"].indexOf(k) >= 0 || (k === "metal")) {
-        if (k === "metal") state.dirtyMetal = Math.max(0, state.dirtyMetal - 0); // metal bowls don't get trashed
-        state.held = null;
-        sfx("thunk"); markProgress();
-        if (state.hands.level === "gloved") state.hands.dirtyGloves = true;
-      } else dropHeldBlocked();
-    } });
-
-  // -- rice
-  function cookerObj(i) {
+  // rice cookers
+  [0, 1].forEach((i) => {
     const ck = () => state.cookers[i];
-    add({ x: state.cookers[i].x - 58, y: state.cookers[i].y - 92, w: 116, h: 96, label: () => (ck().type === "brown" ? "brown rice cooker" : "rice cooker"),
+    const z = state.cookers[i].z;
+    add({ box: { x0: 4.56, y0: CT, z0: z - 0.22, x1: 5.0, y1: CT + 0.52, z1: z + 0.22 },
+      label: () => (ck().type === "brown" ? "brown rice cooker" : "rice cooker"),
       tap: () => {
         const c = ck();
         const h = state.held;
@@ -616,43 +809,169 @@
           if (c.level <= 0) { thought("Pot's empty."); return; }
           if (h.load) { thought("Paddle's already loaded."); return; }
           h.load = { rice: c.type };
-          c.level--; touchFood(); sfx("pop"); markProgress(); return;
+          c.level--;
+          if (!isGloved()) state.bareFlag = true;
+          sfx("pop"); markProgress(); return;
         }
         if (h && ["spoodle", "tongs"].indexOf(h.kind) >= 0 && c.open && c.cooked) {
-          // wrong tool: it works, badly
           if (c.level <= 0) return;
           h.load = { rice: c.type, half: true };
-          c.level -= 1; touchFood(); mess(c.x + 30, c.y + 8); sfx("thunk"); markProgress(); return;
+          c.level -= 1; mess(4.65, CT + 0.02, z + 0.3); sfx("thunk"); markProgress(); return;
         }
         if (h) { dropHeldBlocked(); return; }
         c.open = !c.open;
         sfx("pop"); markProgress();
       } });
-    add({ x: state.cookers[i].x - 22, y: state.cookers[i].y + 20, w: 44, h: 26, label: "cooker switch",
+    add({ box: { x0: 4.48, y0: CT + 0.02, z0: z - 0.1, x1: 4.58, y1: CT + 0.2, z1: z + 0.1 }, label: "cooker switch",
       tap: () => {
         const c = ck();
         c.on = !c.on;
         sfx(c.on ? "chime" : "pop"); markProgress();
       } });
-  }
-  cookerObj(0); cookerObj(1);
-  add({ x: 668, y: 176, w: 40, h: 64, label: "rice paddle",
+  });
+  add({ box: { x0: 4.86, y0: 1.3, z0: 4.2, x1: 5.0, y1: 1.8, z1: 4.46 }, label: "rice paddle",
     tap: () => {
-      if (state.held && state.held.kind === "paddle") { state.held = null; sfx("pop"); return; }
+      if (state.held && state.held.kind === "paddle") {
+        if (state.held.load) { thought("Still rice on it."); return; }
+        state.held = null; sfx("pop"); return;
+      }
       if (state.held) { dropHeldBlocked(); return; }
       state.held = { kind: "paddle", load: null };
       markProgress();
     } });
-  add({ x: 545, y: 84, w: 250, h: 84, label: "portion guide",
-    tap: () => { openSheet("portion-view"); markProgress(); } });
 
-  // -- utensil rail
+  // hand sink station
+  add({ box: { x0: 4.58, y0: 0.78, z0: 6.15, x1: 5.0, y1: 1.06, z1: 6.95 }, label: "hand sink",
+    tap: () => {
+      const h = state.hands;
+      if (state.held && state.held.kind === "metal") {
+        if (!state.waterOn) { thought("Water's off."); return; }
+        state.held = null; state.metalStack++; sfx("swish");
+        float(4.8, 1.3, 6.5, "rinsed", "#9fd6c0"); markProgress(); return;
+      }
+      if (state.held) { dropHeldBlocked(); return; }
+      if (!state.waterOn) { thought("Water's off."); return; }
+      if (h.soaped && h.scrub >= 1) {
+        h.soaped = false; h.wet = true; h.rinsed = true; sfx("swish");
+        float(4.8, 1.3, 6.5, "rinsed", "#9fd6c0");
+      } else {
+        h.wet = true;
+      }
+      markProgress();
+    },
+    holdStart: () => {
+      if (!state.held && state.hands.soaped) { state.scrubbing = true; return true; }
+      return false;
+    } });
+  add({ box: { x0: 4.82, y0: 1.22, z0: 6.38, x1: 5.0, y1: 1.58, z1: 6.72 }, label: "faucet",
+    tap: () => { state.waterOn = !state.waterOn; sfx(state.waterOn ? "swish" : "pop"); markProgress(); } });
+  add({ box: { x0: 4.88, y0: 1.22, z0: 5.92, x1: 5.0, y1: 1.58, z1: 6.14 }, label: "soap",
+    tap: () => {
+      if (state.held) { dropHeldBlocked(); return; }
+      if (!state.hands.wet) { thought("Dry hands. Soap won't lather."); return; }
+      state.hands.soaped = true; state.hands.scrub = 0; sfx("pop"); markProgress();
+    } });
+  add({ box: { x0: 4.86, y0: 1.22, z0: 7.02, x1: 5.0, y1: 1.66, z1: 7.34 }, label: "paper towels",
+    tap: () => {
+      if (state.held && state.held.kind === "towel") { state.held = null; sfx("pop"); return; }
+      if (state.held) { dropHeldBlocked(); return; }
+      const h = state.hands;
+      if (h.rinsed && h.wet) {
+        h.wet = false; h.level = "clean"; h.rinsed = false;
+        sfx("chime"); float(4.85, 1.5, 7.15, "clean hands", "#9fd6c0");
+      } else if (h.wet) {
+        h.wet = false;
+      } else {
+        state.held = { kind: "towel" };
+      }
+      markProgress();
+    } });
+  add({ box: { x0: 4.6, y0: CT, z0: 7.44, x1: 4.94, y1: CT + 0.2, z1: 7.82 }, label: "gloves",
+    tap: () => {
+      if (state.held) { dropHeldBlocked(); return; }
+      const h = state.hands;
+      h.dirtyGloves = h.level !== "clean";
+      h.level = "gloved";
+      sfx("pop");
+      float(4.77, 1.25, 7.6, h.dirtyGloves ? "gloves on" : "gloves on ✓", h.dirtyGloves ? "#f4ede3" : "#9fd6c0");
+      markProgress();
+    } });
+  add({ box: { x0: 4.5, y0: 0, z0: 10.72, x1: 4.96, y1: 0.78, z1: 11.18 }, label: "trash",
+    tap: () => {
+      if (!state.held) return;
+      const k = state.held.kind;
+      if (["bowl", "cup", "bag", "side", "panBackup", "pinch"].indexOf(k) >= 0) {
+        state.held = null;
+        sfx("thunk"); markProgress();
+        if (state.hands.level === "gloved") state.hands.dirtyGloves = true;
+      } else dropHeldBlocked();
+    } });
+
+  // ---- the line: hotel pans ---------------------------------------------
+  function panHandler(slot) {
+    const h = state.held;
+    if (h && h.kind === "panBackup") {
+      if (slot.tin) { thought("Sprinkle tins stay put."); return; }
+      if (!slot.pan || slot.pan.ing === h.ing || slot.pan.fill < 0.2) {
+        slot.pan = { ing: h.ing, fill: 1 };
+        state.held = null;
+        sfx("chime"); markProgress();
+      } else thought("That well is taken.");
+      return;
+    }
+    if (!slot.pan || slot.pan.fill <= 0.02) { if (!h) thought("Empty well. Backups are in the low boy."); return; }
+    const ing = slot.pan.ing;
+    const right = SD.INGREDIENTS[ing].utensil;
+    if (right === "pinch" && !h) {
+      // sprinkles are pinched by (hopefully gloved) hand
+      state.held = { kind: "pinch", ing: ing, bare: !isGloved() };
+      if (!isGloved()) state.bareFlag = true;
+      slot.pan.fill = Math.max(0, slot.pan.fill - 0.03);
+      sfx("pop"); markProgress();
+      return;
+    }
+    if (h && (h.kind === "spoodle" || h.kind === "tongs")) {
+      if (h.load) { thought("Already holding some " + (h.load.ing ? SD.INGREDIENTS[h.load.ing].name.toLowerCase() : "rice") + "."); return; }
+      const amount = h.kind === right ? 1 : 0.5;
+      h.load = { ing: ing, amount: amount };
+      slot.pan.fill = Math.max(0, slot.pan.fill - amount * (slot.tin ? 0.05 : 0.16));
+      if (!isGloved()) state.bareFlag = true;
+      if (h.kind !== right && right !== "pinch") { mess((slot.x0 + slot.x1) / 2, CT + 0.02, slot.z1 + 0.15); sfx("thunk"); }
+      else sfx("pop");
+      markProgress();
+    } else if (h && h.kind === "paddle") {
+      thought("Rice paddle stays with the rice.");
+    } else if (!h) {
+      state.bareFlag = true;
+      thought("Bare hands in the pans? Grab a utensil.");
+    } else dropHeldBlocked();
+  }
+  // registered by index: startShift rebuilds state, so closures must not
+  // capture the boot-time slot objects
+  state.linePans.forEach((slot, idx) => {
+    add({ box: { x0: slot.x0, y0: CT - 0.08, z0: slot.z0, x1: slot.x1, y1: CT + 0.1, z1: slot.z1 },
+      label: () => {
+        const s = state.linePans[idx];
+        return s.pan ? SD.INGREDIENTS[s.pan.ing].name.toLowerCase() : "empty well";
+      },
+      tap: () => panHandler(state.linePans[idx]) });
+  });
+
+  // low boy under the line, worker side
+  add({ box: { x0: 3.5, y0: 0.12, z0: 3.0, x1: 3.64, y1: 0.85, z1: 5.6 }, label: "low boy (backups)",
+    tap: () => {
+      if (state.held) { dropHeldBlocked(); return; }
+      openFridge(); markProgress();
+    } });
+
+  // utensil rail above the line
   const rail = [
-    { kind: "spoodle", x: 946 }, { kind: "tongs", x: 1000 }, { kind: "tongs", x: 1054 }, { kind: "spoon", x: 1108 },
+    { kind: "spoodle", z: 3.1 }, { kind: "tongs", z: 3.42 }, { kind: "tongs", z: 3.74 }, { kind: "spoon", z: 4.06 },
   ];
   rail.forEach((u, idx) => {
     u.taken = false;
-    add({ x: u.x - 18, y: 176, w: 36, h: 64, label: u.kind === "spoodle" ? "spoodle" : u.kind,
+    add({ box: { x0: 3.22, y0: 1.32, z0: u.z - 0.13, x1: 3.44, y1: 1.75, z1: u.z + 0.13 },
+      label: u.kind === "spoodle" ? "spoodle" : u.kind,
       tap: () => {
         if (state.held && state.held.kind === u.kind && state.held.railIdx === idx) {
           if (state.held.load) { thought("Still food on it."); return; }
@@ -666,78 +985,7 @@
       } });
   });
 
-  // -- line pans (objects registered dynamically against state)
-  function panAt(wx, wy) {
-    for (const slot of state.linePans) {
-      if (wx >= slot.x && wx <= slot.x + slot.w && wy >= slot.y - 6 && wy <= slot.y + slot.h + 12) return slot;
-    }
-    return null;
-  }
-  add({ x: 900, y: 280, w: 900, h: 130, label: (wx, wy) => {
-      const slot = panAt(wx, wy);
-      if (!slot) return "cold line";
-      return slot.pan ? SD.INGREDIENTS[slot.pan.ing].name.toLowerCase() : "empty well";
-    },
-    tap: (wx, wy) => {
-      const slot = panAt(wx, wy);
-      if (!slot) return;
-      const h = state.held;
-      if (h && h.kind === "panBackup") {
-        if (!slot.pan || slot.pan.ing === h.ing || slot.pan.fill < 0.2) {
-          slot.pan = { ing: h.ing, fill: 1 };
-          state.held = null;
-          sfx("chime"); markProgress();
-        } else { thought("That pan spot is taken."); }
-        return;
-      }
-      if (!slot.pan || slot.pan.fill <= 0.02) { if (!h) thought("Empty well. Backups are in the low boy."); return; }
-      const ing = slot.pan.ing;
-      const right = SD.INGREDIENTS[ing].utensil;
-      if (h && (h.kind === "spoodle" || h.kind === "tongs")) {
-        if (h.load) { thought("Already holding some " + (h.load.ing ? SD.INGREDIENTS[h.load.ing].name.toLowerCase() : "rice") + "."); return; }
-        const amount = h.kind === right ? 1 : 0.5;
-        h.load = { ing: ing, amount: amount };
-        slot.pan.fill = Math.max(0, slot.pan.fill - amount * 0.16);
-        touchFood();
-        if (h.kind !== right) { mess(wx, slot.y + slot.h + 26); sfx("thunk"); } else sfx("pop");
-        markProgress();
-      } else if (h && h.kind === "paddle") {
-        thought("Rice paddle stays with the rice.");
-      } else if (!h) {
-        touchFood();
-        thought("Bare hands in the pans? Grab a utensil.");
-        state.bareFlag = true;
-      } else dropHeldBlocked();
-    } });
-
-  // -- low boy fridge
-  add({ x: 950, y: 428, w: 400, h: 86, label: "low boy (backups)",
-    tap: () => {
-      if (state.held) { dropHeldBlocked(); return; }
-      openFridge(); markProgress();
-    } });
-
-  // -- counter spots (A, B on prep counter; C at the pass)
-  function spotTap(spot) {
-    const h = state.held;
-    if (h && h.kind === "bowl" && !spot.item) { spot.item = h; state.held = null; sfx("pop"); markProgress(); return; }
-    if (h && h.kind === "metal" && !spot.item) { spot.item = h; state.held = null; sfx("pop"); markProgress(); return; }
-    const it = spot.item;
-    if (!it) return;
-    if (!h) {
-      spot.item = null;
-      state.held = it;
-      if (it.kind === "bowl" || it.kind === "metal") touchFood();
-      markProgress();
-      return;
-    }
-    // interactions between held thing and the item on the spot
-    if (it.kind === "bowl") interactBowl(it.bowl || it, spot, h);
-    else if (it.kind === "metal") interactMetal(it, spot, h);
-  }
-  function interactBowl(bowlWrap, spot, h) {
-    doBowlInteract(spot.item.bowl, spot, h);
-  }
+  // ---- prep spots and bowl building -------------------------------------
   function pourMetalIntoBowl(m, bowl) {
     const total = m.items.reduce((a, i) => a + i.amount, 0);
     if (total <= 0) { thought("Nothing in the mixing bowl."); return false; }
@@ -762,17 +1010,23 @@
       if (bowl.lid) { thought("Lid's on."); return; }
       bowl.rice += h.load.half ? 0.5 : 1;
       if (!bowl.riceType) bowl.riceType = h.load.rice;
-      else if (bowl.riceType !== h.load.rice) bowl.riceType = h.load.rice; // last scoop shows
+      else if (bowl.riceType !== h.load.rice) bowl.riceType = h.load.rice;
       h.load = null; sfx("pop"); markProgress(); return;
     }
     if ((h.kind === "spoodle" || h.kind === "tongs") && h.load) {
       if (bowl.lid) { thought("Lid's on."); return; }
       if (h.load.rice) { bowl.rice += 0.5; if (!bowl.riceType) bowl.riceType = h.load.rice; h.load = null; sfx("pop"); markProgress(); return; }
       const kind = SD.INGREDIENTS[h.load.ing].kind;
-      if (kind === "topping") bowlAddTop(bowl, h.load.ing, h.load.amount);
+      if (kind === "topping" || kind === "sprinkle") bowlAddTop(bowl, h.load.ing, h.load.amount);
       else bowlAddBase(bowl, h.load.ing, h.load.amount);
       if (!isGloved()) bowl.bare = true;
       h.load = null; sfx("pop"); markProgress(); return;
+    }
+    if (h.kind === "pinch") {
+      if (bowl.lid) { thought("Lid's on."); return; }
+      bowlAddTop(bowl, h.ing, 1);
+      if (h.bare) bowl.bare = true;
+      state.held = null; sfx("pop"); markProgress(); return;
     }
     if (h.kind === "lid") {
       if (h.size !== bowl.size) { thought("This lid doesn't fit that bowl."); sfx("thunk"); return; }
@@ -784,7 +1038,7 @@
       return;
     }
     if (h.kind === "bag") {
-      if (!bowl.lid) { thought("No lid on that. It'll tip."); }
+      if (!bowl.lid) thought("No lid on that. It'll tip.");
       if (h.items.length >= 3) { thought("Bag's full."); return; }
       h.items.push({ kind: "bowl", bowl: bowl });
       spot.item = null;
@@ -792,26 +1046,45 @@
     }
     dropHeldBlocked();
   }
-  function interactMetal(mWrap, spot, h) {
-    const m = spot.item;
+  function interactMetal(m, spot, h) {
     if ((h.kind === "spoodle" || h.kind === "tongs") && h.load && h.load.ing) {
       metalAdd(m, h.load.ing, h.load.amount);
       if (!isGloved()) state.bareFlag = true;
       h.load = null; sfx("pop"); markProgress(); return;
     }
+    if (h.kind === "pinch") {
+      metalAdd(m, h.ing, 1);
+      state.held = null; sfx("pop"); markProgress(); return;
+    }
     if (h.kind === "paddle" && h.load) { thought("Rice goes in the serving bowl, not the mix."); return; }
     if (h.kind === "bowl") {
-      // pouring the mix over a held serving bowl works too
       pourMetalIntoBowl(m, h.bowl);
       return;
     }
-    if (h.kind === "spoon") return; // handled via holdStart mixing
+    if (h.kind === "spoon") return; // mixing runs through holdStart
     dropHeldBlocked();
   }
-  // spot hit zones (registered once; they read live state)
-  [0, 1, 2].forEach((i) => {
+  function spotTap(spot) {
+    const h = state.held;
+    if (h && h.kind === "bowl" && !spot.item) { spot.item = h; state.held = null; sfx("pop"); markProgress(); return; }
+    if (h && h.kind === "metal" && !spot.item) {
+      if (h.dirty) { thought("That one needs a rinse first."); }
+      spot.item = h; state.held = null; sfx("pop"); markProgress(); return;
+    }
+    const it = spot.item;
+    if (!it) return;
+    if (!h) {
+      spot.item = null;
+      state.held = it;
+      markProgress();
+      return;
+    }
+    if (it.kind === "bowl") doBowlInteract(it.bowl, spot, h);
+    else if (it.kind === "metal") interactMetal(it, spot, h);
+  }
+  state.spots.forEach((_, i) => {
     add({
-      x: [1810, 1902, 2320][i], y: 296, w: 88, h: 84,
+      box: { x0: 2.7, y0: CT, z0: state.spots[i].z - 0.22, x1: 3.06, y1: CT + 0.34, z1: state.spots[i].z + 0.22 },
       label: () => {
         const it = state.spots[i].item;
         return it ? (it.kind === "metal" ? "mixing bowl" : "bowl") : "counter space";
@@ -836,8 +1109,8 @@
     });
   });
 
-  // -- metal bowls and spoon crock
-  add({ x: 2014, y: 292, w: 66, h: 74, label: "mixing bowls",
+  // metal bowls and the mixing spoon
+  add({ box: { x0: 3.2, y0: CT, z0: 9.5, x1: 3.5, y1: CT + 0.3, z1: 9.82 }, label: "mixing bowls",
     tap: () => {
       if (state.held && state.held.kind === "metal") {
         if (state.held.dirty) { thought("It's dirty. Rinse it at the sink first."); sfx("thunk"); return; }
@@ -849,7 +1122,7 @@
       state.held = newMetal();
       markProgress();
     } });
-  add({ x: 2096, y: 288, w: 44, h: 80, label: "mixing spoon",
+  add({ box: { x0: 3.2, y0: CT, z0: 9.94, x1: 3.5, y1: CT + 0.34, z1: 10.2 }, label: "mixing spoon",
     tap: () => {
       if (state.held && state.held.kind === "spoon" && state.held.fromCrock) { state.held = null; sfx("pop"); return; }
       if (state.held) { dropHeldBlocked(); return; }
@@ -857,66 +1130,54 @@
       markProgress();
     } });
 
-  // -- sauce rack
-  const RACK_POS = [
-    { id: "classic", x: 2196, y: 246 }, { id: "shoyu", x: 2246, y: 246 }, { id: "sriracha", x: 2296, y: 246 },
-    { id: "wasabi", x: 2196, y: 330 }, { id: "ginger", x: 2246, y: 330 }, { id: "chili", x: 2296, y: 330 },
-  ];
-  RACK_POS.forEach((rp) => {
-    add({ x: rp.x - 20, y: rp.y - 52, w: 40, h: 82, label: () => SD.SAUCES[rp.id].name,
+  // sauce rack on the line counter
+  const RACK_Z = [8.55, 8.73, 8.91, 9.09, 9.27, 9.45];
+  const RACK_IDS = ["classic", "shoyu", "sriracha", "wasabi", "ginger", "chili"];
+  RACK_IDS.forEach((id, i) => {
+    add({ box: { x0: 3.26, y0: CT, z0: RACK_Z[i] - 0.085, x1: 3.46, y1: CT + 0.34, z1: RACK_Z[i] + 0.085 },
+      label: () => SD.SAUCES[id].name,
       tap: () => {
         if (state.held && state.held.kind === "bottle") {
-          if (state.held.sauce === rp.id || state.rack[rp.id] === 0) {
+          if (state.held.sauce === id || state.rack[id] === 0) {
             state.rack[state.held.sauce] = 1;
             state.held = null; sfx("pop"); markProgress();
           } else dropHeldBlocked();
           return;
         }
         if (state.held) { dropHeldBlocked(); return; }
-        if (!state.rack[rp.id]) { thought("That bottle isn't out yet. Check the low boy."); return; }
-        state.rack[rp.id] = 0;
-        state.held = { kind: "bottle", sauce: rp.id, fill: 0.55 + Math.random() * 0.4 };
+        if (!state.rack[id]) { thought("That bottle isn't out yet. Check the low boy."); return; }
+        state.rack[id] = 0;
+        state.held = { kind: "bottle", sauce: id, fill: 0.55 + Math.random() * 0.4 };
         markProgress();
       } });
   });
 
-  // -- pass: bowls, lids, bags, spot C is above
-  add({ x: 2404, y: 292, w: 52, h: 76, label: "bowls (regular)",
+  // register at the end of the counter
+  add({ box: { x0: 2.86, y0: CT, z0: 10.02, x1: 3.34, y1: CT + 0.48, z1: 10.52 }, label: "register",
     tap: () => {
       if (state.held) { dropHeldBlocked(); return; }
-      state.held = { kind: "bowl", bowl: newBowl("regular") };
-      touchFood(); markProgress();
+      const front = registerQueue().find((c) => c.state === "greeted");
+      const ungreeted = registerQueue().find((c) => c.state === "queue");
+      if (front) { openPos(front); markProgress(); }
+      else if (ungreeted) tapCustomer(ungreeted);
+      else thought("Nobody's ordering right now.");
     } });
-  add({ x: 2462, y: 284, w: 56, h: 84, label: "bowls (large)",
-    tap: () => {
-      if (state.held) { dropHeldBlocked(); return; }
-      state.held = { kind: "bowl", bowl: newBowl("large") };
-      touchFood(); markProgress();
-    } });
-  add({ x: 2526, y: 300, w: 46, h: 68, label: "lids (regular)",
-    tap: () => {
-      if (state.held) { dropHeldBlocked(); return; }
-      state.held = { kind: "lid", size: "regular" };
-      markProgress();
-    } });
-  add({ x: 2578, y: 294, w: 50, h: 74, label: "lids (large)",
-    tap: () => {
-      if (state.held) { dropHeldBlocked(); return; }
-      state.held = { kind: "lid", size: "large" };
-      markProgress();
-    } });
-  add({ x: 2634, y: 282, w: 56, h: 86, label: "bags",
-    tap: () => {
-      if (state.held) { dropHeldBlocked(); return; }
-      state.held = { kind: "bag", items: [], label: null };
+
+  // KDS screen hanging over the line
+  add({ box: { x0: 3.02, y0: 1.9, z0: 5.0, x1: 3.14, y1: 2.5, z1: 6.44 }, label: "order screen",
+    tap: (pt) => {
+      const act = activeOrders();
+      if (!act.length) return;
+      const idx = Math.max(0, Math.min(act.length - 1, Math.floor(((pt.z - 5.0) / 1.44) * 4)));
+      openTicket(act[idx]);
       markProgress();
     } });
 
-  // -- ticket rail above the pass
-  add({ x: 2330, y: 168, w: 370, h: 64, label: "ticket rail",
-    tap: (wx) => {
+  // ticket rail on the wall over the pass
+  add({ box: { x0: 4.92, y0: 1.72, z0: 8.3, x1: 5.0, y1: 2.16, z1: 9.94 }, label: "ticket rail",
+    tap: (pt) => {
       if (!state.stickers.length) return;
-      const idx = Math.max(0, Math.min(state.stickers.length - 1, Math.floor((wx - 2340) / 74)));
+      const idx = Math.max(0, Math.min(state.stickers.length - 1, Math.floor(((pt.z - 8.3) / 1.64) * 5)));
       const st = state.stickers[idx];
       if (!st) return;
       if (state.held && state.held.kind === "bag") {
@@ -928,22 +1189,45 @@
       } else dropHeldBlocked();
     } });
 
-  // -- KDS screen
-  add({ x: 1200, y: 58, w: 380, h: 118, label: "order screen",
-    tap: (wx, wy) => {
-      const act = activeOrders();
-      if (!act.length) return;
-      const idx = Math.max(0, Math.min(act.length - 1, Math.floor((wx - 1208) / 92)));
-      openTicket(act[idx]);
+  // pass supplies on the back counter
+  add({ box: { x0: 4.6, y0: CT, z0: 8.12, x1: 4.94, y1: CT + 0.34, z1: 8.44 }, label: "bowls (regular)",
+    tap: () => {
+      if (state.held) { dropHeldBlocked(); return; }
+      state.held = { kind: "bowl", bowl: newBowl("regular") };
+      markProgress();
+    } });
+  add({ box: { x0: 4.6, y0: CT, z0: 8.5, x1: 4.94, y1: CT + 0.38, z1: 8.82 }, label: "bowls (large)",
+    tap: () => {
+      if (state.held) { dropHeldBlocked(); return; }
+      state.held = { kind: "bowl", bowl: newBowl("large") };
+      markProgress();
+    } });
+  add({ box: { x0: 4.6, y0: CT, z0: 8.88, x1: 4.94, y1: CT + 0.26, z1: 9.12 }, label: "lids (regular)",
+    tap: () => {
+      if (state.held) { dropHeldBlocked(); return; }
+      state.held = { kind: "lid", size: "regular" };
+      markProgress();
+    } });
+  add({ box: { x0: 4.6, y0: CT, z0: 9.18, x1: 4.94, y1: CT + 0.26, z1: 9.42 }, label: "lids (large)",
+    tap: () => {
+      if (state.held) { dropHeldBlocked(); return; }
+      state.held = { kind: "lid", size: "large" };
+      markProgress();
+    } });
+  add({ box: { x0: 4.6, y0: CT, z0: 9.5, x1: 4.94, y1: CT + 0.44, z1: 9.9 }, label: "bags",
+    tap: () => {
+      if (state.held) { dropHeldBlocked(); return; }
+      state.held = { kind: "bag", items: [], label: null };
       markProgress();
     } });
 
-  // -- drinks
+  // ---- drinks + sides against the back wall -----------------------------
   const VALVES = [
-    { id: "greentea", x: 2688 }, { id: "lemonade", x: 2732 }, { id: "punch", x: 2776 }, { id: "water", x: 2820 },
+    { id: "greentea", x: 0.58 }, { id: "lemonade", x: 0.94 }, { id: "punch", x: 1.3 }, { id: "water", x: 1.66 },
   ];
   VALVES.forEach((v) => {
-    add({ x: v.x - 18, y: 250, w: 36, h: 66, label: () => SD.DRINKS[v.id].name + " valve",
+    add({ box: { x0: v.x - 0.13, y0: 1.18, z0: 13.36, x1: v.x + 0.13, y1: 1.5, z1: 13.58 },
+      label: () => SD.DRINKS[v.id].name + " valve",
       holdStart: () => {
         if (state.cupAtTray) { state.holdFill = { valve: v.id }; return true; }
         thought("Nothing under the nozzle.");
@@ -951,7 +1235,7 @@
       },
       tap: () => { if (!state.cupAtTray) thought("Nothing under the nozzle."); } });
   });
-  add({ x: 2666, y: 318, w: 176, h: 40, label: "drip tray",
+  add({ box: { x0: 0.4, y0: CT, z0: 13.28, x1: 1.8, y1: CT + 0.16, z1: 13.62 }, label: "drip tray",
     tap: () => {
       if (state.held && state.held.kind === "cup" && !state.cupAtTray) {
         state.cupAtTray = state.held.cup; state.held = null; sfx("pop"); markProgress(); return;
@@ -961,13 +1245,13 @@
       }
       if (state.held) dropHeldBlocked();
     } });
-  add({ x: 2856, y: 288, w: 40, h: 80, label: "cups",
+  add({ box: { x0: 1.86, y0: CT, z0: 13.34, x1: 2.08, y1: CT + 0.4, z1: 13.6 }, label: "cups",
     tap: () => {
       if (state.held) { dropHeldBlocked(); return; }
       state.held = { kind: "cup", cup: { drink: null, fill: 0, lid: false, straw: false, mixedWrong: false } };
       markProgress();
     } });
-  add({ x: 2902, y: 300, w: 34, h: 62, label: "cup lids",
+  add({ box: { x0: 2.12, y0: CT, z0: 13.36, x1: 2.28, y1: CT + 0.28, z1: 13.58 }, label: "cup lids",
     tap: () => {
       const h = state.held;
       if (h && h.kind === "cup") {
@@ -976,7 +1260,7 @@
       } else if (!h) thought("Grab the cup first, then tap the lids.");
       else dropHeldBlocked();
     } });
-  add({ x: 2940, y: 306, w: 26, h: 56, label: "straws",
+  add({ box: { x0: 2.3, y0: CT, z0: 13.38, x1: 2.4, y1: CT + 0.32, z1: 13.56 }, label: "straws",
     tap: () => {
       const h = state.held;
       if (h && h.kind === "cup" && h.cup.lid) { h.cup.straw = true; sfx("pop"); markProgress(); }
@@ -984,13 +1268,12 @@
       else if (!h) return;
       else dropHeldBlocked();
     } });
-
-  // -- sides shelf and freezer
-  const SHELF_SIDES = [
-    { id: "taro", x: 2678 }, { id: "wchips", x: 2740 }, { id: "cookie", x: 2802 },
+  const SIDE_SHELF = [
+    { id: "taro", x0: 1.9, x1: 2.1 }, { id: "wchips", x0: 2.14, x1: 2.32 }, { id: "cookie", x0: 2.36, x1: 2.52 },
   ];
-  SHELF_SIDES.forEach((sd) => {
-    add({ x: sd.x - 24, y: 138, w: 48, h: 62, label: () => SD.SIDES[sd.id].name,
+  SIDE_SHELF.forEach((sd) => {
+    add({ box: { x0: sd.x0, y0: 1.68, z0: 13.8, x1: sd.x1, y1: 1.98, z1: 14.0 },
+      label: () => SD.SIDES[sd.id].name,
       tap: () => {
         const h = state.held;
         if (h && h.kind === "bag") {
@@ -1003,7 +1286,7 @@
         markProgress();
       } });
   });
-  add({ x: 2700, y: 428, w: 140, h: 86, label: "freezer (mochi)",
+  add({ box: { x0: 0.3, y0: 0.15, z0: 13.2, x1: 1.2, y1: 0.8, z1: 13.32 }, label: "freezer (mochi)",
     tap: () => {
       const h = state.held;
       if (h && h.kind === "bag") {
@@ -1016,22 +1299,12 @@
       markProgress();
     } });
 
-  // -- front of house
-  add({ x: 3050, y: 400, w: 110, h: 90, label: "register",
-    tap: () => {
-      if (state.held) { dropHeldBlocked(); return; }
-      const front = registerQueue().find((c) => c.state === "greeted");
-      const ungreeted = registerQueue().find((c) => c.state === "queue");
-      if (front) { openPos(front); markProgress(); }
-      else if (ungreeted) tapCustomer(ungreeted); // stepping up to the register is the hello
-      else thought("Nobody's ordering right now.");
-    } });
-  add({ x: 3185, y: 96, w: 96, h: 120, label: "Mahalo poster",
-    tap: () => { openSheet("mahalo-view"); markProgress(); } });
-  // pickup shelf slots
-  [0, 1, 2, 3].forEach((i) => {
-    const px = [3270, 3362, 3270, 3362][i], py = [246, 246, 330, 330][i];
-    add({ x: px, y: py, w: 84, h: 74, label: "pickup shelf",
+  // pickup shelf slots (back-left)
+  state.shelf.forEach((_, i) => {
+    add({ box: {
+        x0: state.shelf[i].x - 0.42, y0: state.shelf[i].y, z0: 13.45,
+        x1: state.shelf[i].x + 0.42, y1: state.shelf[i].y + 0.46, z1: 13.95,
+      }, label: "pickup shelf",
       tap: () => {
         const slot = state.shelf[i];
         const h = state.held;
@@ -1053,57 +1326,18 @@
         if (h) dropHeldBlocked();
       } });
   });
-  add({ x: 3390, y: 96, w: 66, h: 78, label: "open sign",
+
+  // open sign inside the front door
+  add({ box: { x0: -2.45, y0: 2.05, z0: 0.0, x1: -1.55, y1: 2.6, z1: 0.1 }, label: "open sign",
     tap: () => {
       state.sign = !state.sign;
       if (state.sign && state.signOnMin === null) state.signOnMin = state.min;
       sfx(state.sign ? "chime" : "pop");
       markProgress();
     } });
-
-  // customers are clickable too (registered as one catch-all zone)
-  add({ x: FRONT_X, y: 300, w: WORLD_W - FRONT_X, h: 180, label: () => "", z: -1,
-    tap: (wx, wy) => {
-      // find the nearest customer to the tap
-      let best = null, bd = 60;
-      for (const c of state.customers) {
-        if (c.gone || c.state === "leaving" || c.state === "balked") continue;
-        const d = Math.abs(c.x - wx);
-        if (d < bd) { bd = d; best = c; }
-      }
-      if (!best) return;
-      tapCustomer(best);
-    } });
-
-  function tapCustomer(c) {
-    const o = c.order;
-    if (state.held && o && ["waiting", "atShelf", "queue", "greeted"].indexOf(c.state) >= 0) {
-      if (acceptItem(c, o)) return;
-    }
-    if (c.kind === "walkin" && c.state === "queue") {
-      // the greet — the M in Mahalo
-      c.state = "greeted"; c.stateAt = state.min;
-      const waited = state.min - c.arrivedAt;
-      if (o) {
-        o.greeted = true;
-        if (waited < 4) { o.sat += 4; }
-      }
-      if (!o) { c.state = "leaving"; return; }
-      if (Math.random() < 0.3 && SD.QUESTIONS.length) {
-        c.state = "asking";
-        c.question = SD.pick(SD.QUESTIONS);
-        c.bubble = c.question.q; c.bubbleUntil = state.min + 99;
-        openAsk(c);
-      } else {
-        c.bubble = SD.speakOrder(o); c.bubbleUntil = state.min + 99;
-      }
-      sfx("pop"); markProgress();
-      return;
-    }
-    if (c.state === "greeted" && !state.held) {
-      thought("Ring it in at the register.");
-    }
-  }
+  // mahalo poster on the left wall
+  add({ box: { x0: -5.0, y0: 1.3, z0: 7.0, x1: -4.9, y1: 2.15, z1: 8.0 }, label: "Mahalo poster",
+    tap: () => { openSheet("mahalo-view"); markProgress(); } });
 
   // ---- DOM sheets --------------------------------------------------------
   function openSheet(id) {
@@ -1115,9 +1349,9 @@
       const el = document.getElementById(id);
       if (el) el.hidden = true;
     }
-    if (state && state.posFor) { // canceling the register mid-order
+    if (state && state.posFor) {
       const c = state.posFor;
-      if (c.state === "ordering") { c.state = "greeted"; }
+      if (c.state === "ordering") c.state = "greeted";
       state.posFor = null;
     }
     if (state) state.askFor = null;
@@ -1126,13 +1360,14 @@
 
   function openTicket(o) {
     openSheet("ticket-view");
-    const t = o.ticket || o;
     document.getElementById("tv-head").textContent =
       "#" + o.num + "  " + o.name + "  ·  " + (o.type === "walkin" ? "here" : o.type) +
       (o.type !== "walkin" ? "  ·  due " + clockStr(o.dueMin) : "");
     const body = document.getElementById("tv-body");
     body.innerHTML = "";
-    const src = o.type === "walkin" ? (o.ticket ? { bowls: o.ticket.bowls, drink: o.ticket.drink, side: o.ticket.side } : null) : o.spec;
+    const src = o.type === "walkin"
+      ? (o.ticket ? { bowls: o.ticket.bowls, drink: o.ticket.drink, side: o.ticket.side } : null)
+      : o.spec;
     if (!src) { body.textContent = "Not rung in yet."; return; }
     for (const line of SD.ticketLines({ bowls: src.bowls, drink: src.drink, side: src.side })) {
       const div = document.createElement("div");
@@ -1175,7 +1410,6 @@
     }
   }
 
-  // ---- ask (customer question) ------------------------------------------
   function openAsk(c) {
     state.askFor = c;
     const el = document.getElementById("ask");
@@ -1212,23 +1446,21 @@
   // ---- POS ---------------------------------------------------------------
   let pos = null;
   function openPos(cust) {
-    state.posFor = cust;
-    cust.state = "ordering";
     pos = {
       size: null, rice: null, protein: {}, mixins: [], sauce: null,
-      mixed: null, toppings: [], drink: null, side: null,
+      mixed: null, toppings: [], sprinkles: [], drink: null, side: null,
     };
     document.getElementById("pos-said").textContent = "“" + SD.speakOrder(cust.order) + "”";
     renderPos();
     openSheet("pos");
-    // openSheet closes everything first, then shows; restore posFor
     state.posFor = cust;
+    cust.state = "ordering";
     document.getElementById("pos").hidden = false;
   }
-  function chip(txt, on, fn, cls) {
+  function chip(txt, on, fn) {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "pos-chip" + (on ? " on" : "") + (cls ? " " + cls : "");
+    b.className = "pos-chip" + (on ? " on" : "");
     b.textContent = txt;
     b.addEventListener("click", fn);
     return b;
@@ -1248,6 +1480,14 @@
       s.appendChild(row);
       grid.appendChild(s);
     }
+    function multi(list, arr) {
+      return list.map((m) =>
+        chip(SD.INGREDIENTS[m].name, arr.indexOf(m) >= 0, () => {
+          const i = arr.indexOf(m);
+          if (i >= 0) arr.splice(i, 1); else arr.push(m);
+          renderPos();
+        }));
+    }
     section("Size", ["regular", "large"].map((v) =>
       chip(v, pos.size === v, () => { pos.size = v; renderPos(); })));
     section("Rice", ["white", "brown"].map((v) =>
@@ -1258,22 +1498,13 @@
         if (!pos.protein[p]) delete pos.protein[p];
         renderPos();
       })));
-    section("Mix-ins", SD.MIXINS.map((m) =>
-      chip(SD.INGREDIENTS[m].name, pos.mixins.indexOf(m) >= 0, () => {
-        const i = pos.mixins.indexOf(m);
-        i >= 0 ? pos.mixins.splice(i, 1) : pos.mixins.push(m);
-        renderPos();
-      })));
+    section("Mix-ins", multi(SD.MIXINS, pos.mixins));
     section("Sauce", Object.keys(SD.SAUCES).map((sc) =>
       chip(SD.SAUCES[sc].name, pos.sauce === sc, () => { pos.sauce = sc; renderPos(); })));
     section("Style", [chip("mixed", pos.mixed === true, () => { pos.mixed = true; renderPos(); }),
       chip("sauce on top", pos.mixed === false, () => { pos.mixed = false; renderPos(); })]);
-    section("Toppings", SD.TOPPINGS.map((t) =>
-      chip(SD.INGREDIENTS[t].name, pos.toppings.indexOf(t) >= 0, () => {
-        const i = pos.toppings.indexOf(t);
-        i >= 0 ? pos.toppings.splice(i, 1) : pos.toppings.push(t);
-        renderPos();
-      })));
+    section("Toppings", multi(SD.TOPPINGS, pos.toppings));
+    section("Sprinkles", multi(SD.SPRINKLES, pos.sprinkles));
     section("Drink", [chip("none", pos.drink === null, () => { pos.drink = null; renderPos(); })]
       .concat(Object.keys(SD.DRINKS).map((d) =>
         chip(SD.DRINKS[d].name, pos.drink === d, () => { pos.drink = d; renderPos(); }))));
@@ -1290,14 +1521,15 @@
         size: pos.size || "regular", rice: pos.rice || "white",
         protein: Object.assign({}, pos.protein),
         mixins: pos.mixins.slice(), sauce: pos.sauce || "classic",
-        toppings: pos.toppings.slice(), mixed: pos.mixed !== false,
+        toppings: pos.toppings.slice(), sprinkles: pos.sprinkles.slice(),
+        mixed: pos.mixed !== false,
       }],
       drink: pos.drink, side: pos.side,
     };
     printSticker(o);
     sfx("tick"); setTimeout(() => sfx("tick"), 110);
     c.state = "waiting"; c.stateAt = state.min;
-    c.targetX = 3225 + Math.random() * 30;
+    c.tx = 0.3 + Math.random() * 0.9; c.tz = 11.2 + Math.random() * 0.9;
     c.bubble = null;
     state.posFor = null;
     document.getElementById("pos").hidden = true;
@@ -1305,61 +1537,83 @@
   });
   document.getElementById("pos-cancel").addEventListener("click", () => {
     const c = state.posFor;
-    if (c) { c.state = "greeted"; }
+    if (c) c.state = "greeted";
     state.posFor = null;
     document.getElementById("pos").hidden = true;
   });
 
-  // ---- input -------------------------------------------------------------
-  let ptr = { down: false, x: 0, y: 0, sx: 0, sy: 0, panned: false, camStart: 0 };
+  // ---- picking -----------------------------------------------------------
   function canvasPos(e) {
     const r = canvas.getBoundingClientRect();
     return { x: (e.clientX - r.left) * (VW / r.width), y: (e.clientY - r.top) * (VH / r.height) };
   }
+  function pick(mx, my) {
+    const ray = R.ray(mx, my);
+    let best = null, bt = REACH;
+    for (const o of objs) {
+      const t = S3.rayBox(ray, o.box);
+      if (t !== null && t < bt) { bt = t; best = { obj: o, t: t }; }
+    }
+    // customers: a soft cylinder around each body, reachable across the counter
+    let bc = null, bct = 3.1;
+    for (const c of state.customers) {
+      if (c.gone || c.state === "leaving" || c.state === "balked") continue;
+      const t = S3.rayBox(ray, { x0: c.x - 0.32, y0: 0, z0: c.z - 0.32, x1: c.x + 0.32, y1: 1.9, z1: c.z + 0.32 });
+      if (t !== null && t < bct) { bct = t; bc = c; }
+    }
+    if (bc && (!best || bct < best.t)) return { cust: bc, t: bct };
+    if (best) {
+      best.pt = { x: ray.ox + ray.dx * best.t, y: ray.oy + ray.dy * best.t, z: ray.oz + ray.dz * best.t };
+      return best;
+    }
+    return null;
+  }
+
+  // ---- input -------------------------------------------------------------
+  const keys = {};
+  let ptr = { down: false, x: VW / 2, y: VH / 2, sx: 0, sy: 0, moved: 0, holding: false };
   canvas.addEventListener("pointerdown", (e) => {
     if (!state.running || state.paused || state.over) return;
     canvas.setPointerCapture(e.pointerId);
     const p = canvasPos(e);
-    ptr = { down: true, x: p.x, y: p.y, sx: p.x, sy: p.y, panned: false, camStart: state.cam };
-    // hold-interactions claim the pointer immediately
-    const wx = p.x + state.cam, wy = p.y;
-    const o = hitObj(wx, wy);
-    if (o && o.holdStart && o.holdStart(wx, wy)) { ptr.holding = true; ptr.holdMoved = 0; }
+    ptr = { down: true, x: p.x, y: p.y, sx: p.x, sy: p.y, moved: 0, holding: false };
+    const hit = pick(p.x, p.y);
+    if (hit && hit.obj && hit.obj.holdStart && hit.obj.holdStart()) ptr.holding = true;
   });
   canvas.addEventListener("pointermove", (e) => {
     const p = canvasPos(e);
+    const dx = p.x - ptr.x, dy = p.y - ptr.y;
     ptr.x = p.x; ptr.y = p.y;
     if (!ptr.down) return;
+    ptr.moved += Math.abs(dx) + Math.abs(dy);
     if (ptr.holding) {
-      ptr.holdMoved = (ptr.holdMoved || 0) + Math.abs(p.x - ptr.x) + Math.abs(p.y - ptr.y) + Math.abs(e.movementX || 0);
       if (state.mixing) {
         const spot = state.mixing.spot;
-        const cx = spot.x - state.cam, cy = 352;
-        const ang = Math.atan2(p.y - cy, p.x - cx);
-        if (state.mixing.lastAng !== null) {
-          let d = ang - state.mixing.lastAng;
-          if (d > Math.PI) d -= Math.PI * 2;
-          if (d < -Math.PI) d += Math.PI * 2;
-          const m = spot.item;
-          if (m) {
-            m.mix = Math.min(1, m.mix + Math.abs(d) / (Math.PI * 2 * 3));
-            if (Math.random() < Math.abs(d) * 0.1) sfx("swish");
+        const v = R.toView([2.87, CT + 0.08, spot.z]);
+        if (v[2] > 0.2) {
+          const s = R.project(v);
+          const ang = Math.atan2(p.y - s[1], p.x - s[0]);
+          if (state.mixing.lastAng !== null) {
+            let d = ang - state.mixing.lastAng;
+            if (d > Math.PI) d -= Math.PI * 2;
+            if (d < -Math.PI) d += Math.PI * 2;
+            const m = spot.item;
+            if (m) {
+              m.mix = Math.min(1, m.mix + Math.abs(d) / (Math.PI * 2 * 3));
+              if (Math.random() < Math.abs(d) * 0.1) sfx("swish");
+            }
           }
+          state.mixing.lastAng = ang;
         }
-        state.mixing.lastAng = ang;
       }
       if (state.scrubbing) {
-        const dx = Math.abs(p.x - ptr.x) + Math.abs(e.movementX || 2);
-        state.hands.scrub = Math.min(1.2, state.hands.scrub + 0.035);
+        state.hands.scrub = Math.min(1.2, state.hands.scrub + (Math.abs(dx) + Math.abs(dy)) * 0.004);
       }
       return;
     }
-    const dx = p.x - ptr.sx;
-    if (Math.abs(dx) > 10) ptr.panned = true;
-    if (ptr.panned) {
-      state.cam = Math.max(0, Math.min(WORLD_W - VW, ptr.camStart - dx));
-      state.camTarget = state.cam;
-    }
+    // free look
+    state.yaw += dx * 0.0042;
+    state.pitch = Math.max(-0.95, Math.min(0.5, state.pitch - dy * 0.0034));
   });
   canvas.addEventListener("pointerup", (e) => {
     if (!ptr.down) return;
@@ -1367,31 +1621,24 @@
     const wasHolding = ptr.holding;
     ptr.holding = false;
     state.mixing = null; state.holdFill = null; state.holdSauce = null; state.scrubbing = false;
-    // a press with no rubbing was really a tap (e.g. tapping the sink to
-    // rinse while your hands are still soapy) — let it fall through
-    if (wasHolding && (ptr.holdMoved || 0) >= 12) { markProgress(); return; }
-    if (ptr.panned) return;
+    if (wasHolding && ptr.moved >= 14) { markProgress(); return; }
+    if (!wasHolding && ptr.moved >= 14) return; // that was a look, not a tap
     if (!state.running || state.paused || state.over) return;
     const p = canvasPos(e);
-    // edge arrows step the camera a station over
-    if (p.x < 46) { state.camTarget = Math.max(0, state.cam - 560); return; }
-    if (p.x > VW - 46) { state.camTarget = Math.min(WORLD_W - VW, state.cam + 560); return; }
-    const wx = p.x + state.cam, wy = p.y;
-    // a held towel wipes up the nearest splat before anything else
+    // a held towel wipes the nearest splat first
     if (state.held && state.held.kind === "towel") {
-      const mi = state.messes.findIndex((m) => Math.abs(m.x - wx) < 30 && Math.abs(m.y - wy) < 26);
-      if (mi >= 0) { state.messes.splice(mi, 1); sfx("swish"); markProgress(); return; }
+      const ray = R.ray(p.x, p.y);
+      for (let i = 0; i < state.messes.length; i++) {
+        const m = state.messes[i];
+        const t = S3.rayBox(ray, { x0: m.x - 0.2, y0: m.y - 0.08, z0: m.z - 0.2, x1: m.x + 0.2, y1: m.y + 0.12, z1: m.z + 0.2 });
+        if (t !== null && t < REACH) { state.messes.splice(i, 1); sfx("swish"); markProgress(); return; }
+      }
     }
-    const o = hitObj(wx, wy);
-    if (o && o.tap) o.tap(wx, wy);
+    const hit = pick(p.x, p.y);
+    if (!hit) return;
+    if (hit.cust) { tapCustomer(hit.cust); return; }
+    if (hit.obj.tap) hit.obj.tap(hit.pt);
   });
-  canvas.addEventListener("wheel", (e) => {
-    if (!state.running || state.paused) return;
-    e.preventDefault();
-    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-    state.cam = Math.max(0, Math.min(WORLD_W - VW, state.cam + d));
-    state.camTarget = state.cam;
-  }, { passive: false });
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       const anyOpen = ["board-view", "portion-view", "mahalo-view", "ticket-view", "fridge-view", "pos", "ask"]
@@ -1400,34 +1647,100 @@
       if (state.running && !state.over) togglePause();
       return;
     }
-    if (!state.running || state.paused || state.over) return;
-    if (e.key === "ArrowLeft" || e.key === "a") state.camTarget = Math.max(0, state.camTarget - 300);
-    if (e.key === "ArrowRight" || e.key === "d") state.camTarget = Math.min(WORLD_W - VW, state.camTarget + 300);
+    keys[e.key.toLowerCase()] = true;
+    if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].indexOf(e.key.toLowerCase()) >= 0) e.preventDefault();
   });
+  window.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
+
+  // simple touch joystick (shows on coarse pointers via CSS)
+  const joyEl = document.getElementById("joy");
+  const joyKnob = document.getElementById("joy-knob");
+  let joy = { x: 0, y: 0, id: null };
+  if (joyEl) {
+    joyEl.addEventListener("pointerdown", (e) => {
+      joy.id = e.pointerId; joyEl.setPointerCapture(e.pointerId);
+      moveJoy(e);
+    });
+    joyEl.addEventListener("pointermove", (e) => { if (e.pointerId === joy.id) moveJoy(e); });
+    const end = (e) => {
+      if (e.pointerId !== joy.id) return;
+      joy = { x: 0, y: 0, id: null };
+      joyKnob.style.transform = "translate(0px, 0px)";
+    };
+    joyEl.addEventListener("pointerup", end);
+    joyEl.addEventListener("pointercancel", end);
+    function moveJoy(e) {
+      const r = joyEl.getBoundingClientRect();
+      let jx = ((e.clientX - r.left) / r.width) * 2 - 1;
+      let jy = ((e.clientY - r.top) / r.height) * 2 - 1;
+      const m = Math.hypot(jx, jy);
+      if (m > 1) { jx /= m; jy /= m; }
+      joy.x = jx; joy.y = jy;
+      joyKnob.style.transform = "translate(" + (jx * 26) + "px, " + (jy * 26) + "px)";
+    }
+  }
+
+  // ---- movement ----------------------------------------------------------
+  const BLOCKERS = [
+    LINE, BACK, DRINK, SHELF,
+    { x0: -4.95, z0: 2.7, x1: -3.95, z1: 4.3 },   // table 1
+    { x0: -4.95, z0: 5.2, x1: -3.95, z1: 6.8 },   // table 2
+    { x0: -4.35, z0: 1.4, x1: -3.85, z1: 1.9 },   // promo sign
+    { x0: -4.95, z0: 0.5, x1: -4.35, z1: 1.15 },  // plant
+    { x0: 4.5, z0: 10.72, x1: 4.96, z1: 11.18 },  // trash
+  ];
+  function blocked(x, z) {
+    const r = 0.28;
+    if (x < -4.72 || x > 4.72 || z < 0.34 || z > 13.66) return true;
+    for (const b of BLOCKERS) {
+      if (x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r) return true;
+    }
+    return false;
+  }
+  function movePlayer(dt) {
+    const sp = 2.6;
+    const fw = { x: Math.sin(state.yaw), z: Math.cos(state.yaw) };
+    const rt = { x: Math.cos(state.yaw), z: -Math.sin(state.yaw) };
+    let mx = 0, mz = 0;
+    if (keys.w || keys.arrowup) { mx += fw.x; mz += fw.z; }
+    if (keys.s || keys.arrowdown) { mx -= fw.x; mz -= fw.z; }
+    if (keys.a) { mx -= rt.x; mz -= rt.z; }
+    if (keys.d) { mx += rt.x; mz += rt.z; }
+    if (keys.arrowleft) state.yaw -= dt * 2.1;
+    if (keys.arrowright) state.yaw += dt * 2.1;
+    if (joy.id !== null) {
+      mx += fw.x * -joy.y + rt.x * joy.x;
+      mz += fw.z * -joy.y + rt.z * joy.x;
+    }
+    const m = Math.hypot(mx, mz);
+    if (m > 0.01) {
+      mx = (mx / m) * sp * dt; mz = (mz / m) * sp * dt;
+      if (!blocked(state.px + mx, state.pz)) state.px += mx;
+      if (!blocked(state.px, state.pz + mz)) state.pz += mz;
+      markWalk(dt);
+    }
+  }
+  let bobT = 0, walking = false;
+  function markWalk(dt) { bobT += dt * 7; walking = true; }
 
   // ---- schedule ----------------------------------------------------------
   function setupShift() {
     state = freshState();
-    // pre-open tickets: one catering job and early pickups
     const cat = SD.genCatering();
     cat.spec = { bowls: cat.bowls, drink: cat.drink, side: cat.side };
     pushOrder(cat, 50);
     const nPick = 2 + Math.min(3, shiftsPlayed);
     const dues = [38, 58, 82, 104, 122];
-    state.pickupPlan = [];
     for (let i = 0; i < nPick; i++) {
       const po = SD.genOrder("pickup");
       po.spec = { bowls: po.bowls, drink: po.drink, side: po.side };
       pushOrder(po, dues[i]);
-      state.pickupPlan.push(po);
     }
     state.walkInEvery = Math.max(7, 13 - shiftsPlayed * 1.5);
     updateHud();
   }
-
-  function updateSchedule(dt) {
+  function updateSchedule() {
     const m = state.min;
-    // pickup customers arrive around their due time
     for (const o of state.orders) {
       if (o.type === "pickup" && !o.custArrived && m >= o.dueMin - 1) {
         o.custArrived = true;
@@ -1439,7 +1752,6 @@
         c.shirt = "#41535e";
       }
     }
-    // walk-ins start once the sign is on (and it's around opening time)
     const walkStart = state.signOnMin !== null ? Math.max(state.signOnMin, 26) : null;
     if (walkStart !== null && m > walkStart && m < CLOSE_MIN && state.sign) {
       if (state.nextWalkIn === 0) state.nextWalkIn = m + 1.5;
@@ -1458,66 +1770,48 @@
   function update(dt) {
     state.clock += dt;
     state.min += dt / MIN_SEC;
-    // camera easing toward target (keyboard / edge steps)
-    if (Math.abs(state.camTarget - state.cam) > 1) {
-      state.cam += (state.camTarget - state.cam) * Math.min(1, dt * 8);
-    }
-    // rice cookers
+    walking = false;
+    movePlayer(dt);
     for (const c of state.cookers) {
       if (c.on && !c.cooked) {
         c.cookLeft -= dt / MIN_SEC;
         if (c.cookLeft <= 0) { c.cooked = true; sfx("chime"); }
       }
       if (!RM && c.open && c.cooked && Math.random() < dt * 3) {
-        state.steam.push({ x: c.x + (Math.random() * 40 - 20), y: c.y - 40, t: 0 });
+        state.steam.push({ x: 4.78 + (Math.random() * 0.3 - 0.15), y: CT + 0.55, z: c.z + (Math.random() * 0.3 - 0.15), t: 0 });
       }
     }
-    for (const s of state.steam) { s.t += dt; s.y -= dt * 26; }
+    for (const s of state.steam) { s.t += dt; s.y += dt * 0.35; }
     state.steam = state.steam.filter((s) => s.t < 1.6);
     for (const f of state.floats) f.t += dt;
     state.floats = state.floats.filter((f) => f.t < 2.4);
-    // finished scrubbing?
     if (state.hands.soaped && state.hands.scrub >= 1 && !state._scrubDing) {
       state._scrubDing = true;
-      float(300, 235, "scrubbed, now rinse", "#9fd6c0");
+      float(4.8, 1.35, 6.55, "scrubbed, now rinse", "#9fd6c0");
     }
     if (!state.hands.soaped) state._scrubDing = false;
-    // fountain fill
     if (state.holdFill && state.cupAtTray) {
       const cup = state.cupAtTray;
       if (cup.drink && cup.drink !== state.holdFill.valve) cup.mixedWrong = true;
       if (!cup.drink) cup.drink = state.holdFill.valve;
       cup.fill = Math.min(1.25, cup.fill + dt * 0.55);
-      if (cup.fill > 1.05 && !cup._spill) { cup._spill = true; mess(2750, 360); sfx("thunk"); }
+      if (cup.fill > 1.05 && !cup._spill) { cup._spill = true; mess(1.1, CT + 0.02, 13.42); sfx("thunk"); }
     }
-    // sauce squeeze
     if (state.holdSauce && state.held && state.held.kind === "bottle") {
       const t = state.holdSauce.target;
-      const add = dt * 0.5;
-      state.held.fill = Math.max(0, state.held.fill - add * 0.12);
-      if (state.holdSauce.isMetal) {
-        if (!t.sauce) t.sauce = { id: state.held.sauce, amount: 0 };
-        if (t.sauce.id !== state.held.sauce) { t.sauce = { id: state.held.sauce, amount: t.sauce.amount }; }
-        t.sauce.amount += add;
-        t.mix = Math.min(t.mix, 0.3);
-      } else {
-        if (!t.sauce) t.sauce = { id: state.held.sauce, amount: 0 };
-        if (t.sauce.id !== state.held.sauce) t.sauce.id = state.held.sauce;
-        t.sauce.amount += add;
-        if (t.sauce.amount > 1.7 && !t._pool) { t._pool = true; }
-      }
+      const addAmt = dt * 0.5;
+      state.held.fill = Math.max(0, state.held.fill - addAmt * 0.12);
+      if (!t.sauce) t.sauce = { id: state.held.sauce, amount: 0 };
+      if (t.sauce.id !== state.held.sauce) t.sauce.id = state.held.sauce;
+      t.sauce.amount += addAmt;
+      if (state.holdSauce.isMetal) t.mix = Math.min(t.mix, 0.3);
     }
-    // customers
     for (const c of state.customers) updateCustomer(c, dt);
     state.customers = state.customers.filter((c) => !c.gone);
-    updateSchedule(dt);
+    updateSchedule();
     renderServiceButtons();
-    // idle thoughts — the only nudge the game gives
-    if (state.clock - state.lastProgress > 34 && state.clock - state.thoughtAt > 26) {
-      idleThought();
-    }
-    // end of shift
-    if (state.min >= CLOSE_MIN && state.sign) { state.sign = false; }
+    if (state.clock - state.lastProgress > 34 && state.clock - state.thoughtAt > 26) idleThought();
+    if (state.min >= CLOSE_MIN && state.sign) state.sign = false;
     if (state.min >= CLOSE_MIN) {
       const busy = state.customers.some((c) => !c.gone && c.state !== "leaving" && c.state !== "balked");
       if ((!busy && !activeOrders().some((o) => o.type !== "walkin" && o.custArrived)) || state.min >= HARD_END) endShift();
@@ -1526,460 +1820,241 @@
   }
   function idleThought() {
     const m = state.min;
-    if (!state.lights.kitchen) return thought("Dark in here. There's a panel by the back door.");
+    if (!state.lights.kitchen) return thought("Dark in here. There's a panel on the wall behind the line.");
     if (state.hands.level === "dirty") return thought("Should wash in before touching anything.");
     if (!state.cookers[0].on && !state.cookers[0].cooked) return thought("Rice takes a while. Better get the pots going.");
-    if (!state.linePans.some((s) => s.pan)) return thought("The line is bare. Backups live in the low boy.");
+    if (!state.linePans.some((s) => s.pan && !s.tin)) return thought("The line is bare. Backups live in the low boy.");
     if (m < OPEN_MIN && !state.lights.foh) return thought("Dining room's still dark.");
-    if (m >= OPEN_MIN - 4 && !state.sign) return thought("Almost 11. The sign's still off.");
+    if (m >= OPEN_MIN - 4 && !state.sign) return thought("Almost 11. The sign by the door is still off.");
     if (activeOrders().length) return thought("Those tickets won't make themselves.");
     return thought("Breathe. Check the screen. Keep the station clean.");
   }
 
-  // ---- drawing -----------------------------------------------------------
-  function draw() {
-    const cam = state.cam;
-    ctx.clearRect(0, 0, VW, VH);
-    ctx.save();
-    ctx.translate(-cam, 0);
-    drawBackdrop(cam);
-    drawWallStuff();
-    drawCustomers();
-    drawStations();
-    drawMesses();
-    drawBubbles();
-    drawLighting(cam);
-    drawSteamAndFloats();
-    ctx.restore();
-    drawCursorAndHeld();
-    drawEdges(cam);
+  // ---- scene -------------------------------------------------------------
+  function bbFood(x, y, z, artPx, meters, drawFn, dim) {
+    R.billboard(x, y, z, (c, sx, sy, scale) => {
+      drawFn(c, sx, sy, (meters * scale) / artPx);
+    }, 0, dim);
   }
+  function drawScene() {
+    const cam = R.cam;
+    cam.x = state.px; cam.z = state.pz;
+    cam.y = EYE + (walking && !RM ? Math.sin(bobT) * 0.03 : 0);
+    cam.yaw = state.yaw; cam.pitch = state.pitch;
+    R.begin();
+    const dimK = state.lights.kitchen ? 0 : 0.72;
+    const dimF = state.lights.foh ? 0 : 0.55;
 
-  function drawBackdrop(cam) {
-    // kitchen wall
-    ctx.fillStyle = "#37454d";
-    ctx.fillRect(0, 0, FRONT_X, 380);
-    ctx.fillStyle = "#3f5058";
-    for (let x = 0; x < FRONT_X; x += 60) ctx.fillRect(x, 0, 2, 380);
-    ctx.fillStyle = "#2f3b42";
-    ctx.fillRect(0, 350, FRONT_X, 30);
-    // kitchen floor
-    ctx.fillStyle = "#57646c";
-    ctx.fillRect(0, 505, FRONT_X, VH - 505);
-    ctx.fillStyle = "#4d5a62";
-    for (let x = 0; x < FRONT_X; x += 80) ctx.fillRect(x + 20, 505, 40, VH - 505);
-    // kitchen counter band
-    ctx.fillStyle = "#8d979e";
-    ctx.fillRect(0, COUNTER_TOP, FRONT_X, 14);
-    ctx.fillStyle = "#78838b";
-    ctx.fillRect(0, COUNTER_TOP + 14, FRONT_X, COUNTER_BOT - COUNTER_TOP - 14);
-    ctx.fillStyle = "#6a747c";
-    ctx.fillRect(0, COUNTER_BOT - 8, FRONT_X, 8);
+    // floors + ceiling
+    R.quad([[-5, 0, 0], [2.45, 0, 0], [2.45, 0, 12.9], [-5, 0, 12.9]], "#8a7f6a", { dim: dimF });
+    R.quad([[-5, 0, 0.0], [-0.4, 0, 0.0], [-0.4, 0, 3.4], [-5, 0, 3.4]], "#b7bac0", { dim: dimF, bias: -0.01 });
+    R.quad([[2.45, 0, 0], [5, 0, 0], [5, 0, 14], [2.45, 0, 14]], "#8f8676", { dim: dimK });
+    R.quad([[-5, 0, 12.9], [2.45, 0, 12.9], [2.45, 0, 14], [-5, 0, 14]], "#8f8676", { dim: dimK });
+    R.quad([[-5, 3.2, 14], [5, 3.2, 14], [5, 3.2, 0], [-5, 3.2, 0]], "#3a3f45", { dim: Math.min(dimK, dimF) ? 0.5 : 0 });
 
-    // dining room
-    ctx.fillStyle = "#43555e";
-    ctx.fillRect(FRONT_X, 0, WORLD_W - FRONT_X, 460);
-    // windows
-    for (let i = 0; i < 1; i++) {
-      const wx = FRONT_X + 40 + i * 170;
-      ctx.fillStyle = "#9fc4d8";
-      ctx.beginPath(); ctx.roundRect(wx, 60, 120, 150, 8); ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.beginPath(); ctx.moveTo(wx + 10, 210); ctx.lineTo(wx + 50, 60); ctx.lineTo(wx + 76, 60); ctx.lineTo(wx + 36, 210); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = "#37454d"; ctx.lineWidth = 5;
-      ctx.strokeRect(wx, 60, 120, 150);
+    // walls
+    R.quad([[-5, 3.2, 0], [-5, 3.2, 14], [-5, 0, 14], [-5, 0, 0]], "#e2ded6", { dim: dimF });   // left
+    R.quad([[-5, 3.2, 0], [5, 3.2, 0], [5, 0, 0], [-5, 0, 0]], "#e2ded6", { dim: dimF });       // front
+    R.quad([[5, 3.2, 14], [5, 3.2, 0], [5, 0, 0], [5, 0, 14]], "#e8e4dc", { dim: dimK });       // right
+    R.texWall("nx", 4.995, 0, 2.25, 14, 3.2, TEX.wood, { dim: dimK });                          // wood band up top
+    R.texWall("nz", 13.995, -5, 0, 5, 3.2, TEX.wood, { dim: dimK });                            // back wall
+    R.texWall("nz", 13.99, -0.9, 1.7, 1.9, 3.05, TEX.union, { dim: dimK });
+    R.texWall("nz", 13.98, -3.35, 2.05, -1.55, 2.5, TEX.pickupSign, { dim: dimK });
+
+    // windows and door glass stay daylight-bright
+    R.quad([[-4.995, 2.4, 1.2], [-4.995, 2.4, 5.6], [-4.995, 0.7, 5.6], [-4.995, 0.7, 1.2]], "#cfe2ec", {});
+    R.quad([[DOOR.x0, 2.3, 0.005], [DOOR.x1, 2.3, 0.005], [DOOR.x1, 0.1, 0.005], [DOOR.x0, 0.1, 0.005]], "#c4dae8", {});
+    R.quad([[0.2, 2.2, 0.005], [1.9, 2.2, 0.005], [1.9, 0.8, 0.005], [0.2, 0.8, 0.005]], "#cfe2ec", {});
+    R.texWall("pz", 0.01, -2.45, 2.05, -1.55, 2.6, TEX.open, {});
+
+    // promo sign + plant + tables (dining flavor)
+    R.texWall("pz", 1.9, -4.3, 0.6, -3.85, 2.0, TEX.promo, { dim: dimF });
+    R.box(-4.32, 0, 1.42, -3.83, 0.6, 1.88, "#26292c", { dim: dimF });
+    R.box(-4.9, 0, 0.6, -4.4, 0.5, 1.1, "#41535e", { dim: dimF });
+    bbFood(-4.65, 0.5, 0.85, 40, 1.1, (c, sx, sy, s) => {
+      c.fillStyle = "#39704a";
+      c.beginPath(); c.ellipse(sx, sy - 22 * s, 14 * s, 22 * s, 0, 0, 7); c.fill();
+    }, dimF);
+    for (const tz of [2.9, 5.4]) {
+      R.box(-4.9, 0.9, tz, -4.0, 1.02, tz + 1.3, { all: "#c49a6a", bot: "#8a6a42" }, { dim: dimF });
+      R.box(-4.5, 0, tz + 0.5, -4.4, 0.9, tz + 0.6, "#8a6a42", { dim: dimF });
+      R.box(-4.15, 0, tz + 0.15, -3.95, 0.72, tz + 0.35, "#e8e4dc", { dim: dimF });
+      R.box(-4.15, 0, tz + 0.95, -3.95, 0.72, tz + 1.15, "#e8e4dc", { dim: dimF });
     }
-    // dining floor
-    ctx.fillStyle = "#7c6a52";
-    ctx.fillRect(FRONT_X, 460, WORLD_W - FRONT_X, VH - 460);
-    ctx.fillStyle = "#71604a";
-    for (let x = FRONT_X; x < WORLD_W; x += 46) ctx.fillRect(x, 460, 23, VH - 460);
-    // front door
-    ctx.fillStyle = "#5b4a36";
-    ctx.beginPath(); ctx.roundRect(WORLD_W - 96, 210, 72, 250, 6); ctx.fill();
-    ctx.fillStyle = "#9fc4d8";
-    ctx.beginPath(); ctx.roundRect(WORLD_W - 86, 230, 52, 130, 4); ctx.fill();
-    ctx.fillStyle = "#c9a144";
-    ctx.beginPath(); ctx.arc(WORLD_W - 84, 350, 4, 0, 7); ctx.fill();
-  }
+    // mahalo poster
+    R.texWall("px", -4.99, 7.0, 1.3, 8.0, 2.15, TEX.mahalo, { dim: dimF });
 
-  function drawWallStuff() {
-    const F = SF;
-    // wall clock
-    ctx.fillStyle = "#e8e4dc";
-    ctx.beginPath(); ctx.arc(140, 96, 30, 0, 7); ctx.fill();
-    ctx.strokeStyle = "#41535e"; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(140, 96, 30, 0, 7); ctx.stroke();
-    const totMin = 630 + state.min; // 10:30
-    const hA = ((totMin / 60) % 12) / 12 * Math.PI * 2 - Math.PI / 2;
-    const mA = (totMin % 60) / 60 * Math.PI * 2 - Math.PI / 2;
-    ctx.strokeStyle = "#333"; ctx.lineWidth = 3; ctx.lineCap = "round";
-    ctx.beginPath(); ctx.moveTo(140, 96); ctx.lineTo(140 + Math.cos(hA) * 14, 96 + Math.sin(hA) * 14); ctx.stroke();
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(140, 96); ctx.lineTo(140 + Math.cos(mA) * 22, 96 + Math.sin(mA) * 22); ctx.stroke();
-
-    // back door
-    ctx.fillStyle = "#4a5a64";
-    ctx.beginPath(); ctx.roundRect(8, 150, 0, 0, 0); ctx.fill();
-    // clipboard
-    ctx.fillStyle = "#8a6a42";
-    ctx.beginPath(); ctx.roundRect(30, 190, 62, 86, 4); ctx.fill();
-    ctx.fillStyle = "#f4ede3";
-    ctx.beginPath(); ctx.roundRect(36, 202, 50, 68, 2); ctx.fill();
-    ctx.fillStyle = "#b6bdc4";
-    ctx.beginPath(); ctx.roundRect(50, 184, 22, 12, 3); ctx.fill();
-    ctx.fillStyle = "#41535e"; ctx.font = "700 9px system-ui, sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("OPENING", 61, 214);
-    ctx.strokeStyle = "#c9ced2"; ctx.lineWidth = 1.4;
-    for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(42, 224 + i * 9); ctx.lineTo(80, 224 + i * 9); ctx.stroke(); }
-
-    // light switch panel
-    ctx.fillStyle = "#d7dce0";
-    ctx.beginPath(); ctx.roundRect(108, 196, 46, 70, 5); ctx.fill();
-    for (let i = 0; i < 2; i++) {
-      const on = i === 0 ? state.lights.kitchen : state.lights.foh;
-      ctx.fillStyle = on ? "#39a85b" : "#8d949c";
-      ctx.beginPath(); ctx.roundRect(118, 204 + i * 34, 26, 26, 4); ctx.fill();
-      ctx.fillStyle = "#f4ede3";
-      ctx.beginPath(); ctx.roundRect(122, on ? 207 + i * 34 : 216 + i * 34, 18, 11, 2); ctx.fill();
-    }
-    ctx.fillStyle = "#c9ced2"; ctx.font = "600 8px system-ui, sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("KITCHEN", 131, 200);
-    ctx.fillText("DINING", 131, 272);
-
-    // wash station
-    ctx.fillStyle = "#c8cfd5"; // basin
-    ctx.beginPath(); ctx.roundRect(246, 262, 118, 40, 8); ctx.fill();
-    ctx.fillStyle = "#9aa2a8";
-    ctx.beginPath(); ctx.roundRect(254, 268, 102, 28, 6); ctx.fill();
-    ctx.strokeStyle = "#b6bdc4"; ctx.lineWidth = 8; ctx.lineCap = "round"; // faucet
-    ctx.beginPath(); ctx.moveTo(305, 262); ctx.lineTo(305, 222); ctx.quadraticCurveTo(305, 208, 320, 208); ctx.stroke();
-    ctx.fillStyle = state.waterOn ? "#4be07a" : "#d7dce0";
-    ctx.beginPath(); ctx.roundRect(292, 200, 26, 10, 4); ctx.fill();
-    if (state.waterOn) {
-      ctx.fillStyle = "rgba(160,210,240,0.75)";
-      ctx.fillRect(316, 214, 6, 52);
-    }
-    ctx.fillStyle = "#f4ede3"; ctx.font = "700 8px system-ui, sans-serif";
-    ctx.fillText("WASH HANDS", 305, 320);
-    // soap
-    ctx.fillStyle = "#e8ecef";
-    ctx.beginPath(); ctx.roundRect(372, 230, 34, 46, 5); ctx.fill();
-    ctx.fillStyle = "#4aa8ff";
-    ctx.beginPath(); ctx.roundRect(378, 240, 22, 28, 3); ctx.fill();
-    ctx.fillStyle = "#e8ecef";
-    ctx.beginPath(); ctx.roundRect(384, 222, 10, 12, 2); ctx.fill();
-    // towels
-    ctx.fillStyle = "#8d979e";
-    ctx.beginPath(); ctx.roundRect(424, 216, 44, 34, 4); ctx.fill();
-    ctx.fillStyle = "#f4ede3";
-    ctx.beginPath(); ctx.roundRect(432, 250, 28, 22, 1); ctx.fill();
-    // glove box
-    ctx.fillStyle = "#4aa8ff";
-    ctx.beginPath(); ctx.roundRect(480, 254, 52, 34, 4); ctx.fill();
-    ctx.fillStyle = "#e8ecef";
-    ctx.beginPath(); ctx.ellipse(506, 271, 14, 7, 0.2, 0, 7); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.font = "700 8px system-ui, sans-serif";
-    ctx.fillText("GLOVES", 506, 296);
-    // trash
-    ctx.fillStyle = "#41535e";
-    ctx.beginPath(); ctx.roundRect(196, 428, 58, 84, 6); ctx.fill();
-    ctx.fillStyle = "#37454d";
-    ctx.beginPath(); ctx.roundRect(192, 420, 66, 12, 4); ctx.fill();
-
-    // portion guide poster
-    ctx.fillStyle = "#f4ede3";
-    ctx.beginPath(); ctx.roundRect(545, 84, 250, 84, 6); ctx.fill();
-    ctx.fillStyle = "#ee435b"; ctx.font = "800 13px system-ui, sans-serif";
-    ctx.fillText("PORTION GUIDE", 670, 104);
-    ctx.fillStyle = "#41535e"; ctx.font = "600 11px system-ui, sans-serif";
-    ctx.fillText("Regular:  1 rice scoop · 2 protein scoops", 670, 126);
-    ctx.fillText("Large:  2 rice scoops · 3 protein scoops", 670, 144);
-    ctx.font = "600 9px system-ui, sans-serif";
-    ctx.fillText("right tool for the job. lids on everything.", 670, 160);
-
-    // paddle hook
-    ctx.fillStyle = "#41535e";
-    ctx.beginPath(); ctx.arc(688, 182, 4, 0, 7); ctx.fill();
-    if (!(state.held && state.held.kind === "paddle")) SF.drawUtensil(ctx, "paddle", 688, 218, 0.15, 1, null);
-
-    // utensil rail
-    ctx.fillStyle = "#41535e";
-    ctx.fillRect(920, 178, 220, 5);
-    rail.forEach((u) => {
-      ctx.fillStyle = "#2f3b42";
-      ctx.beginPath(); ctx.arc(u.x, 184, 3.4, 0, 7); ctx.fill();
-      if (!u.taken) SF.drawUtensil(ctx, u.kind, u.x, 218, 0.1, 1, null);
-    });
-
-    // KDS
-    ctx.fillStyle = "#1c2429";
-    ctx.beginPath(); ctx.roundRect(1200, 58, 380, 118, 8); ctx.fill();
-    ctx.strokeStyle = "#41535e"; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.roundRect(1200, 58, 380, 118, 8); ctx.stroke();
-    const act = activeOrders();
-    ctx.textAlign = "left";
-    if (!act.length) {
-      ctx.fillStyle = "#4d6a58"; ctx.font = "700 12px ui-monospace, monospace";
-      ctx.fillText("NO ACTIVE ORDERS", 1224, 122);
-    }
-    act.slice(0, 4).forEach((o, i) => {
-      const x = 1208 + i * 92;
-      const late = state.min > o.dueMin;
-      const soon = state.min > o.dueMin - 8;
-      ctx.fillStyle = late ? "#5e2a30" : soon ? "#5e522a" : "#2a4234";
-      ctx.beginPath(); ctx.roundRect(x, 66, 86, 102, 4); ctx.fill();
-      ctx.fillStyle = "#e8ecef"; ctx.font = "700 11px ui-monospace, monospace";
-      ctx.fillText("#" + o.num, x + 6, 82);
-      ctx.font = "600 10px ui-monospace, monospace";
-      ctx.fillText(o.name.slice(0, 9), x + 6, 96);
-      ctx.fillStyle = "#9fb6c4";
-      ctx.fillText(o.type === "walkin" ? "here" : o.type, x + 6, 110);
-      ctx.fillText(o.type === "walkin" ? "" : "due " + clockStr(o.dueMin), x + 6, 124);
-      ctx.fillText(o.spec.bowls.length + " bowl" + (o.spec.bowls.length > 1 ? "s" : ""), x + 6, 138);
-      if (o.spec.drink) ctx.fillText("+ drink", x + 6, 150);
-      if (o.spec.side) ctx.fillText("+ side", x + 6, 162);
-    });
-    if (act.length > 4) {
-      ctx.fillStyle = "#9fb6c4"; ctx.font = "700 11px ui-monospace, monospace";
-      ctx.fillText("+" + (act.length - 4), 1552, 122);
-    }
-    ctx.textAlign = "center";
-
-    // ticket rail
-    ctx.fillStyle = "#b6bdc4";
-    ctx.fillRect(2330, 168, 370, 8);
-    state.stickers.slice(0, 5).forEach((st, i) => {
-      const x = 2340 + i * 74;
-      ctx.fillStyle = "#f4ede3";
-      ctx.beginPath(); ctx.roundRect(x, 176, 66, 52, 2); ctx.fill();
-      ctx.fillStyle = "#333"; ctx.font = "700 11px ui-monospace, monospace";
-      ctx.fillText("#" + st.order.num, x + 33, 194);
-      ctx.font = "600 9px ui-monospace, monospace";
-      ctx.fillText(st.order.name.slice(0, 9), x + 33, 208);
-      ctx.fillText(st.order.type === "walkin" ? "here" : st.order.type, x + 33, 220);
-    });
-
-    // sides shelf
-    ctx.fillStyle = "#5b4a36";
-    ctx.fillRect(2648, 196, 190, 8);
-    SHELF_SIDES.forEach((sd) => SF.drawSidePack(ctx, sd.x, 172, 1, sd.id));
-    ctx.fillStyle = "#c9ced2"; ctx.font = "600 8px system-ui, sans-serif";
-    ctx.fillText("SIDES", 2740, 216);
-
-    // MAHALO poster (dining wall)
-    ctx.fillStyle = "#f4ede3";
-    ctx.beginPath(); ctx.roundRect(3185, 96, 96, 120, 6); ctx.fill();
-    ctx.fillStyle = "#22b2b4"; ctx.font = "800 14px system-ui, sans-serif";
-    ctx.fillText("MAHALO", 3233, 118);
-    ctx.fillStyle = "#41535e"; ctx.font = "600 8px system-ui, sans-serif";
-    ["Meet + greet", "Assist + educate", "Handle with care", "Add value", "Leave thanks", "Obtain feedback"].forEach((l, i) => {
-      ctx.fillText(l, 3233, 136 + i * 13);
-    });
-
-    // open sign in the window by the door
-    ctx.fillStyle = "#2f3b42";
-    ctx.beginPath(); ctx.roundRect(3392, 106, 60, 34, 6); ctx.fill();
-    ctx.fillStyle = state.sign ? "#ff5a76" : "#5e6b73";
-    ctx.font = "800 15px system-ui, sans-serif";
-    ctx.fillText("OPEN", 3422, 129);
-    if (state.sign) {
-      ctx.strokeStyle = "rgba(255,90,118,0.5)"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.roundRect(3388, 102, 68, 42, 8); ctx.stroke();
-    }
-  }
-
-  function drawStations() {
-    const F = SF;
-    // rice cookers
-    for (const c of state.cookers) F.drawRiceCooker(ctx, c.x, c.y, c.R, c);
-    // cold table + sneeze guard
-    ctx.fillStyle = "#aeb5bc";
-    ctx.beginPath(); ctx.roundRect(900, 276, 900, 136, 6); ctx.fill();
-    ctx.fillStyle = "#98a0a7";
-    ctx.fillRect(900, 404, 900, 10);
-    // pans
+    // ---- the line (right side) ----
+    R.box(LINE.x0, 0.12, LINE.z0, LINE.x1, CT, LINE.z1, { nx: null, all: "#d8d5ce", top: "#aeb5bc" }, { dim: dimK });
+    R.texWall("nx", LINE.x0, LINE.z0, 0.12, LINE.z1, CT, TEX.tile, { dim: dimF });
+    R.box(LINE.x0, 0, LINE.z0, LINE.x1, 0.12, LINE.z1, "#26292c", { dim: dimF });
+    // low boy doors on the worker side
+    R.quad([[3.601, 0.82, 3.0], [3.601, 0.82, 5.6], [3.601, 0.14, 5.6], [3.601, 0.14, 3.0]], "#9aa2a8", { dim: dimK });
+    R.quad([[3.602, 0.55, 4.1], [3.602, 0.55, 4.5], [3.602, 0.49, 4.5], [3.602, 0.49, 4.1]], "#d7dce0", { dim: dimK });
+    // pans set into the top
     for (const slot of state.linePans) {
-      if (slot.pan) {
-        F.drawHotelPan(ctx, slot.x, slot.y, slot.w, slot.h, slot.pan.ing, slot.pan.fill, slot.seed, SD.INGREDIENTS[slot.pan.ing].name);
-      } else {
-        ctx.fillStyle = "#6f767d";
-        ctx.beginPath(); ctx.roundRect(slot.x, slot.y, slot.w, slot.h, 4); ctx.fill();
-        ctx.strokeStyle = "#5b6167"; ctx.lineWidth = 2;
-        ctx.strokeRect(slot.x + 3, slot.y + 3, slot.w - 6, slot.h - 6);
-      }
+      R.texTop(slot.x0, slot.z0, slot.x1, slot.z1, CT + 0.012, slot._tex || panTex(slot), { dim: dimK, bias: -0.02 });
     }
     // sneeze guard glass
-    ctx.fillStyle = "rgba(200,230,244,0.14)";
-    ctx.fillRect(900, 214, 900, 62);
-    ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 2;
-    ctx.strokeRect(900, 214, 900, 62);
-
-    // low boy
-    ctx.fillStyle = "#8d979e";
-    ctx.beginPath(); ctx.roundRect(950, 428, 400, 86, 6); ctx.fill();
-    ctx.fillStyle = "#78838b";
-    ctx.beginPath(); ctx.roundRect(958, 436, 188, 70, 4); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(1154, 436, 188, 70, 4); ctx.fill();
-    ctx.fillStyle = "#c9ced2";
-    ctx.fillRect(1040, 466, 30, 6); ctx.fillRect(1236, 466, 30, 6);
-    ctx.fillStyle = "#e8ecef"; ctx.font = "700 9px system-ui, sans-serif";
-    ctx.fillText("LOW BOY · BACKUPS", 1150, 424);
-
-    // prep counter spots A/B (subtle mat so they read as work spots)
-    [[1810, "A"], [1902, "B"], [2320, "C"]].forEach((sp) => {
-      ctx.fillStyle = "rgba(255,255,255,0.10)";
-      ctx.beginPath(); ctx.roundRect(sp[0], 344, 88, 40, 6); ctx.fill();
-    });
-    state.spots.forEach((spot, i) => {
-      const sx = [1854, 1946, 2364][i];
-      const it = spot.item;
-      if (it) {
-        if (it.kind === "bowl") F.drawServingBowl(ctx, sx, 352, 1, it.bowl);
-        else if (it.kind === "metal") F.drawMetalBowl(ctx, sx, 352, 1, it);
+    R.quad([[2.62, 1.78, 2.9], [2.62, 1.78, 8.2], [2.62, 1.22, 8.2], [2.62, 1.22, 2.9]], "#cfe4ee", { alpha: 0.16 });
+    R.quad([[2.62, 1.8, 2.9], [3.1, 1.62, 2.9], [3.1, 1.62, 8.2], [2.62, 1.8, 8.2]], "#cfe4ee", { alpha: 0.12 });
+    // spots: mats + their contents
+    state.spots.forEach((spot) => {
+      R.quad([[2.7, CT + 0.008, spot.z - 0.2], [3.04, CT + 0.008, spot.z - 0.2], [3.04, CT + 0.008, spot.z + 0.2], [2.7, CT + 0.008, spot.z + 0.2]],
+        "#ffffff", { alpha: 0.16, dim: dimK, bias: -0.02 });
+      if (spot.item) {
+        if (spot.item.kind === "bowl") bbFood(2.87, CT + 0.01, spot.z, 54, 0.24, (c, sx, sy, s) => SF.drawServingBowl(c, sx, sy - 6 * s, s, spot.item.bowl), dimK);
+        else bbFood(2.87, CT + 0.01, spot.z, 56, 0.26, (c, sx, sy, s) => SF.drawMetalBowl(c, sx, sy - 5 * s, s, spot.item), dimK);
       }
     });
-
-    // metal bowl stack
-    for (let i = 0; i < state.metalStack; i++) {
-      F.drawMetalBowl(ctx, 2046, 350 - i * 8, 0.9, { items: [], sauce: null, mix: 0 });
-    }
-    // spoon crock
-    ctx.fillStyle = "#e8e4dc";
-    ctx.beginPath(); ctx.roundRect(2100, 330, 36, 40, 6); ctx.fill();
-    if (!(state.held && state.held.kind === "spoon")) F.drawUtensil(ctx, "spoon", 2118, 330, 0.25, 1, null);
-
-    // sauce rack
-    ctx.fillStyle = "#5b4a36";
-    ctx.fillRect(2168, 258, 156, 8); ctx.fillRect(2168, 342, 156, 8);
-    RACK_POS.forEach((rp) => {
-      if (state.rack[rp.id]) F.drawSauceBottle(ctx, rp.x, rp.y - 10, 62, rp.id, 0.75);
+    // sauce rack bottles
+    RACK_IDS.forEach((id, i) => {
+      if (state.rack[id]) bbFood(3.36, CT, RACK_Z[i], 62, 0.24, (c, sx, sy, s) => SF.drawSauceBottle(c, sx, sy - 28 * s, s * 62, id, 0.75), dimK);
     });
-    ctx.fillStyle = "#c9ced2"; ctx.font = "600 8px system-ui, sans-serif";
-    ctx.fillText("SAUCES", 2246, 368);
-
-    // pass stacks
-    function stack(x, y, n, big) {
-      for (let i = 0; i < n; i++) {
-        ctx.fillStyle = i % 2 ? "#f7f4ee" : "#e8e4dc";
-        ctx.beginPath(); ctx.ellipse(x, y - i * 5, big ? 30 : 25, 8, 0, 0, 7); ctx.fill();
-      }
+    // metal bowls + spoon crock
+    for (let i = 0; i < Math.min(state.metalStack, 3); i++) {
+      bbFood(3.35, CT + i * 0.05, 9.66, 56, 0.26, (c, sx, sy, s) => SF.drawMetalBowl(c, sx, sy - 5 * s, s, { items: [], sauce: null, mix: 0 }), dimK);
     }
-    stack(2430, 362, 7, false);
-    stack(2490, 362, 7, true);
-    // lids
-    for (let i = 0; i < 6; i++) {
-      ctx.fillStyle = "rgba(230,238,244,0.8)";
-      ctx.beginPath(); ctx.ellipse(2549, 360 - i * 4, 23, 6, 0, 0, 7); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(2603, 358 - i * 4, 27, 6, 0, 0, 7); ctx.fill();
-    }
-    ctx.fillStyle = "#c9ced2"; ctx.font = "600 8px system-ui, sans-serif";
-    ctx.fillText("REG", 2430, 382); ctx.fillText("LG", 2490, 382);
-    ctx.fillText("LIDS", 2576, 382);
-    // bags
-    SF.drawBag(ctx, 2662, 330, 1, { items: [], label: null });
-    SF.drawBag(ctx, 2670, 336, 1, { items: [], label: null });
+    R.box(3.24, CT, 10.0, 3.46, CT + 0.16, 10.18, "#e8e4dc", { dim: dimK });
+    bbFood(3.35, CT + 0.14, 10.09, 44, 0.3, (c, sx, sy, s) => SF.drawUtensil(c, "spoon", sx, sy - 12 * s, 0.25, s * 1.1), dimK);
+    // utensil rail
+    R.box(3.28, 1.72, 3.0, 3.36, 1.76, 4.2, "#41535e", { dim: dimK });
+    rail.forEach((u) => {
+      if (!u.taken) bbFood(3.32, 1.32, u.z, 44, 0.4, (c, sx, sy, s) => SF.drawUtensil(c, u.kind, sx, sy - 20 * s, 0.08, s * 1.2), dimK);
+    });
+    // register
+    R.box(2.9, CT, 10.06, 3.3, CT + 0.34, 10.48, "#2f3b42", { dim: dimK });
+    R.quad([[3.29, CT + 0.42, 10.1], [3.29, CT + 0.42, 10.44], [3.3, CT + 0.1, 10.44], [3.3, CT + 0.1, 10.1]], state.lights.foh ? "#9fd6c0" : "#4d5a62", { dim: dimK });
+    // KDS
+    R.box(3.02, 1.9, 5.0, 3.1, 2.5, 6.44, "#1c2429", { dim: 0 });
+    R.texWall("px", 3.104, 5.0, 1.9, 6.44, 2.5, TEX.kds, {});
+    R.box(3.04, 2.5, 5.6, 3.08, 3.2, 5.8, "#41535e", { dim: dimK });
+    // menu board for the dining side
+    R.box(2.98, 2.3, 6.7, 3.06, 2.85, 8.3, "#1c2429", { dim: dimF });
+    R.texWall("nx", 2.976, 6.7, 2.3, 8.3, 2.85, TEX.menu, { dim: dimF });
 
-    // fountain machine
-    ctx.fillStyle = "#41535e";
-    ctx.beginPath(); ctx.roundRect(2664, 216, 180, 108, 8); ctx.fill();
-    ctx.fillStyle = "#2f3b42";
-    ctx.beginPath(); ctx.roundRect(2664, 216, 180, 30, 8); ctx.fill();
-    ctx.fillStyle = "#e8ecef"; ctx.font = "700 10px system-ui, sans-serif";
-    ctx.fillText("FOUNTAIN", 2754, 236);
+    // ---- back counter ----
+    R.box(BACK.x0, 0.12, BACK.z0, BACK.x1, CT, BACK.z1, { all: "#9aa2a8", top: "#b6bdc4" }, { dim: dimK });
+    R.box(BACK.x0, 0, BACK.z0, BACK.x1, 0.12, BACK.z1, "#26292c", { dim: dimK });
+    // switch panel, clipboard, posters, rail (right wall)
+    R.texWall("nx", 4.985, 2.86, 1.16, 3.18, 1.74, TEX.switches, {});
+    R.texWall("nx", 4.985, 3.4, 1.28, 3.78, 1.78, TEX.board, { dim: dimK });
+    R.texWall("nx", 4.985, 3.9, 1.3, 4.98, 2.15, TEX.portion, { dim: dimK });
+    R.texWall("nx", 4.985, 5.1, 1.3, 6.34, 2.2, TEX.sop, { dim: dimK });
+    R.texWall("nx", 4.985, 8.3, 1.72, 9.94, 2.16, TEX.rail, { dim: dimK });
+    // cookers
+    for (const ck of state.cookers) {
+      const body = ck.type === "brown" ? "#7d6a58" : "#8d949c";
+      R.box(4.6, CT, ck.z - 0.21, 4.98, CT + 0.42, ck.z + 0.21, body, { dim: dimK });
+      R.texTop(4.6, ck.z - 0.21, 4.98, ck.z + 0.21, CT + 0.425, ck._tex || cookerTopTex(ck), { dim: dimK, bias: -0.02 });
+      R.quad([[4.585, CT + 0.18, ck.z - 0.08], [4.585, CT + 0.18, ck.z + 0.08], [4.585, CT + 0.04, ck.z + 0.08], [4.585, CT + 0.04, ck.z - 0.08]],
+        ck.on ? (ck.cooked ? "#4be07a" : "#ffd15a") : "#3a3f45", { dim: 0 });
+    }
+    if (!(state.held && state.held.kind === "paddle")) {
+      bbFood(4.9, 1.32, 4.33, 44, 0.45, (c, sx, sy, s) => SF.drawUtensil(c, "paddle", sx, sy - 18 * s, 0.12, s * 1.3), dimK);
+    }
+    // sink
+    R.box(4.6, CT - 0.16, 6.15, 4.98, CT - 0.14, 6.95, "#6f767d", { dim: dimK });
+    R.box(4.88, CT, 6.44, 4.98, CT + 0.42, 6.66, "#b6bdc4", { dim: dimK });
+    R.quad([[4.86, CT + 0.44, 6.42], [4.86, CT + 0.44, 6.68], [4.7, CT + 0.4, 6.68], [4.7, CT + 0.4, 6.42]], state.waterOn ? "#4be07a" : "#d7dce0", { dim: dimK });
+    if (state.waterOn) {
+      R.quad([[4.77, CT + 0.4, 6.53], [4.79, CT + 0.4, 6.57], [4.79, CT - 0.14, 6.57], [4.77, CT - 0.14, 6.53]], "#a8d2f0", { alpha: 0.7 });
+    }
+    R.box(4.9, 1.24, 5.94, 4.98, 1.56, 6.12, "#e8ecef", { dim: dimK });
+    R.box(4.88, 1.24, 7.04, 4.98, 1.62, 7.32, "#8d979e", { dim: dimK });
+    R.box(4.62, CT, 7.46, 4.92, CT + 0.16, 7.8, "#4aa8ff", { dim: dimK });
+    // pass stacks: bowls, lids, bags
+    for (let i = 0; i < 5; i++) {
+      R.box(4.66, CT + i * 0.045, 8.16, 4.9, CT + 0.04 + i * 0.045, 8.4, i % 2 ? "#f7f4ee" : "#e8e4dc", { dim: dimK });
+      R.box(4.64, CT + i * 0.05, 8.52, 4.92, CT + 0.045 + i * 0.05, 8.8, i % 2 ? "#f7f4ee" : "#e8e4dc", { dim: dimK });
+    }
+    R.box(4.66, CT, 8.9, 4.9, CT + 0.14, 9.1, "#e6ecf0", { dim: dimK });
+    R.box(4.64, CT, 9.2, 4.92, CT + 0.16, 9.4, "#e6ecf0", { dim: dimK });
+    bbFood(4.78, CT, 9.7, 46, 0.34, (c, sx, sy, s) => SF.drawBag(c, sx, sy - 20 * s, s * 1.1, { items: [], label: null }), dimK);
+    // trash
+    R.box(4.52, 0, 10.74, 4.94, 0.72, 11.16, "#41535e", { dim: dimK });
+
+    // ---- drinks + sides ----
+    R.box(DRINK.x0, 0.12, DRINK.z0, DRINK.x1, CT, DRINK.z1, { all: "#d8d5ce", top: "#aeb5bc" }, { dim: dimK });
+    R.box(DRINK.x0, 0, DRINK.z0, DRINK.x1, 0.12, DRINK.z1, "#26292c", { dim: dimK });
+    R.box(0.4, CT, 13.5, 1.8, 1.9, 14.0, "#41535e", { dim: dimK });
     VALVES.forEach((v) => {
-      ctx.fillStyle = SD.DRINKS[v.id].color;
-      ctx.beginPath(); ctx.roundRect(v.x - 14, 252, 28, 30, 4); ctx.fill();
-      ctx.fillStyle = "#1c2429";
-      ctx.beginPath(); ctx.roundRect(v.x - 4, 284, 8, 16, 2); ctx.fill();
-      ctx.fillStyle = "#e8ecef"; ctx.font = "600 6.5px system-ui, sans-serif";
-      const nm = SD.DRINKS[v.id].name.toUpperCase().split(" ");
-      nm.forEach((w, i) => ctx.fillText(w, v.x, 262 + i * 8));
+      R.box(v.x - 0.12, 1.22, 13.42, v.x + 0.12, 1.48, 13.52, SD.DRINKS[v.id].color, { dim: dimK });
+      R.box(v.x - 0.03, 1.06, 13.44, v.x + 0.03, 1.22, 13.5, "#1c2429", { dim: dimK });
     });
-    // drip tray
-    ctx.fillStyle = "#8d979e";
-    ctx.beginPath(); ctx.roundRect(2666, 328, 176, 22, 4); ctx.fill();
-    ctx.fillStyle = "#6a747c";
-    for (let x = 2674; x < 2836; x += 12) ctx.fillRect(x, 334, 7, 3);
-    if (state.cupAtTray) SF.drawCup(ctx, 2754, 312, 1, state.cupAtTray);
-    if (state.holdFill && state.cupAtTray) {
-      const v = VALVES.find((vv) => vv.id === state.holdFill.valve);
-      if (v) { ctx.fillStyle = SD.DRINKS[v.id].color; ctx.fillRect(v.x - 2, 300, 4, 16); }
-    }
-    // cups, cup lids, straws
-    for (let i = 0; i < 6; i++) {
-      ctx.strokeStyle = "rgba(220,230,238,0.9)"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(2862, 362 - i * 9); ctx.lineTo(2858, 336 - i * 9);
-      ctx.lineTo(2890, 336 - i * 9); ctx.lineTo(2886, 362 - i * 9); ctx.closePath(); ctx.stroke();
-    }
-    ctx.fillStyle = "#e8ecef";
-    for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(2919, 356 - i * 6, 15, 5, 0, 0, 7); ctx.fill(); }
-    ctx.fillStyle = "#ee435b";
-    for (let i = 0; i < 4; i++) ctx.fillRect(2946 + i * 5, 310, 2.6, 50);
-    ctx.fillStyle = "#c9ced2"; ctx.font = "600 7px system-ui, sans-serif";
-    ctx.fillText("CUPS", 2874, 380); ctx.fillText("LIDS", 2919, 380); ctx.fillText("STRAWS", 2954, 380);
+    R.box(0.42, CT, 13.3, 1.78, CT + 0.05, 13.6, "#8d979e", { dim: dimK });
+    if (state.cupAtTray) bbFood(1.1, CT + 0.05, 13.45, 34, 0.24, (c, sx, sy, s) => SF.drawCup(c, sx, sy - 16 * s, s * 0.9, state.cupAtTray), dimK);
+    R.box(1.88, CT, 13.36, 2.06, CT + 0.36, 13.58, "#dde5ea", { dim: dimK });
+    R.box(2.12, CT, 13.38, 2.28, CT + 0.22, 13.56, "#e8ecef", { dim: dimK });
+    R.box(2.3, CT, 13.4, 2.4, CT + 0.28, 13.54, "#ee435b", { dim: dimK });
+    R.box(1.86, 1.62, 13.8, 2.56, 1.68, 14.0, "#8a6a42", { dim: dimK });
+    SIDE_SHELF.forEach((sd) => {
+      bbFood((sd.x0 + sd.x1) / 2, 1.68, 13.9, 24, 0.26, (c, sx, sy, s) => SF.drawSidePack(c, sx, sy - 12 * s, s, sd.id), dimK);
+    });
+    R.box(0.3, 0.15, 13.18, 1.2, 0.8, 13.26, "#9fc4d8", { dim: dimK });
 
-    // freezer
-    ctx.fillStyle = "#9fc4d8";
-    ctx.beginPath(); ctx.roundRect(2700, 428, 140, 86, 6); ctx.fill();
-    ctx.fillStyle = "#7ea8bc";
-    ctx.beginPath(); ctx.roundRect(2708, 436, 124, 44, 4); ctx.fill();
-    ctx.fillStyle = "#e8f4fa"; ctx.font = "700 9px system-ui, sans-serif";
-    ctx.fillText("MOCHI ❄", 2770, 500);
-
-    // ---- front counter (drawn over customers) ----
-    ctx.fillStyle = "#c89a62";
-    ctx.fillRect(FRONT_X + 20, 458, 230, 16);
-    ctx.fillStyle = "#f4ede3";
-    ctx.fillRect(FRONT_X + 20, 474, 230, 126);
-    // scallops on the front face
-    ctx.fillStyle = "#fd9f27";
-    for (let x = FRONT_X + 34; x < FRONT_X + 244; x += 34) {
-      ctx.beginPath(); ctx.arc(x, 506, 15, 0, 7); ctx.fill();
-    }
-    ctx.fillStyle = "#f7b95e";
-    for (let x = FRONT_X + 51; x < FRONT_X + 244; x += 34) {
-      ctx.beginPath(); ctx.arc(x, 536, 15, 0, 7); ctx.fill();
-    }
-    // register on the counter
-    ctx.fillStyle = "#2f3b42";
-    ctx.beginPath(); ctx.roundRect(3056, 402, 96, 62, 6); ctx.fill();
-    ctx.fillStyle = state.lights.foh ? "#9fd6c0" : "#4d5a62";
-    ctx.beginPath(); ctx.roundRect(3064, 410, 80, 36, 4); ctx.fill();
-    ctx.fillStyle = "#1c2429"; ctx.font = "700 9px system-ui, sans-serif";
-    if (state.lights.foh) ctx.fillText("POKEWORKS POS", 3104, 431);
-    ctx.fillStyle = "#41535e";
-    ctx.beginPath(); ctx.roundRect(3072, 448, 64, 10, 2); ctx.fill();
-
-    // pickup shelf rack
-    ctx.fillStyle = "#5b4a36";
-    ctx.fillRect(3260, 236, 8, 260); ctx.fillRect(3444, 236, 8, 260);
-    ctx.fillRect(3260, 314, 192, 8); ctx.fillRect(3260, 398, 192, 8); ctx.fillRect(3260, 236, 192, 8);
-    ctx.fillStyle = "#f4ede3"; ctx.font = "700 9px system-ui, sans-serif";
-    ctx.fillText("PICKUP", 3356, 230);
-    state.shelf.forEach((slot, i) => {
-      const px = [3312, 3404, 3312, 3404][i], py = [312, 312, 396, 396][i];
-      let ox = px - (slot.items.length - 1) * 14;
+    // ---- pickup shelf (back-left) ----
+    for (const px of [-3.35, -1.65]) R.box(px - 0.04, 0, 13.5, px + 0.04, 2.0, 13.58, "#5b4a36", { dim: dimF });
+    for (const py of [0.9, 1.4, 1.9]) R.box(-3.39, py, 13.44, -1.61, py + 0.06, 13.96, "#8a6a42", { dim: dimF });
+    state.shelf.forEach((slot) => {
+      let ox = slot.x - (slot.items.length - 1) * 0.16;
       for (const it of slot.items) {
-        if (it.kind === "bag") SF.drawBag(ctx, ox, py - 22, 0.82, it);
-        else if (it.kind === "cup") SF.drawCup(ctx, ox, py - 18, 0.85, it.cup);
-        else SF.drawSidePack(ctx, ox, py - 16, 0.8, it.side);
-        ox += 28;
+        if (it.kind === "bag") bbFood(ox, slot.y + 0.01, 13.7, 46, 0.3, (c, sx, sy, s) => SF.drawBag(c, sx, sy - 18 * s, s * 0.95, it), dimF);
+        else if (it.kind === "cup") bbFood(ox, slot.y + 0.01, 13.7, 34, 0.22, (c, sx, sy, s) => SF.drawCup(c, sx, sy - 14 * s, s * 0.85, it.cup), dimF);
+        else bbFood(ox, slot.y + 0.03, 13.7, 24, 0.18, (c, sx, sy, s) => SF.drawSidePack(c, sx, sy - 6 * s, s * 0.8, it.side), dimF);
+        ox += 0.32;
       }
     });
-  }
 
-  function drawCustomers() {
+    // messes
+    for (const m of state.messes) {
+      R.quad([[m.x - 0.11, m.y, m.z - 0.07], [m.x + 0.11, m.y, m.z - 0.07], [m.x + 0.11, m.y, m.z + 0.07], [m.x - 0.11, m.y, m.z + 0.07]],
+        "rgba(120,86,44,0.6)", { bias: -0.03 });
+    }
+    // steam
+    if (!RM) {
+      for (const s of state.steam) {
+        R.billboard(s.x, s.y, s.z, (c, sx, sy, scale) => {
+          c.fillStyle = "rgba(255,255,255," + (0.3 * (1 - s.t / 1.6)) + ")";
+          c.beginPath(); c.arc(sx, sy, (0.05 + s.t * 0.06) * scale, 0, 7); c.fill();
+        });
+      }
+    }
+    // customers
     for (const c of state.customers) {
       if (c.gone) continue;
-      SF.drawPerson(ctx, c.x, c.y, { shirt: c.shirt, skin: c.skin, walkPhase: c.walkPhase, walking: c.walking, mood: c.mood, scale: 1 });
+      const cc = c;
+      R.billboard(cc.x, 0, cc.z, (g, sx, sy, scale) => {
+        SF.drawPerson(g, sx, sy, { shirt: cc.shirt, skin: cc.skin, walkPhase: cc.walkPhase, walking: cc.walking, mood: cc.mood, scale: (scale * 1.78) / 72 });
+      }, 0, dimAt(cc.x, cc.z) ? 0.6 : 0);
     }
+    // switch glow beacon in the dark
+    if (!state.lights.kitchen) {
+      R.billboard(4.9, 1.45, 3.02, (c, sx, sy, scale) => {
+        const g = c.createRadialGradient(sx, sy, 2, sx, sy, 0.5 * scale);
+        g.addColorStop(0, "rgba(255,220,150,0.4)");
+        g.addColorStop(1, "rgba(255,220,150,0)");
+        c.fillStyle = g;
+        c.beginPath(); c.arc(sx, sy, 0.5 * scale, 0, 7); c.fill();
+      }, -0.5);
+    }
+    R.flush();
   }
 
-  function drawBubbles() {
+  // ---- 2D overlays -------------------------------------------------------
+  function worldToScreen(x, y, z) {
+    const v = R.toView([x, y, z]);
+    if (v[2] <= S3.NEAR) return null;
+    const s = R.project(v);
+    return { x: s[0], y: s[1], z: v[2] };
+  }
+  function drawOverlays() {
+    // speech bubbles
     ctx.textAlign = "center";
     for (const c of state.customers) {
-      if (!c.bubble || state.min > c.bubbleUntil) continue;
+      if (!c.bubble || state.min > c.bubbleUntil || c.gone) continue;
+      const s = worldToScreen(c.x, 2.0, c.z);
+      if (!s || s.z > 9) continue;
       const words = c.bubble.split(" ");
       const lines = [];
       let cur = "";
@@ -1988,158 +2063,105 @@
         else cur = cur ? cur + " " + w : w;
       }
       if (cur) lines.push(cur);
-      const lw = Math.min(232, Math.max(60, Math.max.apply(null, lines.map((l) => l.length)) * 6.4 + 18));
+      const lw = Math.min(240, Math.max(64, Math.max.apply(null, lines.map((l) => l.length)) * 6.6 + 18));
       const lh = lines.length * 13 + 14;
-      let bx = c.x, by = c.y - 118 - lh;
-      bx = Math.max(state.cam + lw / 2 + 6, Math.min(state.cam + VW - lw / 2 - 6, bx));
+      let bx = Math.max(lw / 2 + 6, Math.min(VW - lw / 2 - 6, s.x));
+      const by = Math.max(8, s.y - lh - 14);
       ctx.fillStyle = "rgba(255,255,255,0.96)";
       ctx.beginPath(); ctx.roundRect(bx - lw / 2, by, lw, lh, 9); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(c.x - 6, by + lh); ctx.lineTo(c.x + 8, by + lh); ctx.lineTo(c.x, by + lh + 10); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(s.x - 6, by + lh); ctx.lineTo(s.x + 8, by + lh); ctx.lineTo(s.x, by + lh + 9); ctx.closePath(); ctx.fill();
       ctx.fillStyle = "#26333b"; ctx.font = "600 10.5px system-ui, sans-serif";
       lines.forEach((l, i) => ctx.fillText(l, bx, by + 16 + i * 13));
     }
-  }
-
-  function drawMesses() {
-    for (const m of state.messes) {
-      ctx.fillStyle = "rgba(150,110,60,0.5)";
-      ctx.beginPath(); ctx.ellipse(m.x, m.y, 14, 6, 0.3, 0, 7); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(m.x + 10, m.y + 4, 6, 3, 0, 0, 7); ctx.fill();
-    }
-  }
-
-  function drawLighting(cam) {
-    if (!state.lights.kitchen) {
-      ctx.fillStyle = "rgba(6,12,18,0.78)";
-      ctx.fillRect(0, 0, FRONT_X, VH);
-      // faint glow so the switch panel is findable in the dark
-      const g = ctx.createRadialGradient(131, 231, 4, 131, 231, 90);
-      g.addColorStop(0, "rgba(255,220,150,0.28)");
-      g.addColorStop(1, "rgba(255,220,150,0)");
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(131, 231, 90, 0, 7); ctx.fill();
-      // daylight bleeding in from the dining room
-      const g2 = ctx.createLinearGradient(FRONT_X - 200, 0, FRONT_X, 0);
-      g2.addColorStop(0, "rgba(160,190,210,0)");
-      g2.addColorStop(1, "rgba(160,190,210,0.12)");
-      ctx.fillStyle = g2;
-      ctx.fillRect(FRONT_X - 200, 0, 200, VH);
-    }
-    if (!state.lights.foh) {
-      ctx.fillStyle = "rgba(6,12,18,0.55)";
-      ctx.fillRect(FRONT_X, 0, WORLD_W - FRONT_X, VH);
-      // windows still glow with daylight
-      for (let i = 0; i < 1; i++) {
-        const wx = FRONT_X + 40 + i * 170;
-        ctx.fillStyle = "rgba(159,196,216,0.35)";
-        ctx.fillRect(wx, 60, 120, 150);
-      }
-    }
-  }
-
-  function drawSteamAndFloats() {
-    if (!RM) {
-      for (const s of state.steam) {
-        ctx.fillStyle = "rgba(255,255,255," + (0.35 * (1 - s.t / 1.6)) + ")";
-        ctx.beginPath(); ctx.arc(s.x + Math.sin(s.t * 5) * 4, s.y, 5 + s.t * 6, 0, 7); ctx.fill();
-      }
-    }
-    ctx.textAlign = "center";
+    // floats
     for (const f of state.floats) {
+      const s = worldToScreen(f.x, f.y + f.t * 0.25, f.z);
+      if (!s) continue;
       ctx.globalAlpha = Math.max(0, 1 - f.t / 2.4);
       ctx.fillStyle = f.color; ctx.font = "700 13px system-ui, sans-serif";
-      ctx.fillText(f.txt, f.x, f.y - f.t * 18);
+      ctx.fillText(f.txt, s.x, s.y);
       ctx.globalAlpha = 1;
     }
-  }
-
-  function drawCursorAndHeld() {
-    const h = state.held;
-    // hover label: quiet discoverability, like reading what you're looking at
-    const wx = ptr.x + state.cam, wy = ptr.y;
-    const o = hitObj(wx, wy);
-    if (o && !ptr.down) {
-      const label = typeof o.label === "function" ? o.label(wx, wy) : o.label;
+    // hover label
+    const hit = state.running && !state.paused && !state.over ? pick(ptr.x, ptr.y) : null;
+    if (hit && !ptr.down) {
+      const label = hit.cust ? (hit.cust.kind === "walkin" ? "guest" : hit.cust.kind) :
+        (typeof hit.obj.label === "function" ? hit.obj.label() : hit.obj.label);
       if (label) {
-        ctx.fillStyle = "rgba(10,18,24,0.82)";
         ctx.font = "600 11px system-ui, sans-serif";
         const w = ctx.measureText(label).width + 14;
-        let lx = Math.min(VW - w - 4, Math.max(4, ptr.x - w / 2));
+        const lx = Math.min(VW - w - 4, Math.max(4, ptr.x - w / 2));
+        ctx.fillStyle = "rgba(10,18,24,0.82)";
         ctx.beginPath(); ctx.roundRect(lx, ptr.y + 18, w, 20, 6); ctx.fill();
         ctx.fillStyle = "#f4ede3"; ctx.textAlign = "center";
         ctx.fillText(label, lx + w / 2, ptr.y + 32);
       }
     }
-    // held item follows the pointer
+    // held item, first-person style
+    const h = state.held;
     if (h) {
-      const x = ptr.x, y = ptr.y;
-      if (h.kind === "paddle") SF.drawUtensil(ctx, "paddle", x, y, 0.5, 1, h.load);
-      else if (h.kind === "spoodle") SF.drawUtensil(ctx, "spoodle", x, y, 0.5, 1, h.load);
-      else if (h.kind === "tongs") SF.drawUtensil(ctx, "tongs", x, y, 0.5, 1, h.load);
-      else if (h.kind === "spoon") SF.drawUtensil(ctx, "spoon", x, y, 0.5, 1, null);
-      else if (h.kind === "towel") SF.drawUtensil(ctx, "towel", x, y, 0.2, 1, null);
-      else if (h.kind === "bottle") SF.drawSauceBottle(ctx, x, y, 58, h.sauce, h.fill);
-      else if (h.kind === "bowl") SF.drawServingBowl(ctx, x, y, 0.95, h.bowl);
-      else if (h.kind === "metal") SF.drawMetalBowl(ctx, x, y, 0.95, h);
+      const x = VW - 150, y = VH - 60;
+      if (h.kind === "paddle") SF.drawUtensil(ctx, "paddle", x, y, 0.45, 2.2, h.load);
+      else if (h.kind === "spoodle") SF.drawUtensil(ctx, "spoodle", x, y, 0.45, 2.2, h.load);
+      else if (h.kind === "tongs") SF.drawUtensil(ctx, "tongs", x, y, 0.45, 2.2, h.load);
+      else if (h.kind === "spoon") SF.drawUtensil(ctx, "spoon", x, y, 0.45, 2.2, null);
+      else if (h.kind === "towel") SF.drawUtensil(ctx, "towel", x, y - 20, 0.2, 2.2, null);
+      else if (h.kind === "bottle") SF.drawSauceBottle(ctx, x, y - 40, 110, h.sauce, h.fill);
+      else if (h.kind === "bowl") SF.drawServingBowl(ctx, x, y - 30, 1.7, h.bowl);
+      else if (h.kind === "metal") SF.drawMetalBowl(ctx, x, y - 30, 1.7, h);
       else if (h.kind === "lid") {
         ctx.fillStyle = "rgba(230,238,244,0.85)";
-        ctx.beginPath(); ctx.ellipse(x, y, h.size === "large" ? 30 : 25, 8, 0, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(x, y - 30, h.size === "large" ? 52 : 44, 15, 0, 0, 7); ctx.fill();
       }
-      else if (h.kind === "cup") SF.drawCup(ctx, x, y, 1, h.cup);
-      else if (h.kind === "bag") SF.drawBag(ctx, x, y, 0.95, h);
-      else if (h.kind === "side") SF.drawSidePack(ctx, x, y, 1, h.side);
-      else if (h.kind === "panBackup") SF.drawHotelPan(ctx, x - 46, y - 20, 92, 40, h.ing, 1, 999, null);
+      else if (h.kind === "cup") SF.drawCup(ctx, x, y - 45, 1.8, h.cup);
+      else if (h.kind === "bag") SF.drawBag(ctx, x, y - 45, 1.7, h);
+      else if (h.kind === "side") SF.drawSidePack(ctx, x, y - 35, 1.8, h.side);
+      else if (h.kind === "pinch") {
+        SF.drawChunk(ctx, h.ing, x, y - 35, 12, 0.3);
+        SF.drawChunk(ctx, h.ing, x + 16, y - 28, 10, 1.2);
+      }
+      else if (h.kind === "panBackup") SF.drawHotelPan(ctx, x - 60, y - 60, 120, 52, h.ing, 1, 999, SD.INGREDIENTS[h.ing].name);
     }
-    // glove state chip near the cursor
+    // hygiene chip
     const lv = state.hands.level;
-    ctx.beginPath(); ctx.arc(ptr.x + 20, ptr.y - 16, 6, 0, 7);
+    ctx.beginPath(); ctx.arc(VW - 24, VH - 24, 8, 0, 7);
     ctx.fillStyle = lv === "gloved" ? (state.hands.dirtyGloves ? "#b8a05a" : "#4aa8ff")
       : lv === "clean" ? "#9fd6c0" : "#8a6a4a";
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 1.5; ctx.stroke();
   }
 
-  function drawEdges(cam) {
-    ctx.textAlign = "center"; ctx.font = "800 26px system-ui, sans-serif";
-    if (cam > 4) {
-      ctx.fillStyle = "rgba(10,18,24,0.35)";
-      ctx.beginPath(); ctx.roundRect(6, VH / 2 - 34, 34, 68, 10); ctx.fill();
-      ctx.fillStyle = "#f4ede3"; ctx.fillText("‹", 23, VH / 2 + 10);
-    }
-    if (cam < WORLD_W - VW - 4) {
-      ctx.fillStyle = "rgba(10,18,24,0.35)";
-      ctx.beginPath(); ctx.roundRect(VW - 40, VH / 2 - 34, 34, 68, 10); ctx.fill();
-      ctx.fillStyle = "#f4ede3"; ctx.fillText("›", VW - 23, VH / 2 + 10);
-    }
-  }
-
   // ---- floating DOM positioning -----------------------------------------
-  function positionOver(el, wx, wy) {
-    const r = canvas.getBoundingClientRect();
-    const sx = (wx - state.cam) * (r.width / VW);
-    const sy = wy * (r.height / VH);
+  function positionOver(el, wx, wy, wz) {
+    const s = worldToScreen(wx, wy, wz);
     const stage = canvas.parentElement.getBoundingClientRect();
-    el.style.left = Math.max(8, Math.min(stage.width - 150, sx + (r.left - stage.left) - 70)) + "px";
+    const r = canvas.getBoundingClientRect();
+    if (!s) { el.hidden = true; return; }
+    const sx = s.x * (r.width / VW), sy = s.y * (r.height / VH);
+    el.style.left = Math.max(8, Math.min(stage.width - 160, sx + (r.left - stage.left) - 70)) + "px";
     el.style.top = Math.max(8, sy + (r.top - stage.top)) + "px";
   }
 
-  // ---- HUD / shell -------------------------------------------------------
+  // ---- HUD / lifecycle ---------------------------------------------------
   function updateHud() {
     document.getElementById("score").textContent = state.score;
     document.getElementById("high-score").textContent = Math.max(storedBest, state.score);
   }
 
-  // ---- shift lifecycle ---------------------------------------------------
-  let last = 0, rafId = 0;
+  let last = 0;
   function loop(t) {
-    rafId = requestAnimationFrame(loop);
+    requestAnimationFrame(loop);
     const dt = Math.min(0.05, (t - last) / 1000 || 0.016);
     last = t;
-    if (!state.running || state.paused || state.over) { draw(); return; }
-    const sheetOpen = !document.getElementById("pos").hidden || !document.getElementById("ask").hidden;
-    if (!sheetOpen) update(dt);
-    else { state.clock += dt; } // ringing an order still costs real focus, not shift time
-    draw();
+    ctx.clearRect(0, 0, VW, VH);
+    if (state.running && !state.paused && !state.over) {
+      const sheetOpen = !document.getElementById("pos").hidden || !document.getElementById("ask").hidden;
+      if (!sheetOpen) update(dt);
+      else state.clock += dt;
+    }
+    refreshDynamicTex();
+    drawScene();
+    drawOverlays();
   }
 
   function startShift() {
@@ -2151,9 +2173,8 @@
     if (window.PokeTrack) PokeTrack.hit("play", "shift");
     if (window.PokeStreak) PokeStreak.mark();
     markProgress();
-    state.lastProgress = 6; // give them a quiet half minute before the first nudge
+    state.lastProgress = 6;
   }
-
   function togglePause() {
     if (!state.running || state.over) return;
     state.paused = !state.paused;
@@ -2168,7 +2189,6 @@
     if (state.over) return;
     state.over = true;
     closeSheets();
-    // anything still pending is lost
     for (const o of activeOrders()) { o.status = "lost"; state.lostCount++; }
     const total = state.served + state.lostCount;
     const avg = state.feedback.length
@@ -2178,7 +2198,6 @@
     if (isBest) localStorage.setItem("pokeworks-shift-best", String(state.score));
     sfx("over");
     if (isBest && storedBest > 0) setTimeout(() => sfx("best"), 700);
-
     document.getElementById("sum-score").textContent = state.score;
     document.getElementById("sum-line").textContent =
       state.served + " of " + total + " orders made it out · " +
@@ -2214,7 +2233,6 @@
   document.getElementById("play-again-btn").addEventListener("click", () => location.reload());
 
   // ---- boot --------------------------------------------------------------
-  state = freshState();
   document.getElementById("high-score").textContent = storedBest;
   document.getElementById("start-subtitle").textContent = shiftsPlayed === 0
     ? "Saturday. You open at 11. Nobody is coming to show you around."
@@ -2224,8 +2242,10 @@
   window.Shift = {
     state: () => state,
     endShift: endShift,
-    // advance the simulation by hand (testing, demo hooks)
     tick: (secs) => { for (let t = 0; t < secs; t += 0.05) update(0.05); },
-    frame: () => draw(),
+    frame: () => { refreshDynamicTex(); ctx.clearRect(0, 0, VW, VH); drawScene(); drawOverlays(); },
+    pick: pick,
+    objs: () => objs,
+    tapCustomer: tapCustomer,
   };
 })();

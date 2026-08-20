@@ -91,6 +91,31 @@
       c.strokeStyle = "#b8823d";
       c.beginPath(); c.moveTo(-r * 0.7, r * 0.5); c.quadraticCurveTo(0, -r * 0.4, r * 0.8, r * 0.4); c.stroke();
     },
+    slonion: function (c, r) {
+      c.strokeStyle = "#f0ede4"; c.lineWidth = r * 0.26; c.lineCap = "round";
+      c.beginPath(); c.arc(0, 0, r * 0.7, 0.4, 3.2); c.stroke();
+      c.strokeStyle = "#d8d2c2";
+      c.beginPath(); c.arc(r * 0.15, r * 0.1, r * 0.55, 3.4, 6.0); c.stroke();
+    },
+    cabbage: function (c, r) {
+      c.strokeStyle = "#8a5a9e"; c.lineWidth = r * 0.3; c.lineCap = "round";
+      c.beginPath(); c.moveTo(-r, r * 0.2); c.quadraticCurveTo(0, -r * 0.6, r, 0); c.stroke();
+      c.strokeStyle = "#c9a8d8";
+      c.beginPath(); c.moveTo(-r * 0.8, r * 0.6); c.quadraticCurveTo(0.1, -r * 0.1, r * 0.9, r * 0.5); c.stroke();
+    },
+    surimi: function (c, r) {
+      c.strokeStyle = "#f2e8e0"; c.lineWidth = r * 0.55; c.lineCap = "round";
+      c.beginPath(); c.moveTo(-r * 0.8, r * 0.2); c.quadraticCurveTo(0, -r * 0.4, r * 0.8, 0.1); c.stroke();
+      c.strokeStyle = "#e86a5e"; c.lineWidth = r * 0.2;
+      c.beginPath(); c.moveTo(-r * 0.8, -r * 0.1); c.quadraticCurveTo(0, -r * 0.6, r * 0.8, -r * 0.2); c.stroke();
+    },
+    sesame: function (c, r) {
+      c.fillStyle = "#f2ead2";
+      for (let i = 0; i < 6; i++) {
+        const a = i * 1.05;
+        c.beginPath(); c.ellipse(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.4, r * 0.16, r * 0.09, a, 0, 7); c.fill();
+      }
+    },
     wonton: function (c, r) {
       c.fillStyle = "#c9a144"; c.beginPath(); c.moveTo(-r, r * 0.75); c.lineTo(r, r * 0.75); c.lineTo(r * 0.2, -r * 0.75); c.closePath(); c.fill();
       c.fillStyle = "#e8c05e"; c.beginPath(); c.moveTo(-r, r * 0.6); c.lineTo(r * 0.9, r * 0.6); c.lineTo(r * 0.15, -r * 0.8); c.closePath(); c.fill();

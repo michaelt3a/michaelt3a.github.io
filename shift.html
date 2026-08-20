@@ -7,7 +7,7 @@
   <meta name="description" content="Open the store, run your shift, figure it out." />
   <link rel="stylesheet" href="styles.css?v=28" />
   <link rel="stylesheet" href="theme.css?v=8" />
-  <link rel="stylesheet" href="shift.css?v=1" />
+  <link rel="stylesheet" href="shift.css?v=2" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
@@ -95,36 +95,37 @@
             <button class="sheet-x" type="button" data-close>✕</button>
           </div>
           <div class="board-list">
-            <div>· lights on, both switches</div>
-            <div>· wash in: water, soap, scrub, rinse, dry</div>
+            <div>· lights on, panel is on the wall back here</div>
+            <div>· wash in at the hand sink: water, soap, scrub, rinse, dry</div>
             <div>· gloves</div>
             <div>· rice pots on early, they take a while</div>
-            <div>· stock the line from the low boy</div>
+            <div>· stock the line from the low boy under it</div>
             <div>· sauce bottles out, two live in the low boy</div>
             <div>· check the screen for catering and pickups</div>
-            <div>· sign on at 11</div>
+            <div>· sign by the front door on at 11</div>
             <div>· wipe as you go</div>
           </div>
         </div>
       </div>
 
-      <!-- portion guide zoom -->
+      <!-- portion guide + toppings SOP zoom -->
       <div id="portion-view" class="shift-sheet" hidden>
         <div class="sheet-inner ticket-paper">
           <div class="sheet-head">
-            <strong>PORTION GUIDE</strong>
+            <strong>PORTION GUIDE · TOPPINGS SOP</strong>
             <button class="sheet-x" type="button" data-close>✕</button>
           </div>
           <div class="board-list">
             <div><b>Regular</b> · 1 rice scoop · 2 protein scoops</div>
             <div><b>Large</b> · 2 rice scoops · 3 protein scoops</div>
             <div>&nbsp;</div>
-            <div>rice paddle for rice</div>
-            <div>spoodle for proteins</div>
-            <div>tongs for mix-ins and toppings</div>
+            <div>rice paddle for rice · spoodle for proteins · tongs for mix-ins</div>
             <div>mixed bowls: build in the metal bowl, sauce, mix, pour over rice</div>
             <div>sauce on top: build in the serving bowl, drizzle to finish</div>
-            <div>toppings always go on last</div>
+            <div>&nbsp;</div>
+            <div><b>Toppings ring the bowl:</b> avocado, surimi salad, seaweed salad, masago center</div>
+            <div><b>Sprinkled on top of protein</b> (pinch with a gloved hand):</div>
+            <div>green onion · sesame seeds · crispy onion · wontons</div>
           </div>
         </div>
       </div>
@@ -163,6 +164,7 @@
         <div id="screen-start" class="overlay-panel">
           <h1 class="overlay-title">The Shift</h1>
           <p class="overlay-subtitle" id="start-subtitle">Saturday. You open at 11. Nobody is coming to show you around.</p>
+          <p class="shift-controls">WASD or arrows to walk · drag to look · click what you need</p>
           <button id="start-btn" class="btn" type="button">Clock in</button>
         </div>
 
@@ -189,6 +191,9 @@
       </div>
 
       <button id="pause-btn" class="control-btn" type="button" aria-label="Pause" style="display:none">⏸</button>
+
+      <!-- touch joystick, shown on coarse pointers only -->
+      <div id="joy" class="joy" aria-hidden="true"><div id="joy-knob" class="joy-knob"></div></div>
     </main>
 
     <div class="controls"></div>
@@ -198,9 +203,10 @@
   <script src="supabase-config.js?v=2"></script>
   <script src="track.js?v=2"></script>
   <script src="arcade-sfx.js?v=2"></script>
-  <script src="shift-data.js?v=1"></script>
-  <script src="shift-food.js?v=1"></script>
-  <script src="shift.js?v=1"></script>
+  <script src="shift-data.js?v=2"></script>
+  <script src="shift-food.js?v=2"></script>
+  <script src="shift-3d.js?v=1"></script>
+  <script src="shift.js?v=2"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>
