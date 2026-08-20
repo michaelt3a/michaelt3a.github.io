@@ -1834,7 +1834,7 @@
   function bbFood(x, y, z, artPx, meters, drawFn, dim) {
     R.billboard(x, y, z, (c, sx, sy, scale) => {
       drawFn(c, sx, sy, (meters * scale) / artPx);
-    }, 0, dim);
+    }, -0.06, dim);
   }
   function drawScene() {
     const cam = R.cam;
@@ -1844,31 +1844,38 @@
     R.begin();
     const dimK = state.lights.kitchen ? 0 : 0.72;
     const dimF = state.lights.foh ? 0 : 0.55;
+    // solid backdrop so sub-pixel seams never show raw page background
+    ctx.fillStyle = "#23282e";
+    ctx.fillRect(0, 0, VW, VH);
+
+    // layer biases keep the painter honest: room shell first, wall dressing
+    // next, furniture and food after, glass last
+    const L_ROOM = 220, L_TRIM = 150, L_WALLART = 100;
 
     // floors + ceiling
-    R.quad([[-5, 0, 0], [2.45, 0, 0], [2.45, 0, 12.9], [-5, 0, 12.9]], "#8a7f6a", { dim: dimF });
-    R.quad([[-5, 0, 0.0], [-0.4, 0, 0.0], [-0.4, 0, 3.4], [-5, 0, 3.4]], "#b7bac0", { dim: dimF, bias: -0.01 });
-    R.quad([[2.45, 0, 0], [5, 0, 0], [5, 0, 14], [2.45, 0, 14]], "#8f8676", { dim: dimK });
-    R.quad([[-5, 0, 12.9], [2.45, 0, 12.9], [2.45, 0, 14], [-5, 0, 14]], "#8f8676", { dim: dimK });
-    R.quad([[-5, 3.2, 14], [5, 3.2, 14], [5, 3.2, 0], [-5, 3.2, 0]], "#3a3f45", { dim: Math.min(dimK, dimF) ? 0.5 : 0 });
+    R.quad([[-5, 0, 0], [2.45, 0, 0], [2.45, 0, 12.9], [-5, 0, 12.9]], "#8a7f6a", { dim: dimF, bias: L_ROOM });
+    R.quad([[-5, 0, 0.0], [-0.4, 0, 0.0], [-0.4, 0, 3.4], [-5, 0, 3.4]], "#b7bac0", { dim: dimF, bias: L_ROOM - 1 });
+    R.quad([[2.45, 0, 0], [5, 0, 0], [5, 0, 14], [2.45, 0, 14]], "#8f8676", { dim: dimK, bias: L_ROOM });
+    R.quad([[-5, 0, 12.9], [2.45, 0, 12.9], [2.45, 0, 14], [-5, 0, 14]], "#8f8676", { dim: dimK, bias: L_ROOM });
+    R.quad([[-5, 3.2, 14], [5, 3.2, 14], [5, 3.2, 0], [-5, 3.2, 0]], "#3a3f45", { dim: Math.min(dimK, dimF) ? 0.5 : 0, bias: L_ROOM });
 
     // walls
-    R.quad([[-5, 3.2, 0], [-5, 3.2, 14], [-5, 0, 14], [-5, 0, 0]], "#e2ded6", { dim: dimF });   // left
-    R.quad([[-5, 3.2, 0], [5, 3.2, 0], [5, 0, 0], [-5, 0, 0]], "#e2ded6", { dim: dimF });       // front
-    R.quad([[5, 3.2, 14], [5, 3.2, 0], [5, 0, 0], [5, 0, 14]], "#e8e4dc", { dim: dimK });       // right
-    R.texWall("nx", 4.995, 0, 2.25, 14, 3.2, TEX.wood, { dim: dimK });                          // wood band up top
-    R.texWall("nz", 13.995, -5, 0, 5, 3.2, TEX.wood, { dim: dimK });                            // back wall
-    R.texWall("nz", 13.99, -0.9, 1.7, 1.9, 3.05, TEX.union, { dim: dimK });
-    R.texWall("nz", 13.98, -3.35, 2.05, -1.55, 2.5, TEX.pickupSign, { dim: dimK });
+    R.quad([[-5, 3.2, 0], [-5, 3.2, 14], [-5, 0, 14], [-5, 0, 0]], "#e2ded6", { dim: dimF, bias: L_ROOM });   // left
+    R.quad([[-5, 3.2, 0], [5, 3.2, 0], [5, 0, 0], [-5, 0, 0]], "#e2ded6", { dim: dimF, bias: L_ROOM });       // front
+    R.quad([[5, 3.2, 14], [5, 3.2, 0], [5, 0, 0], [5, 0, 14]], "#e8e4dc", { dim: dimK, bias: L_ROOM });       // right
+    R.texWall("nx", 4.995, 0, 2.25, 14, 3.2, TEX.wood, { dim: dimK, bias: L_TRIM });                          // wood band up top
+    R.texWall("nz", 13.995, -5, 0, 5, 3.2, TEX.wood, { dim: dimK, bias: L_TRIM });                            // back wall
+    R.texWall("nz", 13.99, -0.9, 1.7, 1.9, 3.05, TEX.union, { dim: dimK, bias: L_WALLART });
+    R.texWall("nz", 13.98, -3.35, 2.05, -1.55, 2.5, TEX.pickupSign, { dim: dimK, bias: L_WALLART });
 
     // windows and door glass stay daylight-bright
-    R.quad([[-4.995, 2.4, 1.2], [-4.995, 2.4, 5.6], [-4.995, 0.7, 5.6], [-4.995, 0.7, 1.2]], "#cfe2ec", {});
-    R.quad([[DOOR.x0, 2.3, 0.005], [DOOR.x1, 2.3, 0.005], [DOOR.x1, 0.1, 0.005], [DOOR.x0, 0.1, 0.005]], "#c4dae8", {});
-    R.quad([[0.2, 2.2, 0.005], [1.9, 2.2, 0.005], [1.9, 0.8, 0.005], [0.2, 0.8, 0.005]], "#cfe2ec", {});
-    R.texWall("pz", 0.01, -2.45, 2.05, -1.55, 2.6, TEX.open, {});
+    R.quad([[-4.995, 2.4, 1.2], [-4.995, 2.4, 5.6], [-4.995, 0.7, 5.6], [-4.995, 0.7, 1.2]], "#cfe2ec", { bias: L_TRIM });
+    R.quad([[DOOR.x0, 2.3, 0.005], [DOOR.x1, 2.3, 0.005], [DOOR.x1, 0.1, 0.005], [DOOR.x0, 0.1, 0.005]], "#c4dae8", { bias: L_TRIM });
+    R.quad([[0.2, 2.2, 0.005], [1.9, 2.2, 0.005], [1.9, 0.8, 0.005], [0.2, 0.8, 0.005]], "#cfe2ec", { bias: L_TRIM });
+    R.texWall("pz", 0.01, -2.45, 2.05, -1.55, 2.6, TEX.open, { bias: L_WALLART });
 
     // promo sign + plant + tables (dining flavor)
-    R.texWall("pz", 1.9, -4.3, 0.6, -3.85, 2.0, TEX.promo, { dim: dimF });
+    R.texWall("pz", 1.9, -4.3, 0.6, -3.85, 2.0, TEX.promo, { dim: dimF, bias: -0.03 });
     R.box(-4.32, 0, 1.42, -3.83, 0.6, 1.88, "#26292c", { dim: dimF });
     R.box(-4.9, 0, 0.6, -4.4, 0.5, 1.1, "#41535e", { dim: dimF });
     bbFood(-4.65, 0.5, 0.85, 40, 1.1, (c, sx, sy, s) => {
@@ -1882,22 +1889,22 @@
       R.box(-4.15, 0, tz + 0.95, -3.95, 0.72, tz + 1.15, "#e8e4dc", { dim: dimF });
     }
     // mahalo poster
-    R.texWall("px", -4.99, 7.0, 1.3, 8.0, 2.15, TEX.mahalo, { dim: dimF });
+    R.texWall("px", -4.99, 7.0, 1.3, 8.0, 2.15, TEX.mahalo, { dim: dimF, bias: L_WALLART });
 
     // ---- the line (right side) ----
     R.box(LINE.x0, 0.12, LINE.z0, LINE.x1, CT, LINE.z1, { nx: null, all: "#d8d5ce", top: "#aeb5bc" }, { dim: dimK });
     R.texWall("nx", LINE.x0, LINE.z0, 0.12, LINE.z1, CT, TEX.tile, { dim: dimF });
     R.box(LINE.x0, 0, LINE.z0, LINE.x1, 0.12, LINE.z1, "#26292c", { dim: dimF });
     // low boy doors on the worker side
-    R.quad([[3.601, 0.82, 3.0], [3.601, 0.82, 5.6], [3.601, 0.14, 5.6], [3.601, 0.14, 3.0]], "#9aa2a8", { dim: dimK });
-    R.quad([[3.602, 0.55, 4.1], [3.602, 0.55, 4.5], [3.602, 0.49, 4.5], [3.602, 0.49, 4.1]], "#d7dce0", { dim: dimK });
+    R.quad([[3.601, 0.82, 3.0], [3.601, 0.82, 5.6], [3.601, 0.14, 5.6], [3.601, 0.14, 3.0]], "#9aa2a8", { dim: dimK, bias: -0.04 });
+    R.quad([[3.602, 0.55, 4.1], [3.602, 0.55, 4.5], [3.602, 0.49, 4.5], [3.602, 0.49, 4.1]], "#d7dce0", { dim: dimK, bias: -0.05 });
     // pans set into the top
     for (const slot of state.linePans) {
       R.texTop(slot.x0, slot.z0, slot.x1, slot.z1, CT + 0.012, slot._tex || panTex(slot), { dim: dimK, bias: -0.02 });
     }
-    // sneeze guard glass
-    R.quad([[2.62, 1.78, 2.9], [2.62, 1.78, 8.2], [2.62, 1.22, 8.2], [2.62, 1.22, 2.9]], "#cfe4ee", { alpha: 0.16 });
-    R.quad([[2.62, 1.8, 2.9], [3.1, 1.62, 2.9], [3.1, 1.62, 8.2], [2.62, 1.8, 8.2]], "#cfe4ee", { alpha: 0.12 });
+    // sneeze guard glass, drawn late so nothing punches through it
+    R.quad([[2.62, 1.78, 2.9], [2.62, 1.78, 8.2], [2.62, 1.22, 8.2], [2.62, 1.22, 2.9]], "#cfe4ee", { alpha: 0.16, bias: -2 });
+    R.quad([[2.62, 1.8, 2.9], [3.1, 1.62, 2.9], [3.1, 1.62, 8.2], [2.62, 1.8, 8.2]], "#cfe4ee", { alpha: 0.12, bias: -2 });
     // spots: mats + their contents
     state.spots.forEach((spot) => {
       R.quad([[2.7, CT + 0.008, spot.z - 0.2], [3.04, CT + 0.008, spot.z - 0.2], [3.04, CT + 0.008, spot.z + 0.2], [2.7, CT + 0.008, spot.z + 0.2]],
@@ -1927,21 +1934,21 @@
     R.quad([[3.29, CT + 0.42, 10.1], [3.29, CT + 0.42, 10.44], [3.3, CT + 0.1, 10.44], [3.3, CT + 0.1, 10.1]], state.lights.foh ? "#9fd6c0" : "#4d5a62", { dim: dimK });
     // KDS
     R.box(3.02, 1.9, 5.0, 3.1, 2.5, 6.44, "#1c2429", { dim: 0 });
-    R.texWall("px", 3.104, 5.0, 1.9, 6.44, 2.5, TEX.kds, {});
+    R.texWall("px", 3.104, 5.0, 1.9, 6.44, 2.5, TEX.kds, { bias: -0.05 });
     R.box(3.04, 2.5, 5.6, 3.08, 3.2, 5.8, "#41535e", { dim: dimK });
     // menu board for the dining side
     R.box(2.98, 2.3, 6.7, 3.06, 2.85, 8.3, "#1c2429", { dim: dimF });
-    R.texWall("nx", 2.976, 6.7, 2.3, 8.3, 2.85, TEX.menu, { dim: dimF });
+    R.texWall("nx", 2.976, 6.7, 2.3, 8.3, 2.85, TEX.menu, { dim: dimF, bias: -0.05 });
 
     // ---- back counter ----
     R.box(BACK.x0, 0.12, BACK.z0, BACK.x1, CT, BACK.z1, { all: "#9aa2a8", top: "#b6bdc4" }, { dim: dimK });
     R.box(BACK.x0, 0, BACK.z0, BACK.x1, 0.12, BACK.z1, "#26292c", { dim: dimK });
     // switch panel, clipboard, posters, rail (right wall)
-    R.texWall("nx", 4.985, 2.86, 1.16, 3.18, 1.74, TEX.switches, {});
-    R.texWall("nx", 4.985, 3.4, 1.28, 3.78, 1.78, TEX.board, { dim: dimK });
-    R.texWall("nx", 4.985, 3.9, 1.3, 4.98, 2.15, TEX.portion, { dim: dimK });
-    R.texWall("nx", 4.985, 5.1, 1.3, 6.34, 2.2, TEX.sop, { dim: dimK });
-    R.texWall("nx", 4.985, 8.3, 1.72, 9.94, 2.16, TEX.rail, { dim: dimK });
+    R.texWall("nx", 4.985, 2.86, 1.16, 3.18, 1.74, TEX.switches, { bias: L_WALLART });
+    R.texWall("nx", 4.985, 3.4, 1.28, 3.78, 1.78, TEX.board, { dim: dimK, bias: L_WALLART });
+    R.texWall("nx", 4.985, 3.9, 1.3, 4.98, 2.15, TEX.portion, { dim: dimK, bias: L_WALLART });
+    R.texWall("nx", 4.985, 5.1, 1.3, 6.34, 2.2, TEX.sop, { dim: dimK, bias: L_WALLART });
+    R.texWall("nx", 4.985, 8.3, 1.72, 9.94, 2.16, TEX.rail, { dim: dimK, bias: L_WALLART });
     // cookers
     for (const ck of state.cookers) {
       const body = ck.type === "brown" ? "#7d6a58" : "#8d949c";
@@ -2142,6 +2149,122 @@
     el.style.top = Math.max(8, sy + (r.top - stage.top)) + "px";
   }
 
+  // ---- music -------------------------------------------------------------
+  // A quiet generative loop: warm pad chords, a soft bass, sparse pentatonic
+  // plucks and a brushed hat. All synthesized, and the patched AudioContext
+  // keeps it behind the site's sound switch.
+  const music = (function () {
+    let ctx = null, master = null, timer = null;
+    let nextTime = 0, beat = 0;
+    const BEAT = 0.72; // ~83 bpm
+    const CHORDS = [
+      [48, 55, 60, 64],  // Cmaj7-ish
+      [45, 52, 60, 64],  // Am7
+      [41, 48, 57, 60],  // Fmaj7
+      [43, 50, 59, 62],  // G7
+    ];
+    const PENTA = [60, 62, 64, 67, 69, 72, 74, 76];
+    const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+    function padNote(t, midi, dur) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      const f = ctx.createBiquadFilter();
+      o.type = "triangle";
+      o.frequency.value = hz(midi);
+      f.type = "lowpass"; f.frequency.value = 900;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.05, t + 0.5);
+      g.gain.setValueAtTime(0.05, t + dur - 0.7);
+      g.gain.linearRampToValueAtTime(0.0001, t + dur);
+      o.connect(f); f.connect(g); g.connect(master);
+      o.start(t); o.stop(t + dur + 0.1);
+    }
+    function bass(t, midi) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = hz(midi - 24);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.11, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + BEAT * 1.6);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + BEAT * 1.7);
+    }
+    function pluck(t, midi) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      const f = ctx.createBiquadFilter();
+      o.type = "triangle";
+      o.frequency.value = hz(midi);
+      f.type = "lowpass"; f.frequency.value = 2200;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.065, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.65);
+      o.connect(f); f.connect(g); g.connect(master);
+      o.start(t); o.stop(t + 0.75);
+    }
+    function hat(t) {
+      const len = Math.floor(ctx.sampleRate * 0.05);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = "highpass"; f.frequency.value = 6500;
+      const g = ctx.createGain();
+      g.gain.value = 0.035;
+      src.connect(f); f.connect(g); g.connect(master);
+      src.start(t);
+    }
+    function schedule() {
+      if (!ctx) return;
+      while (nextTime < ctx.currentTime + 0.3) {
+        const bar = Math.floor(beat / 4);
+        const chord = CHORDS[bar % CHORDS.length];
+        const inBar = beat % 4;
+        if (inBar === 0) {
+          const dur = BEAT * 4 + 0.4;
+          for (const m of chord) padNote(nextTime, m, dur);
+        }
+        if (inBar === 0 || inBar === 2) bass(nextTime, chord[0]);
+        if (inBar >= 1) hat(nextTime + BEAT / 2);
+        if (Math.random() < 0.4) pluck(nextTime + (Math.random() < 0.5 ? 0 : BEAT / 2), PENTA[Math.floor(Math.random() * PENTA.length)]);
+        nextTime += BEAT;
+        beat++;
+      }
+    }
+    return {
+      start: function () {
+        if (ctx) return;
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          ctx = new AC();
+          master = ctx.createGain();
+          master.gain.value = 0.9;
+          master.connect(ctx.destination);
+          nextTime = ctx.currentTime + 0.1;
+          beat = 0;
+          timer = setInterval(schedule, 80);
+        } catch (e) { ctx = null; }
+      },
+      pause: function () { if (ctx) try { ctx.suspend(); } catch (e) {} },
+      resume: function () { if (ctx) try { ctx.resume(); } catch (e) {} },
+      stop: function () {
+        if (!ctx) return;
+        clearInterval(timer);
+        const c = ctx, m = master;
+        ctx = null; master = null;
+        try {
+          m.gain.setValueAtTime(m.gain.value, c.currentTime);
+          m.gain.linearRampToValueAtTime(0.0001, c.currentTime + 1.2);
+          setTimeout(() => { try { c.close(); } catch (e) {} }, 1500);
+        } catch (e) { try { c.close(); } catch (e2) {} }
+      },
+    };
+  })();
+
   // ---- HUD / lifecycle ---------------------------------------------------
   function updateHud() {
     document.getElementById("score").textContent = state.score;
@@ -2172,12 +2295,14 @@
     document.getElementById("pause-btn").style.display = "";
     if (window.PokeTrack) PokeTrack.hit("play", "shift");
     if (window.PokeStreak) PokeStreak.mark();
+    music.start();
     markProgress();
     state.lastProgress = 6;
   }
   function togglePause() {
     if (!state.running || state.over) return;
     state.paused = !state.paused;
+    if (state.paused) music.pause(); else music.resume();
     document.getElementById("overlay").classList.toggle("hidden", !state.paused);
     document.getElementById("screen-paused").classList.toggle("hidden", !state.paused);
     document.getElementById("pause-btn").textContent = state.paused ? "▶" : "⏸";
@@ -2188,6 +2313,7 @@
   function endShift() {
     if (state.over) return;
     state.over = true;
+    music.stop();
     closeSheets();
     for (const o of activeOrders()) { o.status = "lost"; state.lostCount++; }
     const total = state.served + state.lostCount;

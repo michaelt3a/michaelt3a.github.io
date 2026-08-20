@@ -29,10 +29,24 @@
     this.f = (H / 2) / Math.tan(((fovDeg || 64) * Math.PI) / 360);
     this.cam = { x: 0, y: 1.55, z: 1.5, yaw: 0, pitch: -0.08 };
     this.prims = [];
+    this.seq = 0;
+  }
+
+  // average color of a texture canvas, for when a clipped quad can't map it
+  function texAvg(tex) {
+    if (tex.__avg) return tex.__avg;
+    const t = document.createElement("canvas");
+    t.width = 1; t.height = 1;
+    const c = t.getContext("2d");
+    c.drawImage(tex, 0, 0, 1, 1);
+    const d = c.getImageData(0, 0, 1, 1).data;
+    tex.__avg = "rgb(" + d[0] + "," + d[1] + "," + d[2] + ")";
+    return tex.__avg;
   }
 
   Renderer.prototype.begin = function () {
     this.prims.length = 0;
+    this.seq = 0;
     const c = this.cam;
     this.sy = Math.sin(c.yaw); this.cy = Math.cos(c.yaw);
     this.sp = Math.sin(c.pitch); this.cp = Math.cos(c.pitch);
@@ -77,12 +91,17 @@
     let depth = 0;
     for (const p of clipped) depth += p[2];
     depth /= clipped.length;
+    const wasClipped = clipped !== v;
     this.prims.push({
       k: "q",
       s: clipped.map((p) => this.project(p)),
-      full: clipped === v ? v.map((p) => this.project(p)) : null,
+      full: wasClipped ? null : v.map((p) => this.project(p)),
       depth: depth + (opts.bias || 0),
-      color: color, alpha: opts.alpha, tex: opts.tex, dim: opts.dim || 0,
+      seq: this.seq++,
+      // a clipped textured quad can't be affine-mapped; fall back to the
+      // texture's average color instead of flashing black
+      color: opts.tex && wasClipped ? texAvg(opts.tex) : color,
+      alpha: opts.alpha, tex: opts.tex, dim: opts.dim || 0,
     });
   };
 
@@ -92,7 +111,7 @@
     const v = this.toView([x, y, z]);
     if (v[2] <= NEAR) return;
     const s = this.project(v);
-    this.prims.push({ k: "b", sx: s[0], sy: s[1], scale: this.f / v[2], depth: v[2] + (bias || 0), draw: draw, dim: dim || 0 });
+    this.prims.push({ k: "b", sx: s[0], sy: s[1], scale: this.f / v[2], depth: v[2] + (bias || 0), seq: this.seq++, draw: draw, dim: dim || 0 });
   };
 
   // axis-aligned box; emits only the faces the camera can see.
@@ -130,6 +149,17 @@
     this.quad(pts, "#000", opts);
   };
 
+  // inflate a triangle slightly about its centroid so the two halves of a
+  // textured quad overlap instead of leaving a hairline seam
+  function inflate(p0, p1, p2) {
+    const cx = (p0[0] + p1[0] + p2[0]) / 3, cy = (p0[1] + p1[1] + p2[1]) / 3;
+    const grow = (p) => {
+      const dx = p[0] - cx, dy = p[1] - cy;
+      const d = Math.hypot(dx, dy) || 1;
+      return [p[0] + (dx / d) * 0.7, p[1] + (dy / d) * 0.7];
+    };
+    return [grow(p0), grow(p1), grow(p2)];
+  }
   function texTri(ctx, img, p0, p1, p2, u0, v0, u1, v1, u2, v2) {
     const den = u0 * (v1 - v2) + u1 * (v2 - v0) + u2 * (v0 - v1);
     if (!den) return;
@@ -139,9 +169,10 @@
     const d = (p0[1] * (u2 - u1) + p1[1] * (u0 - u2) + p2[1] * (u1 - u0)) / den;
     const e = (p0[0] * (u1 * v2 - u2 * v1) + p1[0] * (u2 * v0 - u0 * v2) + p2[0] * (u0 * v1 - u1 * v0)) / den;
     const f = (p0[1] * (u1 * v2 - u2 * v1) + p1[1] * (u2 * v0 - u0 * v2) + p2[1] * (u0 * v1 - u1 * v0)) / den;
+    const g = inflate(p0, p1, p2);
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]);
+    ctx.moveTo(g[0][0], g[0][1]); ctx.lineTo(g[1][0], g[1][1]); ctx.lineTo(g[2][0], g[2][1]);
     ctx.closePath();
     ctx.clip();
     ctx.transform(a, b, cc, d, e, f);
@@ -151,7 +182,9 @@
 
   Renderer.prototype.flush = function () {
     const ctx = this.ctx;
-    this.prims.sort((a, b) => b.depth - a.depth);
+    // stable sort: equal depths keep emit order, so nothing flickers as the
+    // camera moves
+    this.prims.sort((a, b) => (b.depth - a.depth) || (a.seq - b.seq));
     for (const p of this.prims) {
       if (p.k === "b") {
         if (p.dim) ctx.filter = "brightness(" + (1 - p.dim * 0.8).toFixed(2) + ")";
@@ -174,7 +207,14 @@
         if (p.alpha !== undefined) ctx.globalAlpha = p.alpha;
         ctx.fillStyle = p.color;
         ctx.fill();
-        if (p.alpha !== undefined) ctx.globalAlpha = 1;
+        if (p.alpha === undefined) {
+          // hairline stroke in the fill color papers over sub-pixel seams
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else {
+          ctx.globalAlpha = 1;
+        }
       }
       if (p.dim) {
         path();
