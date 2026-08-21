@@ -68,7 +68,10 @@
     return [this.W / 2 + (this.f * v[0]) / v[2], this.H / 2 - (this.f * v[1]) / v[2]];
   };
 
-  // Sutherland-Hodgman against the near plane (view z > NEAR).
+  // Sutherland-Hodgman against the near plane (view z > NEAR). Vertices are
+  // [x, y, z, u, v]; texture coordinates interpolate through the clip so a
+  // wall right beside the camera still maps its texture instead of
+  // collapsing into a flat color slab.
   function clipNear(pts) {
     const out = [];
     for (let i = 0; i < pts.length; i++) {
@@ -77,7 +80,13 @@
       if (ain) out.push(a);
       if (ain !== bin) {
         const t = (NEAR - a[2]) / (b[2] - a[2]);
-        out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, NEAR + 0.0001]);
+        out.push([
+          a[0] + (b[0] - a[0]) * t,
+          a[1] + (b[1] - a[1]) * t,
+          NEAR + 0.0001,
+          a[3] + (b[3] - a[3]) * t,
+          a[4] + (b[4] - a[4]) * t,
+        ]);
       }
     }
     return out;
@@ -98,8 +107,21 @@
     if (!opts.noSub) {
       const eu = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1], pts[1][2] - pts[0][2]);
       const ev = Math.hypot(pts[3][0] - pts[0][0], pts[3][1] - pts[0][1], pts[3][2] - pts[0][2]);
-      const step = opts.tex ? SUB * 1.4 : SUB;
-      const nu = Math.min(10, Math.ceil(eu / step)), nv = Math.min(10, Math.ceil(ev / step));
+      let step = opts.tex ? SUB * 1.4 : SUB;
+      if (opts.tex) {
+        // affine texture mapping warps when a quad spans a wide depth range;
+        // subdivide harder as the near/far ratio grows so the mapping stays
+        // visually perspective-correct
+        let zMin = 1e9, zMax = 0;
+        for (const p of pts) {
+          const z = (p[0] - this.cam.x) * this.sy + (p[2] - this.cam.z) * this.cy;
+          if (z > zMax) zMax = z;
+          if (z < zMin) zMin = z;
+        }
+        const ratio = zMax / Math.max(0.4, zMin);
+        if (ratio > 1.3) step /= Math.min(4, ratio);
+      }
+      const nu = Math.min(14, Math.ceil(eu / step)), nv = Math.min(14, Math.ceil(ev / step));
       if (nu > 1 || nv > 1) {
         for (let i = 0; i < nu; i++) {
           for (let j = 0; j < nv; j++) {
@@ -119,15 +141,22 @@
     this._quad1(pts, color, opts, [0, 0, 1, 1]);
   };
   Renderer.prototype._quad1 = function (pts, color, opts, uv) {
-    const v = [this.toView(pts[0]), this.toView(pts[1]), this.toView(pts[2]), this.toView(pts[3])];
+    // vertices carry uv so near-plane clipping keeps textures mapped
+    const cu = [[uv[0], uv[1]], [uv[2], uv[1]], [uv[2], uv[3]], [uv[0], uv[3]]];
+    const v = pts.map((p, i) => {
+      const t = this.toView(p);
+      return [t[0], t[1], t[2], cu[i][0], cu[i][1]];
+    });
     if (v[0][2] <= NEAR && v[1][2] <= NEAR && v[2][2] <= NEAR && v[3][2] <= NEAR) return;
     const clipped = (v[0][2] > NEAR && v[1][2] > NEAR && v[2][2] > NEAR && v[3][2] > NEAR) ? v : clipNear(v);
     if (clipped.length < 3) return;
     let depth = 0;
     for (const p of clipped) depth += p[2];
     depth /= clipped.length;
-    const wasClipped = clipped !== v;
-    const spts = clipped.map((p) => this.project(p));
+    const spts = clipped.map((p) => {
+      const s = this.project(p);
+      return [s[0], s[1], p[3], p[4]];
+    });
     // skip prims entirely outside the viewport
     let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
     for (const p of spts) {
@@ -140,13 +169,10 @@
     this.prims.push({
       k: "q",
       s: spts,
-      full: wasClipped ? null : v.map((p) => this.project(p)),
       depth: depth + (opts.bias || 0),
       seq: this.seq++,
-      // a clipped textured quad can't be affine-mapped; fall back to the
-      // texture's average color instead of flashing black
-      color: opts.tex && wasClipped ? texAvg(opts.tex) : color,
-      alpha: opts.alpha, tex: opts.tex, uv: uv, dim: opts.dim || 0,
+      color: color,
+      alpha: opts.alpha, tex: opts.tex, dim: opts.dim || 0,
     });
   };
 
@@ -249,21 +275,34 @@
   Renderer.prototype.flush = function () {
     const ctx = this.ctx;
     // stable sort: equal depths keep emit order, so nothing flickers as the
-    // camera moves
+    // camera moves. Transparent quads render in their own second pass so
+    // glass never depth-fights opaque geometry.
     this.prims.sort((a, b) => (b.depth - a.depth) || (a.seq - b.seq));
     for (const p of this.prims) {
+      if (p.k === "q" && p.alpha !== undefined) continue;
+      this._drawPrim(ctx, p);
+    }
+    for (const p of this.prims) {
+      if (!(p.k === "q" && p.alpha !== undefined)) continue;
+      this._drawPrim(ctx, p);
+    }
+  };
+  Renderer.prototype._drawPrim = function (ctx, p) {
+    {
       if (p.k === "b") {
         if (p.dim) ctx.filter = "brightness(" + (1 - p.dim * 0.8).toFixed(2) + ")";
         p.draw(ctx, p.sx, p.sy, p.scale);
         if (p.dim) ctx.filter = "none";
-        continue;
+        return;
       }
-      if (p.tex && p.full) {
+      if (p.tex) {
         const w = p.tex.width, h = p.tex.height;
-        const u0 = p.uv[0] * w, v0 = p.uv[1] * h, u1 = p.uv[2] * w, v1 = p.uv[3] * h;
+        const s = p.s;
         if (p.dim) ctx.filter = "brightness(" + (1 - p.dim * 0.82).toFixed(2) + ")";
-        texTri(ctx, p.tex, p.full[0], p.full[1], p.full[2], u0, v0, u1, v0, u1, v1);
-        texTri(ctx, p.tex, p.full[0], p.full[2], p.full[3], u0, v0, u1, v1, u0, v1);
+        for (let i = 1; i < s.length - 1; i++) {
+          texTri(ctx, p.tex, s[0], s[i], s[i + 1],
+            s[0][2] * w, s[0][3] * h, s[i][2] * w, s[i][3] * h, s[i + 1][2] * w, s[i + 1][3] * h);
+        }
         if (p.dim) ctx.filter = "none";
       } else {
         const col = p.dim ? dimColor(p.color, p.dim) : p.color;

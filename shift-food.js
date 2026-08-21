@@ -400,6 +400,9 @@
   function drawSauceBottle(c, x, y, hh, id, fill) {
     const info = D().SAUCES[id] || { color: "#888", cap: "#666" };
     const w = hh * 0.42;
+    // contact shadow ties the bottle to whatever it stands on
+    c.fillStyle = "rgba(0,0,0,0.18)";
+    c.beginPath(); c.ellipse(x, y + hh * 0.45, w * 0.62, hh * 0.05, 0, 0, 7); c.fill();
     c.fillStyle = "rgba(255,255,255,0.25)";
     c.beginPath(); c.roundRect(x - w / 2, y - hh * 0.55, w, hh, w * 0.4); c.fill();
     c.fillStyle = info.color;
@@ -592,34 +595,77 @@
   }
 
   // ---- People ------------------------------------------------------------
-  // p: {shirt, walkPhase, mood: 'happy'|'flat'|'mad', scale}
+  // p: {shirt, skin, hair, walkPhase, mood: 'happy'|'flat'|'mad', scale}
+  // Filled, side-shaded shapes so a billboard still reads as a body with
+  // volume instead of a stick cutout.
+  function shadeHex(hex, k) {
+    const r = Math.round(parseInt(hex.slice(1, 3), 16) * k);
+    const g = Math.round(parseInt(hex.slice(3, 5), 16) * k);
+    const b = Math.round(parseInt(hex.slice(5, 7), 16) * k);
+    return "rgb(" + r + "," + g + "," + b + ")";
+  }
   function drawPerson(c, x, y, p) {
     const s = p.scale || 1;
-    const sw = Math.sin(p.walkPhase || 0) * (p.walking ? 6 : 0);
+    const sw = Math.sin(p.walkPhase || 0) * (p.walking ? 5 : 0);
+    const shirt = p.shirt || "#22b2b4";
+    const skin = p.skin || "#ffe0bd";
+    const hair = p.hair || "#3a2c20";
     c.save(); c.translate(x, y);
-    c.strokeStyle = p.shirt; c.lineWidth = 5 * s; c.lineCap = "round";
-    // legs
-    c.strokeStyle = "#41535e";
-    c.beginPath(); c.moveTo(0, -26 * s); c.lineTo(-6 * s + sw * 0.6, 0); c.stroke();
-    c.beginPath(); c.moveTo(0, -26 * s); c.lineTo(6 * s - sw * 0.6, 0); c.stroke();
-    // torso
-    c.strokeStyle = p.shirt;
-    c.beginPath(); c.moveTo(0, -52 * s); c.lineTo(0, -26 * s); c.stroke();
-    // arms
-    c.beginPath(); c.moveTo(0, -45 * s); c.lineTo(-9 * s - sw * 0.4, -32 * s); c.stroke();
-    c.beginPath(); c.moveTo(0, -45 * s); c.lineTo(9 * s + sw * 0.4, -32 * s); c.stroke();
-    // head
-    c.fillStyle = p.skin || "#ffe0bd";
-    c.strokeStyle = "#e0b98f"; c.lineWidth = 1.4;
-    c.beginPath(); c.arc(0, -62 * s, 9.5 * s, 0, 7); c.fill(); c.stroke();
+    // contact shadow
+    c.fillStyle = "rgba(0,0,0,0.22)";
+    c.beginPath(); c.ellipse(0, 0, 11 * s, 3 * s, 0, 0, 7); c.fill();
+    // legs: filled slacks with a walk swing
+    c.fillStyle = "#41535e";
+    c.beginPath();
+    c.moveTo(-6 * s, -28 * s); c.lineTo(-1 * s, -28 * s);
+    c.lineTo(-3 * s + sw * 0.7 * s, -1 * s); c.lineTo(-8.5 * s + sw * 0.7 * s, -1 * s);
+    c.closePath(); c.fill();
+    c.beginPath();
+    c.moveTo(1 * s, -28 * s); c.lineTo(6 * s, -28 * s);
+    c.lineTo(8.5 * s - sw * 0.7 * s, -1 * s); c.lineTo(3 * s - sw * 0.7 * s, -1 * s);
+    c.closePath(); c.fill();
+    c.fillStyle = "#2b3138";
+    c.beginPath(); c.ellipse(-5.7 * s + sw * 0.7 * s, -0.8 * s, 4 * s, 1.8 * s, 0, 0, 7); c.fill();
+    c.beginPath(); c.ellipse(5.7 * s - sw * 0.7 * s, -0.8 * s, 4 * s, 1.8 * s, 0, 0, 7); c.fill();
+    // arms behind the torso silhouette
+    c.strokeStyle = shadeHex(shirt, 0.82); c.lineWidth = 4.6 * s; c.lineCap = "round";
+    c.beginPath(); c.moveTo(-5 * s, -44 * s); c.lineTo(-10.5 * s - sw * 0.4 * s, -30 * s); c.stroke();
+    c.beginPath(); c.moveTo(5 * s, -44 * s); c.lineTo(10.5 * s + sw * 0.4 * s, -30 * s); c.stroke();
+    c.fillStyle = skin;
+    c.beginPath(); c.arc(-10.7 * s - sw * 0.4 * s, -28.5 * s, 2.5 * s, 0, 7); c.fill();
+    c.beginPath(); c.arc(10.7 * s + sw * 0.4 * s, -28.5 * s, 2.5 * s, 0, 7); c.fill();
+    // torso: rounded shirt with a shaded side
+    c.fillStyle = shirt;
+    c.beginPath();
+    c.moveTo(-8 * s, -47 * s);
+    c.quadraticCurveTo(-9.5 * s, -38 * s, -7.5 * s, -27 * s);
+    c.lineTo(7.5 * s, -27 * s);
+    c.quadraticCurveTo(9.5 * s, -38 * s, 8 * s, -47 * s);
+    c.quadraticCurveTo(0, -51 * s, -8 * s, -47 * s);
+    c.closePath(); c.fill();
+    c.fillStyle = "rgba(0,0,0,0.16)";
+    c.beginPath();
+    c.moveTo(3.5 * s, -49.5 * s);
+    c.quadraticCurveTo(9.5 * s, -38 * s, 7.5 * s, -27 * s);
+    c.lineTo(3.5 * s, -27 * s);
+    c.closePath(); c.fill();
+    // neck + head with shading and hair
+    c.fillStyle = skin;
+    c.fillRect(-2.2 * s, -55 * s, 4.4 * s, 6 * s);
+    c.beginPath(); c.arc(0, -62 * s, 9.5 * s, 0, 7); c.fill();
+    c.fillStyle = "rgba(0,0,0,0.1)";
+    c.beginPath(); c.arc(0, -62 * s, 9.5 * s, -0.6, 1.2); c.lineTo(0, -62 * s); c.closePath(); c.fill();
+    c.fillStyle = hair;
+    c.beginPath(); c.arc(0, -62 * s, 9.6 * s, Math.PI + 0.35, -0.35); c.closePath(); c.fill();
+    // face
     c.fillStyle = "#333";
-    c.beginPath(); c.arc(-3.2 * s, -63 * s, 1.4 * s, 0, 7); c.fill();
-    c.beginPath(); c.arc(3.2 * s, -63 * s, 1.4 * s, 0, 7); c.fill();
+    c.beginPath(); c.arc(-3.2 * s, -62 * s, 1.4 * s, 0, 7); c.fill();
+    c.beginPath(); c.arc(3.2 * s, -62 * s, 1.4 * s, 0, 7); c.fill();
     c.strokeStyle = "#7a4a2a"; c.lineWidth = 1.5 * s; c.lineCap = "round";
     c.beginPath();
-    if (p.mood === "mad") { c.moveTo(-3 * s, -57 * s); c.quadraticCurveTo(0, -60 * s, 3 * s, -57 * s); }
-    else if (p.mood === "flat") { c.moveTo(-3 * s, -58 * s); c.lineTo(3 * s, -58 * s); }
-    else { c.moveTo(-3 * s, -59 * s); c.quadraticCurveTo(0, -55.5 * s, 3 * s, -59 * s); }
+    if (p.mood === "mad") { c.moveTo(-3 * s, -56 * s); c.quadraticCurveTo(0, -59 * s, 3 * s, -56 * s); }
+    else if (p.mood === "flat") { c.moveTo(-3 * s, -57 * s); c.lineTo(3 * s, -57 * s); }
+    else { c.moveTo(-3 * s, -58 * s); c.quadraticCurveTo(0, -54.5 * s, 3 * s, -58 * s); }
     c.stroke();
     c.restore();
   }

@@ -589,6 +589,7 @@
       id: "c" + custSeq, kind: kind, order: order || null,
       x: -2.0, z: 0.4, tx: -2.0, tz: 0.4,
       shirt: SD.pick(SHIRTS), skin: SD.pick(SKINS),
+      hair: SD.pick(["#3a2c20", "#1c1c1c", "#6b4a2a", "#8a6a3e", "#4a4a52", "#2c2420"]),
       walkPhase: Math.random() * 6, state: "entering",
       arrivedAt: state.min, stateAt: state.min,
       bubble: null, bubbleUntil: 0, mood: "happy",
@@ -1952,7 +1953,7 @@
     // The outside world always paints first; everything indoors sorts by
     // true per-tile depth (walls and floors are auto-subdivided), with tiny
     // relative biases so wall art sits on its wall and glass paints late.
-    const L_OUT = 500, L_ROOM = 0, L_TRIM = -0.02, L_WALLART = -0.05;
+    const L_OUT = 500, L_ROOM = 0, L_TRIM = -0.35, L_WALLART = -0.7;
 
     // ================= outside =================
     R.quad([[-40, 16, -30], [40, 16, -30], [40, 5, -30], [-40, 5, -30]], "#9ec7e4", { bias: L_OUT + 60, noSub: true });
@@ -1963,7 +1964,7 @@
     R.texWall("pz", -11.5, 2, 0, 18, 6.4, TEX.building2, { bias: L_OUT + 30, noSub: true });
     R.texWall("px", -9.5, -8, 0, 14, 5.6, TEX.building2, { bias: L_OUT + 28, noSub: true });
     // road, lane dashes, curb, sidewalk
-    R.quad([[-20, 0, -9], [20, 0, -9], [20, 0, -2.4], [-20, 0, -2.4]], "#55585c", { bias: L_OUT + 20, noSub: true });
+    R.quad([[-20, 0, -9], [20, 0, -9], [20, 0, -2.4], [-20, 0, -2.4]], "#6b6f74", { bias: L_OUT + 20, noSub: true });
     for (let rx = -18; rx < 20; rx += 4) {
       R.quad([[rx, 0.005, -5.8], [rx + 1.6, 0.005, -5.8], [rx + 1.6, 0.005, -5.55], [rx, 0.005, -5.55]], "#d9c04a", { bias: L_OUT + 12, noSub: true });
     }
@@ -1987,15 +1988,35 @@
 
     // ================= room shell =================
     // floors + ceilings (front of house, kitchen strip, back of house)
-    R.quad([[-5, 0, 0], [2.45, 0, 0], [2.45, 0, 12.9], [-5, 0, 12.9]], "#8a7f6a", { dim: dimF, bias: L_ROOM });
-    R.quad([[-5, 0.004, 0.0], [-0.4, 0.004, 0.0], [-0.4, 0.004, 3.4], [-5, 0.004, 3.4]], "#b7bac0", { dim: dimF, bias: -0.01 });
-    R.quad([[2.45, 0, 0], [5, 0, 0], [5, 0, 14], [2.45, 0, 14]], "#8f8676", { dim: dimK, bias: L_ROOM });
-    R.quad([[-5, 0, 12.9], [2.45, 0, 12.9], [2.45, 0, 14], [-5, 0, 14]], "#8f8676", { dim: dimK, bias: L_ROOM });
-    R.quad([[-1.5, 0, 14], [5, 0, 14], [5, 0, 18], [-1.5, 0, 18]], "#7d766a", { dim: dimK, bias: L_ROOM });
-    R.quad([[-5, 3.2, 14], [5, 3.2, 14], [5, 3.2, 0], [-5, 3.2, 0]], "#3a3f45", { dim: Math.min(dimK, dimF) ? 0.5 : 0, bias: L_ROOM });
-    R.quad([[-1.5, 3.0, 18], [5, 3.0, 18], [5, 3.0, 14], [-1.5, 3.0, 14]], "#33383e", { dim: dimK ? 0.5 : 0, bias: L_ROOM });
+    // floors render as single exact-clipped quads drawn early: nothing is
+    // ever below a floor, and subdividing them caused dropped-tile teeth
+    // when tiles crossed the near plane underfoot. The entry mat is its own
+    // floor region so nothing overlaps.
+    R.quad([[-5, 0, 0], [-0.4, 0, 0], [-0.4, 0, 3.4], [-5, 0, 3.4]], "#b7bac0", { dim: dimF, bias: 70, noSub: true });
+    R.quad([[-0.4, 0, 0], [2.45, 0, 0], [2.45, 0, 3.4], [-0.4, 0, 3.4]], "#8a7f6a", { dim: dimF, bias: 70, noSub: true });
+    R.quad([[-5, 0, 3.4], [2.45, 0, 3.4], [2.45, 0, 12.9], [-5, 0, 12.9]], "#8a7f6a", { dim: dimF, bias: 70, noSub: true });
+    R.quad([[2.45, 0, 0], [5, 0, 0], [5, 0, 14], [2.45, 0, 14]], "#8f8676", { dim: dimK, bias: 70, noSub: true });
+    R.quad([[-5, 0, 12.9], [2.45, 0, 12.9], [2.45, 0, 14], [-5, 0, 14]], "#8f8676", { dim: dimK, bias: 70, noSub: true });
+    R.quad([[-1.5, 0, 14], [5, 0, 14], [5, 0, 18], [-1.5, 0, 18]], "#7d766a", { dim: dimK, bias: 70, noSub: true });
+    // ceilings render as single exact-clipped quads drawn early: nothing
+    // ever hides behind a ceiling, and subdividing them caused sort teeth
+    // when tiles crossed the near plane overhead
+    R.quad([[-5, 3.2, 14], [5, 3.2, 14], [5, 3.2, 0], [-5, 3.2, 0]], "#3a3f45", { dim: Math.min(dimK, dimF) ? 0.5 : 0, bias: 60, noSub: true });
+    R.quad([[-1.5, 3.0, 18], [5, 3.0, 18], [5, 3.0, 14], [-1.5, 3.0, 14]], "#33383e", { dim: dimK ? 0.5 : 0, bias: 60, noSub: true });
 
     const LW = "#e2ded6";
+    // ceiling-colored crown band on every wall: where wall and ceiling tiles
+    // meet at glancing angles the sort can flip, and matching colors make
+    // that invisible
+    const CROWN = "#3a3f45";
+    R.quad([[-5, 3.2, 0], [-5, 3.2, 14], [-5, 2.9, 14], [-5, 2.9, 0]], CROWN, { bias: -0.3 });
+    R.quad([[-5, 3.2, 0], [5, 3.2, 0], [5, 2.9, 0], [-5, 2.9, 0]], CROWN, { bias: -0.3 });
+    R.quad([[5, 3.2, 14], [5, 3.2, 0], [5, 2.9, 0], [5, 2.9, 14]], CROWN, { bias: -0.3 });
+    R.quad([[-5, 3.2, 14], [5, 3.2, 14], [5, 2.9, 14], [-5, 2.9, 14]], CROWN, { bias: -0.3 });
+    const CROWN2 = "#33383e";
+    R.quad([[-1.5, 3.0, 14], [-1.5, 3.0, 18], [-1.5, 2.75, 18], [-1.5, 2.75, 14]], CROWN2, { bias: -0.3 });
+    R.quad([[5, 3.0, 18], [5, 3.0, 14], [5, 2.75, 14], [5, 2.75, 18]], CROWN2, { bias: -0.3 });
+    R.quad([[-1.5, 3.0, 18], [5, 3.0, 18], [5, 2.75, 18], [-1.5, 2.75, 18]], CROWN2, { bias: -0.3 });
     // left wall, with a real window opening (z 1.2..5.6, y 0.7..2.4)
     R.quad([[-5, 3.2, 0], [-5, 3.2, 1.2], [-5, 0, 1.2], [-5, 0, 0]], LW, { dim: dimF, bias: L_ROOM });
     R.quad([[-5, 3.2, 5.6], [-5, 3.2, 14], [-5, 0, 14], [-5, 0, 5.6]], LW, { dim: dimF, bias: L_ROOM });
@@ -2081,16 +2102,16 @@
       R.texWall("nx", LINE.x0, tz, 0.12, Math.min(LINE.z1, tz + 1.35), CT, TEX.tile, { dim: dimF, noSub: true });
     }
     R.box(LINE.x0, 0, LINE.z0, LINE.x1, 0.12, LINE.z1, "#26292c", { dim: dimF });
-    R.quad([[3.601, 0.82, 3.0], [3.601, 0.82, 5.6], [3.601, 0.14, 5.6], [3.601, 0.14, 3.0]], "#9aa2a8", { dim: dimK, bias: -0.04 });
-    R.quad([[3.602, 0.55, 4.1], [3.602, 0.55, 4.5], [3.602, 0.49, 4.5], [3.602, 0.49, 4.1]], "#d7dce0", { dim: dimK, bias: -0.05 });
+    R.quad([[3.601, 0.82, 3.0], [3.601, 0.82, 5.6], [3.601, 0.14, 5.6], [3.601, 0.14, 3.0]], "#9aa2a8", { dim: dimK, bias: -0.6, noSub: true });
+    R.quad([[3.602, 0.55, 4.1], [3.602, 0.55, 4.5], [3.602, 0.49, 4.5], [3.602, 0.49, 4.1]], "#d7dce0", { dim: dimK, bias: -0.65, noSub: true });
     for (const slot of state.linePans) {
       // steel rim, then the pan interior texture set just below counter level
       R.quad([[slot.x0 - 0.015, CT + 0.016, slot.z0 - 0.015], [slot.x1 + 0.015, CT + 0.016, slot.z0 - 0.015], [slot.x1 + 0.015, CT + 0.016, slot.z1 + 0.015], [slot.x0 - 0.015, CT + 0.016, slot.z1 + 0.015]],
         "#c8cfd5", { dim: dimK, bias: -0.015, noSub: true });
       R.texTop(slot.x0, slot.z0, slot.x1, slot.z1, CT + 0.018, slot._tex || panTex(slot), { dim: dimK, bias: -0.02 });
     }
-    R.quad([[2.62, 1.78, 2.9], [2.62, 1.78, 8.2], [2.62, 1.22, 8.2], [2.62, 1.22, 2.9]], "#cfe4ee", { alpha: 0.16, bias: -2, noSub: true });
-    R.quad([[2.62, 1.8, 2.9], [3.1, 1.62, 2.9], [3.1, 1.62, 8.2], [2.62, 1.8, 8.2]], "#cfe4ee", { alpha: 0.12, bias: -2, noSub: true });
+    R.quad([[2.62, 1.78, 2.9], [2.62, 1.78, 8.2], [2.62, 1.22, 8.2], [2.62, 1.22, 2.9]], "#cfe4ee", { alpha: 0.16, noSub: true });
+    R.quad([[2.62, 1.8, 2.9], [3.1, 1.62, 2.9], [3.1, 1.62, 8.2], [2.62, 1.8, 8.2]], "#cfe4ee", { alpha: 0.12, noSub: true });
     // guard posts
     R.box(2.6, 0.95, 2.88, 2.66, 1.8, 2.94, "#b6bdc4", { dim: dimK, noSub: true });
     R.box(2.6, 0.95, 8.16, 2.66, 1.8, 8.22, "#b6bdc4", { dim: dimK, noSub: true });
@@ -2266,7 +2287,7 @@
       if (c.gone) continue;
       const cc = c;
       R.billboard(cc.x, 0, cc.z, (g, sx, sy, scale) => {
-        SF.drawPerson(g, sx, sy, { shirt: cc.shirt, skin: cc.skin, walkPhase: cc.walkPhase, walking: cc.walking, mood: cc.mood, scale: (scale * 1.78) / 72 });
+        SF.drawPerson(g, sx, sy, { shirt: cc.shirt, skin: cc.skin, hair: cc.hair, walkPhase: cc.walkPhase, walking: cc.walking, mood: cc.mood, scale: (scale * 1.78) / 72 });
       }, 0, dimAt(cc.x, cc.z) ? 0.6 : 0);
     }
     if (!state.lights.kitchen) {
@@ -2358,8 +2379,14 @@
       else if (h.kind === "bag") SF.drawBag(ctx, x, y - 45, 1.7, h);
       else if (h.kind === "side") SF.drawSidePack(ctx, x, y - 35, 1.8, h.side);
       else if (h.kind === "pinch") {
-        SF.drawChunk(ctx, h.ing, x, y - 35, 12, 0.3);
-        SF.drawChunk(ctx, h.ing, x + 16, y - 28, 10, 1.2);
+        // a gloved hand holding the pinch, so it reads as held food
+        ctx.fillStyle = h.bare ? "#ffe0bd" : "#4aa8ff";
+        ctx.beginPath(); ctx.ellipse(x + 4, y - 18, 30, 20, -0.4, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(x - 20, y - 34, 10, 16, -0.7, 0, 7); ctx.fill();
+        ctx.fillStyle = "rgba(0,0,0,0.12)";
+        ctx.beginPath(); ctx.ellipse(x + 10, y - 12, 18, 10, -0.3, 0, 7); ctx.fill();
+        SF.drawChunk(ctx, h.ing, x - 4, y - 34, 11, 0.3);
+        SF.drawChunk(ctx, h.ing, x + 10, y - 30, 9, 1.2);
       }
       else if (h.kind === "panBackup") SF.drawHotelPan(ctx, x - 60, y - 60, 120, 52, h.ing, 1, 999, SD.INGREDIENTS[h.ing].name);
     }
