@@ -9,11 +9,30 @@
   const SD = window.ShiftData, SF = window.ShiftFood, S3 = window.Shift3D;
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
-  const VW = 960, VH = 600;
+  let VW = 960, VH = 600;
   const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const mobileUI = () => window.matchMedia && matchMedia("(max-width: 760px)").matches;
   const SFX = () => window.ArcadeSfx || {};
   const sfx = (n) => { const s = SFX(); if (s[n]) try { s[n](); } catch (e) {} };
   const R = new S3.Renderer(ctx, VW, VH, 66);
+
+  // The canvas resolution tracks the stage so the game fills phone screens
+  // at native-ish sharpness instead of stretching a tiny letterboxed view.
+  function fitCanvas() {
+    const stage = canvas.parentElement;
+    const w = Math.max(1, stage.clientWidth), h = Math.max(1, stage.clientHeight);
+    const scale = Math.min(1.5, window.devicePixelRatio || 1);
+    let cw = Math.round(Math.min(1152, w * scale));
+    let chh = Math.round(cw * (h / w));
+    if (chh > 900) { chh = 900; cw = Math.round(chh * (w / h)); }
+    if (cw !== VW || chh !== VH) {
+      VW = cw; VH = chh;
+      canvas.width = VW; canvas.height = VH;
+      const f = (Math.min(VH, VW * 0.85) / 2) / Math.tan((33 * Math.PI) / 180);
+      R.resize(VW, VH, f);
+    }
+  }
+  window.addEventListener("resize", () => setTimeout(fitCanvas, 50));
 
   const OPEN_MIN = 30, CLOSE_MIN = 150, HARD_END = 168;
   const REACH = 2.35;         // how far the worker can reach, in meters
@@ -176,7 +195,7 @@
   });
   TEX.tile = makeTex(256, 128, (c, w, h) => {
     c.fillStyle = "#f2efe9"; c.fillRect(0, 0, w, h);
-    c.strokeStyle = "rgba(190,190,185,0.8)"; c.lineWidth = 2;
+    c.strokeStyle = "#c9c6bd"; c.lineWidth = 4;
     for (let y = 0; y < h; y += 22) {
       for (let x = -22; x < w; x += 44) {
         c.strokeRect(x + (y % 44 ? 22 : 0), y, 44, 22);
@@ -234,20 +253,67 @@
     c.font = "800 22px system-ui, sans-serif";
     c.fillText("⤴", 14, 38);
   });
+  // The lobby sign shows a bowl the store can actually make: ahi tuna,
+  // cucumber, avocado, masago, classic sauce.
   TEX.promo = makeTex(144, 240, (c, w, h) => {
-    c.fillStyle = "#c8302e"; c.fillRect(0, 0, w, h);
-    c.fillStyle = "#fff"; c.font = "800 20px system-ui, sans-serif"; c.textAlign = "center";
-    c.fillText("DYNAMITE", w / 2, 44);
-    c.fillText("LOBSTER", w / 2, 70);
-    c.fillText("BOWL", w / 2, 96);
-    c.fillStyle = "#f7f4ee";
-    c.beginPath(); c.ellipse(w / 2, 160, 44, 30, 0, 0, 7); c.fill();
-    SF.drawRiceMound(c, w / 2, 158, 66, 40, "white", 9);
-    SF.drawChunk(c, "shrimp", w / 2 - 14, 152, 8, 0.5);
-    SF.drawChunk(c, "shrimp", w / 2 + 10, 156, 8, 2.2);
-    SF.drawChunk(c, "masago", w / 2, 146, 7, 0);
-    c.fillStyle = "#fff"; c.font = "600 11px system-ui, sans-serif";
-    c.fillText("LIMITED TIME ONLY", w / 2, 220);
+    c.fillStyle = "#16232b"; c.fillRect(0, 0, w, h);
+    c.fillStyle = "#f4ede3"; c.font = "800 24px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("POKE", w / 2, 42);
+    c.fillText("YOUR", w / 2, 70);
+    c.fillText("WAY", w / 2, 98);
+    SF.drawServingBowl(c, w / 2, 158, 1.5, {
+      kind: "bowl", size: "regular", riceType: "white", rice: 1,
+      base: [{ ing: "tuna", amount: 2 }, { ing: "cucumber", amount: 1 }],
+      toppings: [{ ing: "avocado", amount: 1 }, { ing: "masago", amount: 1 }],
+      sauce: { id: "classic", amount: 1 }, pour: null, lid: false, bare: false,
+    });
+    c.fillStyle = "#9fb6c4"; c.font = "600 11px system-ui, sans-serif";
+    c.fillText("signature or build your own", w / 2, 220);
+  });
+  // simple facades for the street outside
+  TEX.building = makeTex(256, 128, (c, w, h) => {
+    c.fillStyle = "#8a5a48"; c.fillRect(0, 0, w, h);
+    c.fillStyle = "#7c503f";
+    for (let y2 = 0; y2 < h; y2 += 10) c.fillRect(0, y2, w, 2);
+    for (let ry = 14; ry < h - 20; ry += 34) {
+      for (let rx = 14; rx < w - 20; rx += 32) {
+        c.fillStyle = "#b9d2e4";
+        c.fillRect(rx, ry, 18, 22);
+        c.fillStyle = "rgba(255,255,255,0.35)";
+        c.beginPath(); c.moveTo(rx, ry + 22); c.lineTo(rx + 8, ry); c.lineTo(rx + 12, ry); c.lineTo(rx + 4, ry + 22); c.closePath(); c.fill();
+      }
+    }
+    c.fillStyle = "#5e4234"; c.fillRect(0, h - 8, w, 8);
+  });
+  TEX.building2 = makeTex(256, 128, (c, w, h) => {
+    c.fillStyle = "#7d8288"; c.fillRect(0, 0, w, h);
+    for (let ry = 10; ry < h - 34; ry += 30) {
+      for (let rx = 10; rx < w - 16; rx += 26) {
+        c.fillStyle = "#aac4d4";
+        c.fillRect(rx, ry, 16, 18);
+      }
+    }
+    // storefront band at street level
+    c.fillStyle = "#3f4a52"; c.fillRect(0, h - 34, w, 34);
+    c.fillStyle = "#c9dae4"; c.fillRect(8, h - 28, 70, 22);
+    c.fillRect(104, h - 28, 70, 22);
+    c.fillRect(200, h - 28, 48, 22);
+    c.fillStyle = "#e8a33d"; c.fillRect(88, h - 30, 8, 26);
+  });
+  // fountain header panel with labeled flavors
+  TEX.fountain = makeTex(280, 90, (c, w, h) => {
+    c.fillStyle = "#2f3b42"; c.fillRect(0, 0, w, h);
+    c.fillStyle = "#f4ede3"; c.font = "800 16px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("FOUNTAIN DRINKS", w / 2, 24);
+    const ids = ["greentea", "lemonade", "punch", "water"];
+    ids.forEach((id, i) => {
+      const x = 10 + i * 66;
+      c.fillStyle = SD.DRINKS[id].color;
+      c.beginPath(); c.roundRect(x, 36, 60, 42, 5); c.fill();
+      c.fillStyle = "#1c2429"; c.font = "700 10px system-ui, sans-serif";
+      const words = SD.DRINKS[id].name.toUpperCase().split(" ");
+      words.forEach((wd, j) => c.fillText(wd, x + 30, 54 + j * 12));
+    });
   });
   TEX.menu = makeTex(384, 96, (c, w, h) => {
     c.fillStyle = "#1c2429"; c.fillRect(0, 0, w, h);
@@ -822,7 +888,7 @@
         c.open = !c.open;
         sfx("pop"); markProgress();
       } });
-    add({ box: { x0: 4.48, y0: CT + 0.02, z0: z - 0.1, x1: 4.58, y1: CT + 0.2, z1: z + 0.1 }, label: "cooker switch",
+    add({ box: { x0: 4.5, y0: CT + 0.08, z0: z - 0.12, x1: 4.62, y1: CT + 0.34, z1: z + 0.12 }, label: "cooker switch",
       tap: () => {
         const c = ck();
         c.on = !c.on;
@@ -1039,7 +1105,7 @@
     }
     if (h.kind === "bag") {
       if (!bowl.lid) thought("No lid on that. It'll tip.");
-      if (h.items.length >= 3) { thought("Bag's full."); return; }
+      if (h.items.length >= (h.cap || 3)) { thought(h.box ? "Box is full." : "Bag's full."); return; }
       h.items.push({ kind: "bowl", bowl: bowl });
       spot.item = null;
       sfx("pop"); markProgress(); return;
@@ -1269,7 +1335,7 @@
       else dropHeldBlocked();
     } });
   const SIDE_SHELF = [
-    { id: "taro", x0: 1.9, x1: 2.1 }, { id: "wchips", x0: 2.14, x1: 2.32 }, { id: "cookie", x0: 2.36, x1: 2.52 },
+    { id: "miso", x0: 1.9, x1: 2.1 }, { id: "mac", x0: 2.14, x1: 2.32 }, { id: "edas", x0: 2.36, x1: 2.52 },
   ];
   SIDE_SHELF.forEach((sd) => {
     add({ box: { x0: sd.x0, y0: 1.68, z0: 13.8, x1: sd.x1, y1: 1.98, z1: 14.0 },
@@ -1277,7 +1343,7 @@
       tap: () => {
         const h = state.held;
         if (h && h.kind === "bag") {
-          if (h.items.length >= 3) { thought("Bag's full."); return; }
+          if (h.items.length >= (h.cap || 3)) { thought(h.box ? "Box is full." : "Bag's full."); return; }
           h.items.push({ kind: "side", side: sd.id, color: SD.SIDES[sd.id].color });
           sfx("pop"); markProgress(); return;
         }
@@ -1290,7 +1356,7 @@
     tap: () => {
       const h = state.held;
       if (h && h.kind === "bag") {
-        if (h.items.length >= 3) { thought("Bag's full."); return; }
+        if (h.items.length >= (h.cap || 3)) { thought(h.box ? "Box is full." : "Bag's full."); return; }
         h.items.push({ kind: "side", side: "mochi", color: SD.SIDES.mochi.color });
         sfx("pop"); markProgress(); return;
       }
@@ -1310,7 +1376,7 @@
         const h = state.held;
         if (h && ["bag", "cup", "side"].indexOf(h.kind) >= 0) {
           if (slot.items.length >= 3) { thought("That shelf spot is full."); return; }
-          if (h.kind === "bag") slot.items.push({ kind: "bag", items: h.items, label: h.label });
+          if (h.kind === "bag") slot.items.push({ kind: "bag", items: h.items, label: h.label, box: h.box, cap: h.cap });
           else if (h.kind === "cup") slot.items.push({ kind: "cup", cup: h.cup });
           else slot.items.push({ kind: "side", side: h.side, color: SD.SIDES[h.side].color });
           state.held = null;
@@ -1318,7 +1384,7 @@
         }
         if (!h && slot.items.length) {
           const it = slot.items.pop();
-          if (it.kind === "bag") state.held = { kind: "bag", items: it.items, label: it.label };
+          if (it.kind === "bag") state.held = { kind: "bag", items: it.items, label: it.label, box: it.box, cap: it.cap };
           else if (it.kind === "cup") state.held = { kind: "cup", cup: it.cup };
           else state.held = { kind: "side", side: it.side };
           markProgress(); return;
@@ -1338,6 +1404,29 @@
   // mahalo poster on the left wall
   add({ box: { x0: -5.0, y0: 1.3, z0: 7.0, x1: -4.9, y1: 2.15, z1: 8.0 }, label: "Mahalo poster",
     tap: () => { openSheet("mahalo-view"); markProgress(); } });
+
+  // ---- back of house ----
+  add({ box: { x0: 3.1, y0: 0, z0: 16.7, x1: 3.24, y1: 2.4, z1: 18.0 }, label: "walk-in (backups)",
+    tap: () => {
+      if (state.held) { dropHeldBlocked(); return; }
+      openFridge(); markProgress();
+    } });
+  add({ box: { x0: -1.45, y0: 1.0, z0: 15.7, x1: -0.85, y1: 1.55, z1: 16.55 }, label: "catering boxes",
+    tap: () => {
+      if (state.held) { dropHeldBlocked(); return; }
+      state.held = { kind: "bag", box: true, cap: 5, items: [], label: null };
+      markProgress();
+    } });
+  add({ box: { x0: 0.6, y0: 0.6, z0: 17.5, x1: 1.7, y1: 1.35, z1: 18.0 }, label: "prep sink",
+    tap: () => {
+      if (state.held && state.held.kind === "metal") {
+        state.held = null; state.metalStack++; sfx("swish");
+        float(1.15, 1.2, 17.7, "rinsed", "#9fd6c0"); markProgress(); return;
+      }
+      thought("Dish sink. Wash in at the hand sink on the line.");
+    } });
+  add({ box: { x0: -0.2, y0: 0.7, z0: 15.1, x1: 2.2, y1: 1.0, z1: 16.0 }, label: "prep table",
+    tap: () => { if (state.held) dropHeldBlocked(); } });
 
   // ---- DOM sheets --------------------------------------------------------
   function openSheet(id) {
@@ -1688,10 +1777,21 @@
     { x0: -4.35, z0: 1.4, x1: -3.85, z1: 1.9 },   // promo sign
     { x0: -4.95, z0: 0.5, x1: -4.35, z1: 1.15 },  // plant
     { x0: 4.5, z0: 10.72, x1: 4.96, z1: 11.18 },  // trash
+    // back of house
+    { x0: 3.2, z0: 16.7, x1: 5.0, z1: 18.0 },     // walk-in
+    { x0: -0.2, z0: 15.1, x1: 2.2, z1: 16.0 },    // prep table
+    { x0: -1.5, z0: 14.4, x1: -0.85, z1: 16.6 },  // shelving
+    { x0: 0.6, z0: 17.5, x1: 1.7, z1: 18.0 },     // prep sink
+    { x0: 2.4, z0: 17.5, x1: 2.8, z1: 17.9 },     // mop bucket
+    { x0: 4.3, z0: 14.3, x1: 4.9, z1: 14.9 },     // boh trash
+    { x0: -0.6, z0: 17.3, x1: 0.2, z1: 17.95 },   // stacked boxes
   ];
   function blocked(x, z) {
     const r = 0.28;
-    if (x < -4.72 || x > 4.72 || z < 0.34 || z > 13.66) return true;
+    const inFOH = x > -4.72 && x < 4.72 && z > 0.34 && z < 13.66;
+    const inDoor = x > 3.56 && x < 4.34 && z >= 13.0 && z <= 15.0;
+    const inBOH = x > -1.22 && x < 4.72 && z > 14.34 && z < 17.7;
+    if (!inFOH && !inDoor && !inBOH) return true;
     for (const b of BLOCKERS) {
       if (x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r) return true;
     }
@@ -1810,6 +1910,8 @@
     state.customers = state.customers.filter((c) => !c.gone);
     updateSchedule();
     renderServiceButtons();
+    renderTasks();
+    updateTut();
     if (state.clock - state.lastProgress > 34 && state.clock - state.thoughtAt > 26) idleThought();
     if (state.min >= CLOSE_MIN && state.sign) state.sign = false;
     if (state.min >= CLOSE_MIN) {
@@ -1842,39 +1944,121 @@
     cam.y = EYE + (walking && !RM ? Math.sin(bobT) * 0.03 : 0);
     cam.yaw = state.yaw; cam.pitch = state.pitch;
     R.begin();
-    const dimK = state.lights.kitchen ? 0 : 0.72;
-    const dimF = state.lights.foh ? 0 : 0.55;
-    // solid backdrop so sub-pixel seams never show raw page background
+    const dimK = state.lights.kitchen ? 0 : 0.78;
+    const dimF = state.lights.foh ? 0 : 0.7;
     ctx.fillStyle = "#23282e";
     ctx.fillRect(0, 0, VW, VH);
 
-    // layer biases keep the painter honest: room shell first, wall dressing
-    // next, furniture and food after, glass last
-    const L_ROOM = 220, L_TRIM = 150, L_WALLART = 100;
+    // The outside world always paints first; everything indoors sorts by
+    // true per-tile depth (walls and floors are auto-subdivided), with tiny
+    // relative biases so wall art sits on its wall and glass paints late.
+    const L_OUT = 500, L_ROOM = 0, L_TRIM = -0.02, L_WALLART = -0.05;
 
-    // floors + ceiling
+    // ================= outside =================
+    R.quad([[-40, 16, -30], [40, 16, -30], [40, 5, -30], [-40, 5, -30]], "#9ec7e4", { bias: L_OUT + 60, noSub: true });
+    R.quad([[-40, 5, -30], [40, 5, -30], [40, 0, -30], [-40, 0, -30]], "#cfe0ee", { bias: L_OUT + 58, noSub: true });
+    R.quad([[-30, 14, 20], [-30, 14, -20], [-30, 0, -20], [-30, 0, 20]], "#aacfe8", { bias: L_OUT + 56, noSub: true });
+    // buildings across the street, plus the neighbor past the left window
+    R.texWall("pz", -11, -16, 0, 2, 8, TEX.building, { bias: L_OUT + 30, noSub: true });
+    R.texWall("pz", -11.5, 2, 0, 18, 6.4, TEX.building2, { bias: L_OUT + 30, noSub: true });
+    R.texWall("px", -9.5, -8, 0, 14, 5.6, TEX.building2, { bias: L_OUT + 28, noSub: true });
+    // road, lane dashes, curb, sidewalk
+    R.quad([[-20, 0, -9], [20, 0, -9], [20, 0, -2.4], [-20, 0, -2.4]], "#55585c", { bias: L_OUT + 20, noSub: true });
+    for (let rx = -18; rx < 20; rx += 4) {
+      R.quad([[rx, 0.005, -5.8], [rx + 1.6, 0.005, -5.8], [rx + 1.6, 0.005, -5.55], [rx, 0.005, -5.55]], "#d9c04a", { bias: L_OUT + 12, noSub: true });
+    }
+    R.quad([[-20, 0.14, -2.4], [20, 0.14, -2.4], [20, 0, -2.4], [-20, 0, -2.4]], "#8f9296", { bias: L_OUT + 16, noSub: true });
+    R.quad([[-20, 0.02, -2.4], [20, 0.02, -2.4], [20, 0.02, 0], [-20, 0.02, 0]], "#b4b7bc", { bias: L_OUT + 18, noSub: true });
+    // a parked car
+    R.box(4.6, 0.3, -5.2, 9.2, 1.05, -3.2, { all: "#3a6ea5", top: "#4a7eb5" }, { bias: L_OUT + 8, noSub: true });
+    R.box(5.6, 1.05, -4.9, 8.2, 1.55, -3.5, { all: "#2c567e", top: "#3a6ea5" }, { bias: L_OUT + 6, noSub: true });
+    R.quad([[5.0, 0.6, -3.19], [5.9, 0.6, -3.19], [5.9, 0, -3.19], [5.0, 0, -3.19]], "#1c2024", { bias: L_OUT + 4, noSub: true });
+    R.quad([[7.6, 0.6, -3.19], [8.5, 0.6, -3.19], [8.5, 0, -3.19], [7.6, 0, -3.19]], "#1c2024", { bias: L_OUT + 4, noSub: true });
+    // streetlight and a tree on the sidewalk
+    R.box(-3.6, 0, -2.0, -3.45, 4.2, -1.85, "#4a5258", { bias: L_OUT + 8, noSub: true });
+    R.box(-3.45, 4.0, -1.98, -2.6, 4.15, -1.87, "#4a5258", { bias: L_OUT + 7, noSub: true });
+    R.box(2.7, 0, -1.8, 3.0, 1.5, -1.5, "#6a4a30", { bias: L_OUT + 8, noSub: true });
+    R.billboard(2.85, 1.35, -1.65, (c, sx, sy, scale) => {
+      c.fillStyle = "#4a7a4a";
+      c.beginPath(); c.ellipse(sx, sy - 0.9 * scale, 0.95 * scale, 1.0 * scale, 0, 0, 7); c.fill();
+      c.fillStyle = "#5b8f54";
+      c.beginPath(); c.ellipse(sx - 0.35 * scale, sy - 1.1 * scale, 0.55 * scale, 0.55 * scale, 0, 0, 7); c.fill();
+    }, L_OUT + 5);
+
+    // ================= room shell =================
+    // floors + ceilings (front of house, kitchen strip, back of house)
     R.quad([[-5, 0, 0], [2.45, 0, 0], [2.45, 0, 12.9], [-5, 0, 12.9]], "#8a7f6a", { dim: dimF, bias: L_ROOM });
-    R.quad([[-5, 0, 0.0], [-0.4, 0, 0.0], [-0.4, 0, 3.4], [-5, 0, 3.4]], "#b7bac0", { dim: dimF, bias: L_ROOM - 1 });
+    R.quad([[-5, 0.004, 0.0], [-0.4, 0.004, 0.0], [-0.4, 0.004, 3.4], [-5, 0.004, 3.4]], "#b7bac0", { dim: dimF, bias: -0.01 });
     R.quad([[2.45, 0, 0], [5, 0, 0], [5, 0, 14], [2.45, 0, 14]], "#8f8676", { dim: dimK, bias: L_ROOM });
     R.quad([[-5, 0, 12.9], [2.45, 0, 12.9], [2.45, 0, 14], [-5, 0, 14]], "#8f8676", { dim: dimK, bias: L_ROOM });
+    R.quad([[-1.5, 0, 14], [5, 0, 14], [5, 0, 18], [-1.5, 0, 18]], "#7d766a", { dim: dimK, bias: L_ROOM });
     R.quad([[-5, 3.2, 14], [5, 3.2, 14], [5, 3.2, 0], [-5, 3.2, 0]], "#3a3f45", { dim: Math.min(dimK, dimF) ? 0.5 : 0, bias: L_ROOM });
+    R.quad([[-1.5, 3.0, 18], [5, 3.0, 18], [5, 3.0, 14], [-1.5, 3.0, 14]], "#33383e", { dim: dimK ? 0.5 : 0, bias: L_ROOM });
 
-    // walls
-    R.quad([[-5, 3.2, 0], [-5, 3.2, 14], [-5, 0, 14], [-5, 0, 0]], "#e2ded6", { dim: dimF, bias: L_ROOM });   // left
-    R.quad([[-5, 3.2, 0], [5, 3.2, 0], [5, 0, 0], [-5, 0, 0]], "#e2ded6", { dim: dimF, bias: L_ROOM });       // front
-    R.quad([[5, 3.2, 14], [5, 3.2, 0], [5, 0, 0], [5, 0, 14]], "#e8e4dc", { dim: dimK, bias: L_ROOM });       // right
-    R.texWall("nx", 4.995, 0, 2.25, 14, 3.2, TEX.wood, { dim: dimK, bias: L_TRIM });                          // wood band up top
-    R.texWall("nz", 13.995, -5, 0, 5, 3.2, TEX.wood, { dim: dimK, bias: L_TRIM });                            // back wall
-    R.texWall("nz", 13.99, -0.9, 1.7, 1.9, 3.05, TEX.union, { dim: dimK, bias: L_WALLART });
-    R.texWall("nz", 13.98, -3.35, 2.05, -1.55, 2.5, TEX.pickupSign, { dim: dimK, bias: L_WALLART });
-
-    // windows and door glass stay daylight-bright
-    R.quad([[-4.995, 2.4, 1.2], [-4.995, 2.4, 5.6], [-4.995, 0.7, 5.6], [-4.995, 0.7, 1.2]], "#cfe2ec", { bias: L_TRIM });
-    R.quad([[DOOR.x0, 2.3, 0.005], [DOOR.x1, 2.3, 0.005], [DOOR.x1, 0.1, 0.005], [DOOR.x0, 0.1, 0.005]], "#c4dae8", { bias: L_TRIM });
-    R.quad([[0.2, 2.2, 0.005], [1.9, 2.2, 0.005], [1.9, 0.8, 0.005], [0.2, 0.8, 0.005]], "#cfe2ec", { bias: L_TRIM });
+    const LW = "#e2ded6";
+    // left wall, with a real window opening (z 1.2..5.6, y 0.7..2.4)
+    R.quad([[-5, 3.2, 0], [-5, 3.2, 1.2], [-5, 0, 1.2], [-5, 0, 0]], LW, { dim: dimF, bias: L_ROOM });
+    R.quad([[-5, 3.2, 5.6], [-5, 3.2, 14], [-5, 0, 14], [-5, 0, 5.6]], LW, { dim: dimF, bias: L_ROOM });
+    R.quad([[-5, 0.7, 1.2], [-5, 0.7, 5.6], [-5, 0, 5.6], [-5, 0, 1.2]], LW, { dim: dimF, bias: L_ROOM });
+    R.quad([[-5, 3.2, 1.2], [-5, 3.2, 5.6], [-5, 2.4, 5.6], [-5, 2.4, 1.2]], LW, { dim: dimF, bias: L_ROOM });
+    // front wall, with door (x -2.6..-1.4) and window (x -0.6..2.0) openings
+    R.quad([[-5, 3.2, 0], [5, 3.2, 0], [5, 2.35, 0], [-5, 2.35, 0]], LW, { dim: dimF, bias: L_ROOM });
+    R.quad([[-5, 2.35, 0], [-2.6, 2.35, 0], [-2.6, 0, 0], [-5, 0, 0]], LW, { dim: dimF, bias: L_ROOM });
+    R.quad([[-1.4, 2.35, 0], [-0.6, 2.35, 0], [-0.6, 0, 0], [-1.4, 0, 0]], LW, { dim: dimF, bias: L_ROOM });
+    R.quad([[2.0, 2.35, 0], [5, 2.35, 0], [5, 0, 0], [2.0, 0, 0]], LW, { dim: dimF, bias: L_ROOM });
+    R.quad([[-0.6, 0.75, 0], [2.0, 0.75, 0], [2.0, 0, 0], [-0.6, 0, 0]], LW, { dim: dimF, bias: L_ROOM });
+    // right wall + wood band
+    R.quad([[5, 3.2, 14], [5, 3.2, 0], [5, 0, 0], [5, 0, 14]], "#e8e4dc", { dim: dimK, bias: L_ROOM });
+    R.texWall("nx", 4.995, 0, 2.25, 14, 3.2, TEX.wood, { dim: dimK, bias: L_TRIM });
+    // FOH back wall with the doorway to the back room (x 3.5..4.4)
+    if (cam.z < 14) {
+      R.texWall("nz", 13.995, -5, 0, 3.5, 3.2, TEX.wood, { dim: dimK, bias: L_TRIM });
+      R.texWall("nz", 13.995, 4.4, 0, 5, 3.2, TEX.wood, { dim: dimK, bias: L_TRIM });
+      R.texWall("nz", 13.995, 3.5, 2.1, 4.4, 3.2, TEX.wood, { dim: dimK, bias: L_TRIM });
+      R.texWall("nz", 13.99, -0.9, 1.7, 1.9, 3.05, TEX.union, { dim: dimK, bias: L_WALLART });
+      R.texWall("nz", 13.98, -3.35, 2.05, -1.55, 2.5, TEX.pickupSign, { dim: dimK, bias: L_WALLART });
+    } else {
+      const BW2 = "#d8d4cc";
+      R.quad([[-1.5, 3.0, 14.005], [3.5, 3.0, 14.005], [3.5, 0, 14.005], [-1.5, 0, 14.005]], BW2, { dim: dimK, bias: L_ROOM - 2 });
+      R.quad([[4.4, 3.0, 14.005], [5, 3.0, 14.005], [5, 0, 14.005], [4.4, 0, 14.005]], BW2, { dim: dimK, bias: L_ROOM - 2 });
+      R.quad([[3.5, 3.0, 14.005], [4.4, 3.0, 14.005], [4.4, 2.1, 14.005], [3.5, 2.1, 14.005]], BW2, { dim: dimK, bias: L_ROOM - 2 });
+    }
+    // glass panes over the openings
+    R.quad([[-4.995, 2.4, 1.2], [-4.995, 2.4, 5.6], [-4.995, 0.7, 5.6], [-4.995, 0.7, 1.2]], "#cfe2ec", { alpha: 0.18, bias: L_TRIM, noSub: true });
+    R.quad([[DOOR.x0, 2.3, 0.005], [DOOR.x1, 2.3, 0.005], [DOOR.x1, 0.1, 0.005], [DOOR.x0, 0.1, 0.005]], "#c4dae8", { alpha: 0.22, bias: L_TRIM, noSub: true });
+    R.quad([[-0.6, 2.35, 0.005], [2.0, 2.35, 0.005], [2.0, 0.75, 0.005], [-0.6, 0.75, 0.005]], "#cfe2ec", { alpha: 0.18, bias: L_TRIM, noSub: true });
+    // door frame
+    R.box(DOOR.x0 - 0.08, 0, -0.02, DOOR.x0, 2.4, 0.06, "#3a3f45", { dim: dimF, noSub: true });
+    R.box(DOOR.x1, 0, -0.02, DOOR.x1 + 0.08, 2.4, 0.06, "#3a3f45", { dim: dimF, noSub: true });
+    R.box(DOOR.x0 - 0.08, 2.32, -0.02, DOOR.x1 + 0.08, 2.42, 0.06, "#3a3f45", { dim: dimF, noSub: true });
     R.texWall("pz", 0.01, -2.45, 2.05, -1.55, 2.6, TEX.open, { bias: L_WALLART });
 
-    // promo sign + plant + tables (dining flavor)
+    // ================= ceiling lights =================
+    const PENDANTS = [
+      { x: 3.1, z: 4.0, k: true }, { x: 3.1, z: 6.6, k: true }, { x: 3.1, z: 9.2, k: true },
+      { x: -1.6, z: 3.4, k: false }, { x: -1.6, z: 7.2, k: false }, { x: -1.6, z: 10.8, k: false },
+      { x: 1.6, z: 16.0, k: true, boh: true }, { x: 1.1, z: 13.6, k: true },
+    ];
+    for (const p of PENDANTS) {
+      const on = p.k ? state.lights.kitchen : state.lights.foh;
+      const dd = p.k ? dimK : dimF;
+      const cy = p.boh ? 3.0 : 3.2;
+      R.box(p.x - 0.015, cy - 0.5, p.z - 0.015, p.x + 0.015, cy, p.z + 0.015, "#26292c", { dim: dd, noSub: true });
+      R.box(p.x - 0.16, cy - 0.62, p.z - 0.16, p.x + 0.16, cy - 0.5, p.z + 0.16, "#2f3b42", { dim: dd, noSub: true });
+      R.quad([[p.x - 0.13, cy - 0.625, p.z - 0.13], [p.x + 0.13, cy - 0.625, p.z - 0.13], [p.x + 0.13, cy - 0.625, p.z + 0.13], [p.x - 0.13, cy - 0.625, p.z + 0.13]],
+        on ? "#ffe9c0" : "#5e6b73", { noSub: true, bias: -0.02 });
+      if (on && !RM) {
+        R.billboard(p.x, cy - 0.68, p.z, (c, sx, sy, scale) => {
+          const g = c.createRadialGradient(sx, sy, 1, sx, sy, 0.5 * scale);
+          g.addColorStop(0, "rgba(255,236,190,0.45)");
+          g.addColorStop(1, "rgba(255,236,190,0)");
+          c.fillStyle = g;
+          c.beginPath(); c.arc(sx, sy, 0.5 * scale, 0, 7); c.fill();
+        }, -0.4);
+      }
+    }
+
+    // ================= dining flavor =================
     R.texWall("pz", 1.9, -4.3, 0.6, -3.85, 2.0, TEX.promo, { dim: dimF, bias: -0.03 });
     R.box(-4.32, 0, 1.42, -3.83, 0.6, 1.88, "#26292c", { dim: dimF });
     R.box(-4.9, 0, 0.6, -4.4, 0.5, 1.1, "#41535e", { dim: dimF });
@@ -1888,137 +2072,188 @@
       R.box(-4.15, 0, tz + 0.15, -3.95, 0.72, tz + 0.35, "#e8e4dc", { dim: dimF });
       R.box(-4.15, 0, tz + 0.95, -3.95, 0.72, tz + 1.15, "#e8e4dc", { dim: dimF });
     }
-    // mahalo poster
     R.texWall("px", -4.99, 7.0, 1.3, 8.0, 2.15, TEX.mahalo, { dim: dimF, bias: L_WALLART });
 
-    // ---- the line (right side) ----
+    // ================= the line =================
     R.box(LINE.x0, 0.12, LINE.z0, LINE.x1, CT, LINE.z1, { nx: null, all: "#d8d5ce", top: "#aeb5bc" }, { dim: dimK });
-    R.texWall("nx", LINE.x0, LINE.z0, 0.12, LINE.z1, CT, TEX.tile, { dim: dimF });
+    // the tiled front repeats per segment so the bricks stay brick-sized
+    for (let tz = LINE.z0; tz < LINE.z1 - 0.05; tz += 1.35) {
+      R.texWall("nx", LINE.x0, tz, 0.12, Math.min(LINE.z1, tz + 1.35), CT, TEX.tile, { dim: dimF, noSub: true });
+    }
     R.box(LINE.x0, 0, LINE.z0, LINE.x1, 0.12, LINE.z1, "#26292c", { dim: dimF });
-    // low boy doors on the worker side
     R.quad([[3.601, 0.82, 3.0], [3.601, 0.82, 5.6], [3.601, 0.14, 5.6], [3.601, 0.14, 3.0]], "#9aa2a8", { dim: dimK, bias: -0.04 });
     R.quad([[3.602, 0.55, 4.1], [3.602, 0.55, 4.5], [3.602, 0.49, 4.5], [3.602, 0.49, 4.1]], "#d7dce0", { dim: dimK, bias: -0.05 });
-    // pans set into the top
     for (const slot of state.linePans) {
-      R.texTop(slot.x0, slot.z0, slot.x1, slot.z1, CT + 0.012, slot._tex || panTex(slot), { dim: dimK, bias: -0.02 });
+      // steel rim, then the pan interior texture set just below counter level
+      R.quad([[slot.x0 - 0.015, CT + 0.016, slot.z0 - 0.015], [slot.x1 + 0.015, CT + 0.016, slot.z0 - 0.015], [slot.x1 + 0.015, CT + 0.016, slot.z1 + 0.015], [slot.x0 - 0.015, CT + 0.016, slot.z1 + 0.015]],
+        "#c8cfd5", { dim: dimK, bias: -0.015, noSub: true });
+      R.texTop(slot.x0, slot.z0, slot.x1, slot.z1, CT + 0.018, slot._tex || panTex(slot), { dim: dimK, bias: -0.02 });
     }
-    // sneeze guard glass, drawn late so nothing punches through it
-    R.quad([[2.62, 1.78, 2.9], [2.62, 1.78, 8.2], [2.62, 1.22, 8.2], [2.62, 1.22, 2.9]], "#cfe4ee", { alpha: 0.16, bias: -2 });
-    R.quad([[2.62, 1.8, 2.9], [3.1, 1.62, 2.9], [3.1, 1.62, 8.2], [2.62, 1.8, 8.2]], "#cfe4ee", { alpha: 0.12, bias: -2 });
-    // spots: mats + their contents
+    R.quad([[2.62, 1.78, 2.9], [2.62, 1.78, 8.2], [2.62, 1.22, 8.2], [2.62, 1.22, 2.9]], "#cfe4ee", { alpha: 0.16, bias: -2, noSub: true });
+    R.quad([[2.62, 1.8, 2.9], [3.1, 1.62, 2.9], [3.1, 1.62, 8.2], [2.62, 1.8, 8.2]], "#cfe4ee", { alpha: 0.12, bias: -2, noSub: true });
+    // guard posts
+    R.box(2.6, 0.95, 2.88, 2.66, 1.8, 2.94, "#b6bdc4", { dim: dimK, noSub: true });
+    R.box(2.6, 0.95, 8.16, 2.66, 1.8, 8.22, "#b6bdc4", { dim: dimK, noSub: true });
     state.spots.forEach((spot) => {
       R.quad([[2.7, CT + 0.008, spot.z - 0.2], [3.04, CT + 0.008, spot.z - 0.2], [3.04, CT + 0.008, spot.z + 0.2], [2.7, CT + 0.008, spot.z + 0.2]],
-        "#ffffff", { alpha: 0.16, dim: dimK, bias: -0.02 });
+        "#ffffff", { alpha: 0.16, bias: -0.02, noSub: true });
       if (spot.item) {
         if (spot.item.kind === "bowl") bbFood(2.87, CT + 0.01, spot.z, 54, 0.24, (c, sx, sy, s) => SF.drawServingBowl(c, sx, sy - 6 * s, s, spot.item.bowl), dimK);
         else bbFood(2.87, CT + 0.01, spot.z, 56, 0.26, (c, sx, sy, s) => SF.drawMetalBowl(c, sx, sy - 5 * s, s, spot.item), dimK);
       }
     });
-    // sauce rack bottles
     RACK_IDS.forEach((id, i) => {
       if (state.rack[id]) bbFood(3.36, CT, RACK_Z[i], 62, 0.24, (c, sx, sy, s) => SF.drawSauceBottle(c, sx, sy - 28 * s, s * 62, id, 0.75), dimK);
     });
-    // metal bowls + spoon crock
     for (let i = 0; i < Math.min(state.metalStack, 3); i++) {
       bbFood(3.35, CT + i * 0.05, 9.66, 56, 0.26, (c, sx, sy, s) => SF.drawMetalBowl(c, sx, sy - 5 * s, s, { items: [], sauce: null, mix: 0 }), dimK);
     }
     R.box(3.24, CT, 10.0, 3.46, CT + 0.16, 10.18, "#e8e4dc", { dim: dimK });
     bbFood(3.35, CT + 0.14, 10.09, 44, 0.3, (c, sx, sy, s) => SF.drawUtensil(c, "spoon", sx, sy - 12 * s, 0.25, s * 1.1), dimK);
-    // utensil rail
-    R.box(3.28, 1.72, 3.0, 3.36, 1.76, 4.2, "#41535e", { dim: dimK });
+    R.box(3.28, 1.72, 3.0, 3.36, 1.76, 4.2, "#41535e", { dim: dimK, noSub: true });
     rail.forEach((u) => {
       if (!u.taken) bbFood(3.32, 1.32, u.z, 44, 0.4, (c, sx, sy, s) => SF.drawUtensil(c, u.kind, sx, sy - 20 * s, 0.08, s * 1.2), dimK);
     });
     // register
     R.box(2.9, CT, 10.06, 3.3, CT + 0.34, 10.48, "#2f3b42", { dim: dimK });
-    R.quad([[3.29, CT + 0.42, 10.1], [3.29, CT + 0.42, 10.44], [3.3, CT + 0.1, 10.44], [3.3, CT + 0.1, 10.1]], state.lights.foh ? "#9fd6c0" : "#4d5a62", { dim: dimK });
-    // KDS
+    R.quad([[3.29, CT + 0.42, 10.1], [3.29, CT + 0.42, 10.44], [3.3, CT + 0.1, 10.44], [3.3, CT + 0.1, 10.1]], state.lights.foh ? "#9fd6c0" : "#4d5a62", { dim: dimK, noSub: true });
+    // KDS + menu board
     R.box(3.02, 1.9, 5.0, 3.1, 2.5, 6.44, "#1c2429", { dim: 0 });
     R.texWall("px", 3.104, 5.0, 1.9, 6.44, 2.5, TEX.kds, { bias: -0.05 });
-    R.box(3.04, 2.5, 5.6, 3.08, 3.2, 5.8, "#41535e", { dim: dimK });
-    // menu board for the dining side
+    R.box(3.04, 2.5, 5.6, 3.08, 3.2, 5.8, "#41535e", { dim: dimK, noSub: true });
     R.box(2.98, 2.3, 6.7, 3.06, 2.85, 8.3, "#1c2429", { dim: dimF });
     R.texWall("nx", 2.976, 6.7, 2.3, 8.3, 2.85, TEX.menu, { dim: dimF, bias: -0.05 });
 
-    // ---- back counter ----
+    // ================= back counter =================
     R.box(BACK.x0, 0.12, BACK.z0, BACK.x1, CT, BACK.z1, { all: "#9aa2a8", top: "#b6bdc4" }, { dim: dimK });
     R.box(BACK.x0, 0, BACK.z0, BACK.x1, 0.12, BACK.z1, "#26292c", { dim: dimK });
-    // switch panel, clipboard, posters, rail (right wall)
     R.texWall("nx", 4.985, 2.86, 1.16, 3.18, 1.74, TEX.switches, { bias: L_WALLART });
     R.texWall("nx", 4.985, 3.4, 1.28, 3.78, 1.78, TEX.board, { dim: dimK, bias: L_WALLART });
     R.texWall("nx", 4.985, 3.9, 1.3, 4.98, 2.15, TEX.portion, { dim: dimK, bias: L_WALLART });
     R.texWall("nx", 4.985, 5.1, 1.3, 6.34, 2.2, TEX.sop, { dim: dimK, bias: L_WALLART });
     R.texWall("nx", 4.985, 8.3, 1.72, 9.94, 2.16, TEX.rail, { dim: dimK, bias: L_WALLART });
-    // cookers
     for (const ck of state.cookers) {
       const body = ck.type === "brown" ? "#7d6a58" : "#8d949c";
-      R.box(4.6, CT, ck.z - 0.21, 4.98, CT + 0.42, ck.z + 0.21, body, { dim: dimK });
+      R.box(4.58, CT, ck.z - 0.23, 5.0, CT + 0.1, ck.z + 0.23, "#5e666d", { dim: dimK, noSub: true });
+      R.box(4.6, CT + 0.1, ck.z - 0.21, 4.98, CT + 0.42, ck.z + 0.21, body, { dim: dimK, noSub: true });
       R.texTop(4.6, ck.z - 0.21, 4.98, ck.z + 0.21, CT + 0.425, ck._tex || cookerTopTex(ck), { dim: dimK, bias: -0.02 });
-      R.quad([[4.585, CT + 0.18, ck.z - 0.08], [4.585, CT + 0.18, ck.z + 0.08], [4.585, CT + 0.04, ck.z + 0.08], [4.585, CT + 0.04, ck.z - 0.08]],
-        ck.on ? (ck.cooked ? "#4be07a" : "#ffd15a") : "#3a3f45", { dim: 0 });
+      R.quad([[4.585, CT + 0.3, ck.z - 0.1], [4.585, CT + 0.3, ck.z + 0.1], [4.585, CT + 0.12, ck.z + 0.1], [4.585, CT + 0.12, ck.z - 0.1]], "#3a3f45", { dim: dimK, noSub: true, bias: -0.03 });
+      R.quad([[4.583, CT + 0.26, ck.z - 0.06], [4.583, CT + 0.26, ck.z - 0.01], [4.583, CT + 0.18, ck.z - 0.01], [4.583, CT + 0.18, ck.z - 0.06]],
+        ck.on ? (ck.cooked ? "#4be07a" : "#ffd15a") : "#61686e", { noSub: true, bias: -0.04 });
     }
     if (!(state.held && state.held.kind === "paddle")) {
       bbFood(4.9, 1.32, 4.33, 44, 0.45, (c, sx, sy, s) => SF.drawUtensil(c, "paddle", sx, sy - 18 * s, 0.12, s * 1.3), dimK);
     }
-    // sink
-    R.box(4.6, CT - 0.16, 6.15, 4.98, CT - 0.14, 6.95, "#6f767d", { dim: dimK });
-    R.box(4.88, CT, 6.44, 4.98, CT + 0.42, 6.66, "#b6bdc4", { dim: dimK });
-    R.quad([[4.86, CT + 0.44, 6.42], [4.86, CT + 0.44, 6.68], [4.7, CT + 0.4, 6.68], [4.7, CT + 0.4, 6.42]], state.waterOn ? "#4be07a" : "#d7dce0", { dim: dimK });
+    // hand sink
+    R.box(4.6, CT - 0.16, 6.15, 4.98, CT - 0.14, 6.95, "#6f767d", { dim: dimK, noSub: true });
+    R.box(4.88, CT, 6.44, 4.98, CT + 0.42, 6.66, "#b6bdc4", { dim: dimK, noSub: true });
+    R.quad([[4.86, CT + 0.44, 6.42], [4.86, CT + 0.44, 6.68], [4.7, CT + 0.4, 6.68], [4.7, CT + 0.4, 6.42]], state.waterOn ? "#4be07a" : "#d7dce0", { dim: dimK, noSub: true });
     if (state.waterOn) {
-      R.quad([[4.77, CT + 0.4, 6.53], [4.79, CT + 0.4, 6.57], [4.79, CT - 0.14, 6.57], [4.77, CT - 0.14, 6.53]], "#a8d2f0", { alpha: 0.7 });
+      R.quad([[4.77, CT + 0.4, 6.53], [4.79, CT + 0.4, 6.57], [4.79, CT - 0.14, 6.57], [4.77, CT - 0.14, 6.53]], "#a8d2f0", { alpha: 0.7, noSub: true, bias: -0.06 });
     }
-    R.box(4.9, 1.24, 5.94, 4.98, 1.56, 6.12, "#e8ecef", { dim: dimK });
-    R.box(4.88, 1.24, 7.04, 4.98, 1.62, 7.32, "#8d979e", { dim: dimK });
-    R.box(4.62, CT, 7.46, 4.92, CT + 0.16, 7.8, "#4aa8ff", { dim: dimK });
-    // pass stacks: bowls, lids, bags
+    R.box(4.9, 1.24, 5.94, 4.98, 1.56, 6.12, "#e8ecef", { dim: dimK, noSub: true });
+    R.box(4.88, 1.24, 7.04, 4.98, 1.62, 7.32, "#8d979e", { dim: dimK, noSub: true });
+    R.box(4.62, CT, 7.46, 4.92, CT + 0.16, 7.8, "#4aa8ff", { dim: dimK, noSub: true });
     for (let i = 0; i < 5; i++) {
-      R.box(4.66, CT + i * 0.045, 8.16, 4.9, CT + 0.04 + i * 0.045, 8.4, i % 2 ? "#f7f4ee" : "#e8e4dc", { dim: dimK });
-      R.box(4.64, CT + i * 0.05, 8.52, 4.92, CT + 0.045 + i * 0.05, 8.8, i % 2 ? "#f7f4ee" : "#e8e4dc", { dim: dimK });
+      R.box(4.66, CT + i * 0.045, 8.16, 4.9, CT + 0.04 + i * 0.045, 8.4, i % 2 ? "#f7f4ee" : "#e8e4dc", { dim: dimK, noSub: true });
+      R.box(4.64, CT + i * 0.05, 8.52, 4.92, CT + 0.045 + i * 0.05, 8.8, i % 2 ? "#f7f4ee" : "#e8e4dc", { dim: dimK, noSub: true });
     }
-    R.box(4.66, CT, 8.9, 4.9, CT + 0.14, 9.1, "#e6ecf0", { dim: dimK });
-    R.box(4.64, CT, 9.2, 4.92, CT + 0.16, 9.4, "#e6ecf0", { dim: dimK });
+    R.box(4.66, CT, 8.9, 4.9, CT + 0.14, 9.1, "#e6ecf0", { dim: dimK, noSub: true });
+    R.box(4.64, CT, 9.2, 4.92, CT + 0.16, 9.4, "#e6ecf0", { dim: dimK, noSub: true });
     bbFood(4.78, CT, 9.7, 46, 0.34, (c, sx, sy, s) => SF.drawBag(c, sx, sy - 20 * s, s * 1.1, { items: [], label: null }), dimK);
-    // trash
     R.box(4.52, 0, 10.74, 4.94, 0.72, 11.16, "#41535e", { dim: dimK });
 
-    // ---- drinks + sides ----
+    // ================= drinks + sides =================
     R.box(DRINK.x0, 0.12, DRINK.z0, DRINK.x1, CT, DRINK.z1, { all: "#d8d5ce", top: "#aeb5bc" }, { dim: dimK });
     R.box(DRINK.x0, 0, DRINK.z0, DRINK.x1, 0.12, DRINK.z1, "#26292c", { dim: dimK });
-    R.box(0.4, CT, 13.5, 1.8, 1.9, 14.0, "#41535e", { dim: dimK });
+    R.box(0.4, CT, 13.5, 1.8, 1.95, 14.0, { all: "#41535e", top: "#37454d" }, { dim: dimK });
+    R.texWall("nz", 13.495, 0.4, 1.5, 1.8, 1.95, TEX.fountain, { dim: dimK, bias: -0.04 });
     VALVES.forEach((v) => {
-      R.box(v.x - 0.12, 1.22, 13.42, v.x + 0.12, 1.48, 13.52, SD.DRINKS[v.id].color, { dim: dimK });
-      R.box(v.x - 0.03, 1.06, 13.44, v.x + 0.03, 1.22, 13.5, "#1c2429", { dim: dimK });
+      R.box(v.x - 0.055, 1.3, 13.4, v.x + 0.055, 1.46, 13.52, "#c8cfd5", { dim: dimK, noSub: true });
+      R.box(v.x - 0.02, 1.14, 13.43, v.x + 0.02, 1.3, 13.48, "#1c2429", { dim: dimK, noSub: true });
+      R.box(v.x - 0.012, 1.2, 13.48, v.x + 0.012, 1.32, 13.55, "#e8ecef", { dim: dimK, noSub: true });
+      R.quad([[v.x - 0.05, 1.44, 13.395], [v.x + 0.05, 1.44, 13.395], [v.x + 0.05, 1.32, 13.395], [v.x - 0.05, 1.32, 13.395]], SD.DRINKS[v.id].color, { dim: dimK, noSub: true, bias: -0.03 });
+      if (state.holdFill && state.holdFill.valve === v.id) {
+        R.quad([[v.x - 0.012, 1.14, 13.455], [v.x + 0.012, 1.14, 13.455], [v.x + 0.012, CT + 0.08, 13.455], [v.x - 0.012, CT + 0.08, 13.455]], SD.DRINKS[v.id].color, { noSub: true, bias: -0.1 });
+      }
     });
-    R.box(0.42, CT, 13.3, 1.78, CT + 0.05, 13.6, "#8d979e", { dim: dimK });
+    R.box(0.42, CT, 13.3, 1.78, CT + 0.05, 13.6, "#8d979e", { dim: dimK, noSub: true });
     if (state.cupAtTray) bbFood(1.1, CT + 0.05, 13.45, 34, 0.24, (c, sx, sy, s) => SF.drawCup(c, sx, sy - 16 * s, s * 0.9, state.cupAtTray), dimK);
-    R.box(1.88, CT, 13.36, 2.06, CT + 0.36, 13.58, "#dde5ea", { dim: dimK });
-    R.box(2.12, CT, 13.38, 2.28, CT + 0.22, 13.56, "#e8ecef", { dim: dimK });
-    R.box(2.3, CT, 13.4, 2.4, CT + 0.28, 13.54, "#ee435b", { dim: dimK });
-    R.box(1.86, 1.62, 13.8, 2.56, 1.68, 14.0, "#8a6a42", { dim: dimK });
+    R.box(1.88, CT, 13.36, 2.06, CT + 0.36, 13.58, "#dde5ea", { dim: dimK, noSub: true });
+    R.box(2.12, CT, 13.38, 2.28, CT + 0.22, 13.56, "#e8ecef", { dim: dimK, noSub: true });
+    R.box(2.3, CT, 13.4, 2.4, CT + 0.28, 13.54, "#ee435b", { dim: dimK, noSub: true });
+    R.box(1.86, 1.62, 13.8, 2.56, 1.68, 14.0, "#8a6a42", { dim: dimK, noSub: true });
     SIDE_SHELF.forEach((sd) => {
       bbFood((sd.x0 + sd.x1) / 2, 1.68, 13.9, 24, 0.26, (c, sx, sy, s) => SF.drawSidePack(c, sx, sy - 12 * s, s, sd.id), dimK);
     });
-    R.box(0.3, 0.15, 13.18, 1.2, 0.8, 13.26, "#9fc4d8", { dim: dimK });
+    R.box(0.3, 0.15, 13.18, 1.2, 0.8, 13.26, "#9fc4d8", { dim: dimK, noSub: true });
 
-    // ---- pickup shelf (back-left) ----
-    for (const px of [-3.35, -1.65]) R.box(px - 0.04, 0, 13.5, px + 0.04, 2.0, 13.58, "#5b4a36", { dim: dimF });
-    for (const py of [0.9, 1.4, 1.9]) R.box(-3.39, py, 13.44, -1.61, py + 0.06, 13.96, "#8a6a42", { dim: dimF });
+    // ================= pickup shelf =================
+    for (const px of [-3.35, -1.65]) R.box(px - 0.04, 0, 13.5, px + 0.04, 2.0, 13.58, "#5b4a36", { dim: dimF, noSub: true });
+    for (const py of [0.9, 1.4, 1.9]) R.box(-3.39, py, 13.44, -1.61, py + 0.06, 13.96, "#8a6a42", { dim: dimF, noSub: true });
     state.shelf.forEach((slot) => {
       let ox = slot.x - (slot.items.length - 1) * 0.16;
       for (const it of slot.items) {
-        if (it.kind === "bag") bbFood(ox, slot.y + 0.01, 13.7, 46, 0.3, (c, sx, sy, s) => SF.drawBag(c, sx, sy - 18 * s, s * 0.95, it), dimF);
+        if (it.kind === "bag" && it.box) bbFood(ox, slot.y + 0.01, 13.7, 64, 0.42, (c, sx, sy, s) => SF.drawCateringBox(c, sx, sy - 12 * s, s, it), dimF);
+        else if (it.kind === "bag") bbFood(ox, slot.y + 0.01, 13.7, 46, 0.3, (c, sx, sy, s) => SF.drawBag(c, sx, sy - 18 * s, s * 0.95, it), dimF);
         else if (it.kind === "cup") bbFood(ox, slot.y + 0.01, 13.7, 34, 0.22, (c, sx, sy, s) => SF.drawCup(c, sx, sy - 14 * s, s * 0.85, it.cup), dimF);
         else bbFood(ox, slot.y + 0.03, 13.7, 24, 0.18, (c, sx, sy, s) => SF.drawSidePack(c, sx, sy - 6 * s, s * 0.8, it.side), dimF);
         ox += 0.32;
       }
     });
 
-    // messes
+    // ================= back of house =================
+    const BW = "#d8d4cc";
+    R.quad([[-1.5, 3.0, 14], [-1.5, 3.0, 18], [-1.5, 0, 18], [-1.5, 0, 14]], BW, { dim: dimK, bias: L_ROOM });
+    R.quad([[5, 3.0, 18], [5, 3.0, 14], [5, 0, 14], [5, 0, 18]], BW, { dim: dimK, bias: L_ROOM });
+    R.quad([[-1.5, 3.0, 18], [5, 3.0, 18], [5, 0, 18], [-1.5, 0, 18]], BW, { dim: dimK, bias: L_ROOM });
+    // walk-in cooler
+    R.box(3.2, 0, 16.7, 5, 2.4, 18, { all: "#b6bdc4", top: "#c8cfd5" }, { dim: dimK });
+    R.quad([[3.19, 2.15, 16.85], [3.19, 2.15, 17.9], [3.19, 0.08, 17.9], [3.19, 0.08, 16.85]], "#9aa2a8", { dim: dimK, bias: -0.04, noSub: true });
+    R.box(3.13, 1.0, 17.55, 3.2, 1.3, 17.65, "#5e666d", { dim: dimK, noSub: true });
+    // prep table with legs and undershelf
+    R.box(-0.2, 0.86, 15.1, 2.2, 0.92, 16.0, { all: "#aeb5bc", top: "#c8cfd5" }, { dim: dimK, noSub: true });
+    R.box(-0.2, 0.3, 15.1, 2.2, 0.34, 16.0, "#9aa2a8", { dim: dimK, noSub: true });
+    for (const lp of [[-0.18, 15.12], [2.12, 15.12], [-0.18, 15.92], [2.12, 15.92]]) {
+      R.box(lp[0], 0, lp[1], lp[0] + 0.06, 0.86, lp[1] + 0.06, "#7c848b", { dim: dimK, noSub: true });
+    }
+    bbFood(0.5, 0.92, 15.5, 56, 0.26, (c, sx, sy, s) => SF.drawMetalBowl(c, sx, sy - 5 * s, s, { items: [], sauce: null, mix: 0 }), dimK);
+    R.box(1.2, 0.92, 15.3, 1.8, 0.945, 15.8, "#e8dcc0", { dim: dimK, noSub: true });
+    // dry storage shelving
+    for (const sy of [0.35, 0.95, 1.55]) R.box(-1.45, sy, 14.4, -0.85, sy + 0.05, 16.6, "#8a8f96", { dim: dimK, noSub: true });
+    for (const pz2 of [14.42, 16.5]) {
+      R.box(-1.44, 0, pz2, -1.38, 1.95, pz2 + 0.06, "#5b6167", { dim: dimK, noSub: true });
+      R.box(-0.92, 0, pz2, -0.86, 1.95, pz2 + 0.06, "#5b6167", { dim: dimK, noSub: true });
+    }
+    R.box(-1.4, 0.4, 14.6, -0.95, 0.82, 15.2, "#b8935e", { dim: dimK, noSub: true });
+    R.box(-1.42, 0.4, 15.4, -1.0, 0.74, 15.9, "#a5824c", { dim: dimK, noSub: true });
+    R.box(-1.38, 1.0, 14.5, -0.98, 1.4, 15.0, "#b8935e", { dim: dimK, noSub: true });
+    R.box(-1.4, 1.6, 14.9, -1.02, 1.92, 15.5, "#c8a878", { dim: dimK, noSub: true });
+    // rice sacks
+    bbFood(-1.15, 1.0, 15.6, 40, 0.42, (c, sx, sy, s) => {
+      c.fillStyle = "#f0ece0";
+      c.beginPath(); c.roundRect(sx - 14 * s, sy - 34 * s, 28 * s, 34 * s, 6 * s); c.fill();
+      c.fillStyle = "#c8502e"; c.font = "700 " + Math.max(4, Math.round(9 * s)) + "px system-ui, sans-serif"; c.textAlign = "center";
+      c.fillText("RICE", sx, sy - 14 * s);
+    }, dimK);
+    // catering boxes on the middle shelf
+    bbFood(-1.15, 1.06, 16.0, 64, 0.4, (c, sx, sy, s) => SF.drawCateringBox(c, sx, sy - 12 * s, s, { items: [], label: null }), dimK);
+    // prep sink
+    R.box(0.6, 0.12, 17.5, 1.7, 0.9, 18, { all: "#9aa2a8", top: "#b6bdc4" }, { dim: dimK, noSub: true });
+    R.box(0.75, 0.78, 17.6, 1.55, 0.82, 17.95, "#6f767d", { dim: dimK, noSub: true });
+    R.box(1.05, 0.9, 17.9, 1.15, 1.32, 18, "#b6bdc4", { dim: dimK, noSub: true });
+    // mop bucket, trash, stacked boxes
+    R.box(2.4, 0, 17.5, 2.8, 0.4, 17.9, "#d9c04a", { dim: dimK, noSub: true });
+    R.box(2.55, 0.4, 17.65, 2.65, 1.4, 17.75, "#8a6a42", { dim: dimK, noSub: true });
+    R.box(4.3, 0, 14.3, 4.9, 0.7, 14.9, "#41535e", { dim: dimK, noSub: true });
+    R.box(-0.6, 0, 17.3, 0.2, 0.5, 17.95, "#b8935e", { dim: dimK, noSub: true });
+    R.box(-0.5, 0.5, 17.4, 0.1, 0.95, 17.9, "#a5824c", { dim: dimK, noSub: true });
+
+    // ================= dynamics =================
     for (const m of state.messes) {
       R.quad([[m.x - 0.11, m.y, m.z - 0.07], [m.x + 0.11, m.y, m.z - 0.07], [m.x + 0.11, m.y, m.z + 0.07], [m.x - 0.11, m.y, m.z + 0.07]],
-        "rgba(120,86,44,0.6)", { bias: -0.03 });
+        "rgba(120,86,44,0.6)", { bias: -0.03, noSub: true });
     }
-    // steam
     if (!RM) {
       for (const s of state.steam) {
         R.billboard(s.x, s.y, s.z, (c, sx, sy, scale) => {
@@ -2027,7 +2262,6 @@
         });
       }
     }
-    // customers
     for (const c of state.customers) {
       if (c.gone) continue;
       const cc = c;
@@ -2035,7 +2269,6 @@
         SF.drawPerson(g, sx, sy, { shirt: cc.shirt, skin: cc.skin, walkPhase: cc.walkPhase, walking: cc.walking, mood: cc.mood, scale: (scale * 1.78) / 72 });
       }, 0, dimAt(cc.x, cc.z) ? 0.6 : 0);
     }
-    // switch glow beacon in the dark
     if (!state.lights.kitchen) {
       R.billboard(4.9, 1.45, 3.02, (c, sx, sy, scale) => {
         const g = c.createRadialGradient(sx, sy, 2, sx, sy, 0.5 * scale);
@@ -2121,6 +2354,7 @@
         ctx.beginPath(); ctx.ellipse(x, y - 30, h.size === "large" ? 52 : 44, 15, 0, 0, 7); ctx.fill();
       }
       else if (h.kind === "cup") SF.drawCup(ctx, x, y - 45, 1.8, h.cup);
+      else if (h.kind === "bag" && h.box) SF.drawCateringBox(ctx, x, y - 45, 1.6, h);
       else if (h.kind === "bag") SF.drawBag(ctx, x, y - 45, 1.7, h);
       else if (h.kind === "side") SF.drawSidePack(ctx, x, y - 35, 1.8, h.side);
       else if (h.kind === "pinch") {
@@ -2136,6 +2370,16 @@
       : lv === "clean" ? "#9fd6c0" : "#8a6a4a";
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 1.5; ctx.stroke();
+    // on phones the DOM header is hidden, so the clock and score live here
+    if (mobileUI() && state.running) {
+      const txt = clockStr(state.min) + "   ·   " + state.score + " pts";
+      ctx.font = "700 15px system-ui, sans-serif";
+      const w = ctx.measureText(txt).width + 26;
+      ctx.fillStyle = "rgba(10,18,24,0.72)";
+      ctx.beginPath(); ctx.roundRect(VW / 2 - w / 2, 10, w, 30, 15); ctx.fill();
+      ctx.fillStyle = "#f4ede3"; ctx.textAlign = "center";
+      ctx.fillText(txt, VW / 2, 31);
+    }
   }
 
   // ---- floating DOM positioning -----------------------------------------
@@ -2147,6 +2391,59 @@
     const sx = s.x * (r.width / VW), sy = s.y * (r.height / VH);
     el.style.left = Math.max(8, Math.min(stage.width - 160, sx + (r.left - stage.left) - 70)) + "px";
     el.style.top = Math.max(8, sy + (r.top - stage.top)) + "px";
+  }
+
+  // ---- shift tasks + first-shift hints -----------------------------------
+  // High level only: what a manager would expect, never step-by-step clicks.
+  const TASKS = [
+    { t: "Get yourself ready", done: () => state.hands.level === "gloved" && !state.hands.dirtyGloves },
+    { t: "Rice pots on", done: () => state.cookers.every((c) => c.on || c.cooked) },
+    { t: "Stock the line", done: () => state.linePans.filter((s) => s.pan && !s.tin).length >= 6 },
+    { t: "Lights and sign on", done: () => state.lights.kitchen && state.lights.foh && state.sign },
+    { t: "Clear the tickets", done: () => state.min > OPEN_MIN && activeOrders().length === 0,
+      note: () => (activeOrders().length ? activeOrders().length + " open" : "") },
+    { t: "Hold it down till close", done: () => state.min >= CLOSE_MIN },
+  ];
+  let tasksAt = -9;
+  function renderTasks() {
+    if (state.clock - tasksAt < 1) return;
+    tasksAt = state.clock;
+    const list = document.getElementById("tasks-list");
+    if (!list || list.hidden) return;
+    list.innerHTML = TASKS.map((tk) => {
+      const d = tk.done();
+      const note = tk.note ? tk.note() : "";
+      return '<div class="task' + (d ? " done" : "") + '">' + (d ? "✓ " : "· ") + tk.t +
+        (note && !d ? " <span>" + note + "</span>" : "") + "</div>";
+    }).join("");
+  }
+  document.getElementById("tasks-toggle").addEventListener("click", () => {
+    const list = document.getElementById("tasks-list");
+    list.hidden = !list.hidden;
+    tasksAt = -9;
+    renderTasks();
+  });
+
+  // First shift only: a few quiet hints, then the game goes quiet.
+  const TUT = shiftsPlayed === 0 ? [
+    "You're opening today. Look around and get the store ready.",
+    "Drag to look. WASD, arrows, or the stick to walk.",
+    "Click things to use them. You hold one thing at a time.",
+    "The clipboard on the wall behind the line has the opening routine.",
+  ] : [];
+  let tutIdx = -1, tutAt = 0;
+  function stepTut() {
+    tutIdx++;
+    const el = document.getElementById("tut");
+    if (tutIdx >= TUT.length) { el.hidden = true; return; }
+    el.textContent = TUT[tutIdx];
+    el.hidden = false;
+    tutAt = state.clock;
+  }
+  document.getElementById("tut").addEventListener("click", stepTut);
+  function updateTut() {
+    if (tutIdx >= TUT.length || tutIdx < 0) return;
+    if (state.clock - tutAt > 7) stepTut();
   }
 
   // ---- music -------------------------------------------------------------
@@ -2296,6 +2593,10 @@
     if (window.PokeTrack) PokeTrack.hit("play", "shift");
     if (window.PokeStreak) PokeStreak.mark();
     music.start();
+    fitCanvas();
+    document.getElementById("tasks").hidden = false;
+    document.getElementById("tasks-list").hidden = shiftsPlayed !== 0;
+    if (TUT.length) stepTut();
     markProgress();
     state.lastProgress = 6;
   }
@@ -2315,6 +2616,8 @@
     state.over = true;
     music.stop();
     closeSheets();
+    document.getElementById("tasks").hidden = true;
+    document.getElementById("tut").hidden = true;
     for (const o of activeOrders()) { o.status = "lost"; state.lostCount++; }
     const total = state.served + state.lostCount;
     const avg = state.feedback.length
@@ -2359,6 +2662,7 @@
   document.getElementById("play-again-btn").addEventListener("click", () => location.reload());
 
   // ---- boot --------------------------------------------------------------
+  fitCanvas();
   document.getElementById("high-score").textContent = storedBest;
   document.getElementById("start-subtitle").textContent = shiftsPlayed === 0
     ? "Saturday. You open at 11. Nobody is coming to show you around."

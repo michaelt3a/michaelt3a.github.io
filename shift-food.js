@@ -168,11 +168,11 @@
       c.beginPath(); c.roundRect(x + 2, y + 2, w - 4, h - 4, 3); c.clip();
       // food occupies the lower portion as it empties
       const topY = y + 4 + (h - 8) * (1 - Math.min(1, fill)) * 0.55;
-      const n = Math.round((w * h) / 260 * Math.max(0.15, fill));
+      const n = Math.round((w * h) / 150 * Math.max(0.18, fill));
       const cr = Math.min(9, w / 11);
       // a darker bed under the chunks so gaps read as food, not steel
-      if (fill > 0.25) {
-        c.fillStyle = "rgba(0,0,0,0.16)";
+      if (fill > 0.2) {
+        c.fillStyle = "rgba(30,22,14,0.35)";
         c.beginPath(); c.roundRect(x + 3, topY, w - 6, y + h - topY, 3); c.fill();
       }
       const chunks = [];
@@ -463,22 +463,81 @@
       c.beginPath(); c.roundRect(x - 11 * s, y - 8 * s, 22 * s, 16 * s, 4 * s); c.fill();
       c.fillStyle = info.color;
       c.beginPath(); c.arc(x, y, 5.5 * s, 0, 7); c.fill();
-    } else if (sideId === "cookie") {
+    } else if (sideId === "miso") {
+      // paper soup cup with a lid
+      c.fillStyle = "#f0e8da";
+      c.beginPath();
+      c.moveTo(x - 7 * s, y + 9 * s); c.lineTo(x - 9 * s, y - 7 * s);
+      c.lineTo(x + 9 * s, y - 7 * s); c.lineTo(x + 7 * s, y + 9 * s);
+      c.closePath(); c.fill();
+      c.fillStyle = "#d9cfba";
+      c.beginPath(); c.roundRect(x - 10 * s, y - 10 * s, 20 * s, 4 * s, 2 * s); c.fill();
       c.fillStyle = info.color;
-      c.beginPath(); c.arc(x, y, 8 * s, 0, 7); c.fill();
-      c.fillStyle = "#6d4a2c";
-      c.beginPath(); c.arc(x - 3 * s, y - 2 * s, 1.4 * s, 0, 7); c.fill();
-      c.beginPath(); c.arc(x + 2 * s, y + 2 * s, 1.4 * s, 0, 7); c.fill();
-      c.beginPath(); c.arc(x + 3 * s, y - 3 * s, 1.2 * s, 0, 7); c.fill();
+      c.beginPath(); c.roundRect(x - 6 * s, y - 2 * s, 12 * s, 4 * s, 1.5 * s); c.fill();
+    } else if (sideId === "mac") {
+      // clear cup of kewpie mac, furikake on top
+      c.fillStyle = "rgba(230,238,242,0.7)";
+      c.beginPath();
+      c.moveTo(x - 7 * s, y + 9 * s); c.lineTo(x - 9 * s, y - 8 * s);
+      c.lineTo(x + 9 * s, y - 8 * s); c.lineTo(x + 7 * s, y + 9 * s);
+      c.closePath(); c.fill();
+      c.fillStyle = info.color;
+      c.beginPath(); c.ellipse(x, y + 1 * s, 6.5 * s, 6 * s, 0, 0, 7); c.fill();
+      c.fillStyle = "#e0d4b4";
+      for (let i = 0; i < 4; i++) {
+        c.beginPath(); c.arc(x - 4 * s + i * 2.6 * s, y + (i % 2) * 2.5 * s, 1.6 * s, 0.5, 5.5); c.stroke();
+      }
+      c.fillStyle = "#4a5a3a";
+      c.beginPath(); c.arc(x - 2 * s, y - 4 * s, 0.9 * s, 0, 7); c.fill();
+      c.beginPath(); c.arc(x + 2.5 * s, y - 3.5 * s, 0.9 * s, 0, 7); c.fill();
+    } else if (sideId === "edas") {
+      // chili crisp edamame cup
+      c.fillStyle = "rgba(230,238,242,0.7)";
+      c.beginPath();
+      c.moveTo(x - 7 * s, y + 9 * s); c.lineTo(x - 9 * s, y - 8 * s);
+      c.lineTo(x + 9 * s, y - 8 * s); c.lineTo(x + 7 * s, y + 9 * s);
+      c.closePath(); c.fill();
+      c.fillStyle = info.color;
+      for (let i = 0; i < 4; i++) {
+        c.beginPath();
+        c.ellipse(x - 4 * s + i * 2.8 * s, y - 1 * s + (i % 2) * 3 * s, 3.4 * s, 1.7 * s, 0.5 - i * 0.3, 0, 7);
+        c.fill();
+      }
+      c.fillStyle = "#c8502e";
+      c.beginPath(); c.arc(x - 2 * s, y - 4 * s, 1 * s, 0, 7); c.fill();
+      c.beginPath(); c.arc(x + 3 * s, y + 2 * s, 1 * s, 0, 7); c.fill();
     } else {
-      // chip bag
       c.fillStyle = info.color;
       c.beginPath(); c.roundRect(x - 9 * s, y - 12 * s, 18 * s, 24 * s, 3 * s); c.fill();
-      c.fillStyle = "rgba(255,255,255,0.3)";
-      c.beginPath(); c.roundRect(x - 9 * s, y - 12 * s, 18 * s, 4 * s, 2 * s); c.fill();
-      c.beginPath(); c.roundRect(x - 9 * s, y + 8 * s, 18 * s, 4 * s, 2 * s); c.fill();
-      c.fillStyle = "rgba(255,255,255,0.85)";
-      c.beginPath(); c.ellipse(x, y, 6.5 * s, 4.5 * s, 0, 0, 7); c.fill();
+    }
+  }
+
+  // ---- Catering box ------------------------------------------------------
+  function drawCateringBox(c, x, y, s, box) {
+    const w = 64 * s, h = 40 * s;
+    c.fillStyle = "rgba(0,0,0,0.12)";
+    c.beginPath(); c.ellipse(x, y + h * 0.52, w * 0.55, 4 * s, 0, 0, 7); c.fill();
+    c.fillStyle = "#b8935e";
+    c.beginPath(); c.roundRect(x - w / 2, y - h * 0.4, w, h * 0.9, 2 * s); c.fill();
+    c.fillStyle = "#a5824c";
+    c.beginPath(); c.roundRect(x - w / 2, y - h * 0.4, w, h * 0.22, 2 * s); c.fill();
+    c.strokeStyle = "#8a6a3e"; c.lineWidth = 1.6 * s;
+    c.beginPath(); c.moveTo(x, y - h * 0.4); c.lineTo(x, y - h * 0.18); c.stroke();
+    c.fillStyle = "#f4ede3"; c.font = "700 " + Math.round(7 * s) + "px system-ui, sans-serif"; c.textAlign = "center";
+    c.fillText("CATERING", x, y + h * 0.1);
+    if (box && box.label) {
+      c.fillStyle = "#fff";
+      c.beginPath(); c.roundRect(x - w * 0.28, y + h * 0.16, w * 0.56, h * 0.3, 2); c.fill();
+      c.fillStyle = "#333"; c.font = "700 " + Math.round(7 * s) + "px system-ui, sans-serif";
+      c.fillText("#" + box.label.num + " " + box.label.name, x, y + h * 0.38);
+    }
+    if (box && box.items.length) {
+      let ox = x - (box.items.length - 1) * 7 * s;
+      for (const it of box.items) {
+        c.fillStyle = it.kind === "bowl" ? "rgba(240,238,232,0.95)" : (it.color || "#d9a441");
+        c.beginPath(); c.ellipse(ox, y - h * 0.44, 8 * s, 3.4 * s, 0, 0, 7); c.fill();
+        ox += 14 * s;
+      }
     }
   }
 
@@ -570,7 +629,8 @@
     drawHotelPan: drawHotelPan, drawRiceCooker: drawRiceCooker,
     drawServingBowl: drawServingBowl, drawMetalBowl: drawMetalBowl,
     drawCup: drawCup, drawSauceBottle: drawSauceBottle, drawBag: drawBag,
-    drawSidePack: drawSidePack, drawUtensil: drawUtensil, drawPerson: drawPerson,
+    drawSidePack: drawSidePack, drawCateringBox: drawCateringBox,
+    drawUtensil: drawUtensil, drawPerson: drawPerson,
     riceFill: riceFill,
   };
 })();

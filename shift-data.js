@@ -45,11 +45,13 @@
     water:    { name: "Water",       color: "#bcd9e8" },
   };
 
+  // Real Pokeworks sides: miso soup, furikake mac salad, chili crisp
+  // edamame, and mochi from the freezer.
   const SIDES = {
-    taro:    { name: "Taro Chips",   where: "shelf",   color: "#8a63b0" },
-    wchips:  { name: "Wonton Chips", where: "shelf",   color: "#d9a441" },
-    mochi:   { name: "Mochi",        where: "freezer", color: "#8fd0a8" },
-    cookie:  { name: "Cookie",       where: "shelf",   color: "#a0714a" },
+    miso:   { name: "Miso Soup",     where: "shelf",   color: "#c9a05a" },
+    mac:    { name: "Mac Salad",     where: "shelf",   color: "#f0e6cf" },
+    edas:   { name: "Edamame",       where: "shelf",   color: "#7cc25e" },
+    mochi:  { name: "Mochi",         where: "freezer", color: "#8fd0a8" },
   };
 
   const RICES = { white: { name: "White Rice" }, brown: { name: "Brown Rice" } };

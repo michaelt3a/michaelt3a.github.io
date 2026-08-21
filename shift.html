@@ -7,7 +7,7 @@
   <meta name="description" content="Open the store, run your shift, figure it out." />
   <link rel="stylesheet" href="styles.css?v=28" />
   <link rel="stylesheet" href="theme.css?v=8" />
-  <link rel="stylesheet" href="shift.css?v=2" />
+  <link rel="stylesheet" href="shift.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
@@ -46,6 +46,15 @@
 
       <!-- quiet self-talk when the player is stuck; the only nudge in the game -->
       <div id="thought" class="shift-thought" hidden></div>
+
+      <!-- first-shift hints, tap to advance -->
+      <div id="tut" class="tut" hidden></div>
+
+      <!-- high-level shift tasks; details stay in the world -->
+      <div id="tasks" class="tasks" hidden>
+        <button id="tasks-toggle" class="tasks-toggle" type="button">📋 Shift</button>
+        <div id="tasks-list" class="tasks-list" hidden></div>
+      </div>
 
       <!-- Mahalo follow-ups after a handoff -->
       <div id="service-btns" class="svc-btns" hidden>
@@ -203,10 +212,10 @@
   <script src="supabase-config.js?v=2"></script>
   <script src="track.js?v=2"></script>
   <script src="arcade-sfx.js?v=2"></script>
-  <script src="shift-data.js?v=2"></script>
-  <script src="shift-food.js?v=2"></script>
-  <script src="shift-3d.js?v=2"></script>
-  <script src="shift.js?v=3"></script>
+  <script src="shift-data.js?v=3"></script>
+  <script src="shift-food.js?v=3"></script>
+  <script src="shift-3d.js?v=3"></script>
+  <script src="shift.js?v=4"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

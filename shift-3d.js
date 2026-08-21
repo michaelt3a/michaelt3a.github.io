@@ -44,6 +44,9 @@
     return tex.__avg;
   }
 
+  Renderer.prototype.resize = function (W, H, f) {
+    this.W = W; this.H = H; this.f = f;
+  };
   Renderer.prototype.begin = function () {
     this.prims.length = 0;
     this.seq = 0;
@@ -81,9 +84,41 @@
   }
 
   // quad: 4 world points (in texture order: (0,0),(w,0),(w,h),(0,h)),
-  // color string, opts {alpha, tex (canvas), bias, noCull}
+  // color string, opts {alpha, tex (canvas), bias, dim, noSub}
+  //
+  // Large flat-color quads are subdivided into tiles before sorting: a big
+  // surface sorted by its average depth will fight the small objects that
+  // stand on it, and tiles make the painter's sort behave like real depth.
+  const SUB = 1.25; // max tile edge in meters
+  function lerp3(a, b, t) {
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  }
   Renderer.prototype.quad = function (pts, color, opts) {
     opts = opts || {};
+    if (!opts.noSub) {
+      const eu = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1], pts[1][2] - pts[0][2]);
+      const ev = Math.hypot(pts[3][0] - pts[0][0], pts[3][1] - pts[0][1], pts[3][2] - pts[0][2]);
+      const step = opts.tex ? SUB * 1.4 : SUB;
+      const nu = Math.min(10, Math.ceil(eu / step)), nv = Math.min(10, Math.ceil(ev / step));
+      if (nu > 1 || nv > 1) {
+        for (let i = 0; i < nu; i++) {
+          for (let j = 0; j < nv; j++) {
+            const u0 = i / nu, u1 = (i + 1) / nu, v0 = j / nv, v1 = (j + 1) / nv;
+            const tile = [
+              lerp3(lerp3(pts[0], pts[1], u0), lerp3(pts[3], pts[2], u0), v0),
+              lerp3(lerp3(pts[0], pts[1], u1), lerp3(pts[3], pts[2], u1), v0),
+              lerp3(lerp3(pts[0], pts[1], u1), lerp3(pts[3], pts[2], u1), v1),
+              lerp3(lerp3(pts[0], pts[1], u0), lerp3(pts[3], pts[2], u0), v1),
+            ];
+            this._quad1(tile, color, opts, [u0, v0, u1, v1]);
+          }
+        }
+        return;
+      }
+    }
+    this._quad1(pts, color, opts, [0, 0, 1, 1]);
+  };
+  Renderer.prototype._quad1 = function (pts, color, opts, uv) {
     const v = [this.toView(pts[0]), this.toView(pts[1]), this.toView(pts[2]), this.toView(pts[3])];
     if (v[0][2] <= NEAR && v[1][2] <= NEAR && v[2][2] <= NEAR && v[3][2] <= NEAR) return;
     const clipped = (v[0][2] > NEAR && v[1][2] > NEAR && v[2][2] > NEAR && v[3][2] > NEAR) ? v : clipNear(v);
@@ -92,18 +127,49 @@
     for (const p of clipped) depth += p[2];
     depth /= clipped.length;
     const wasClipped = clipped !== v;
+    const spts = clipped.map((p) => this.project(p));
+    // skip prims entirely outside the viewport
+    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+    for (const p of spts) {
+      if (p[0] < minX) minX = p[0];
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] < minY) minY = p[1];
+      if (p[1] > maxY) maxY = p[1];
+    }
+    if (maxX < -20 || minX > this.W + 20 || maxY < -20 || minY > this.H + 20) return;
     this.prims.push({
       k: "q",
-      s: clipped.map((p) => this.project(p)),
+      s: spts,
       full: wasClipped ? null : v.map((p) => this.project(p)),
       depth: depth + (opts.bias || 0),
       seq: this.seq++,
       // a clipped textured quad can't be affine-mapped; fall back to the
       // texture's average color instead of flashing black
       color: opts.tex && wasClipped ? texAvg(opts.tex) : color,
-      alpha: opts.alpha, tex: opts.tex, dim: opts.dim || 0,
+      alpha: opts.alpha, tex: opts.tex, uv: uv, dim: opts.dim || 0,
     });
   };
+
+  // darkness is blended straight into the fill color, so adjacent tiles
+  // never double-darken along their antialiased edges
+  const dimCache = {};
+  function dimColor(color, dim) {
+    const key = color + "|" + dim;
+    let out = dimCache[key];
+    if (out) return out;
+    let r = 128, g = 128, b = 128;
+    if (color[0] === "#") {
+      const c = parse(color);
+      r = c[0]; g = c[1]; b = c[2];
+    } else {
+      const m = color.match(/(\d+)[, ]+(\d+)[, ]+(\d+)/);
+      if (m) { r = +m[1]; g = +m[2]; b = +m[3]; }
+    }
+    const k = 1 - dim;
+    out = "rgb(" + Math.round(r * k + 6 * dim) + "," + Math.round(g * k + 12 * dim) + "," + Math.round(b * k + 18 * dim) + ")";
+    dimCache[key] = out;
+    return out;
+  }
 
   // billboard: world anchor (feet), draw(ctx, sx, sy, scale) with scale =
   // screen pixels per world meter at that depth.
@@ -192,34 +258,30 @@
         if (p.dim) ctx.filter = "none";
         continue;
       }
-      const path = () => {
+      if (p.tex && p.full) {
+        const w = p.tex.width, h = p.tex.height;
+        const u0 = p.uv[0] * w, v0 = p.uv[1] * h, u1 = p.uv[2] * w, v1 = p.uv[3] * h;
+        if (p.dim) ctx.filter = "brightness(" + (1 - p.dim * 0.82).toFixed(2) + ")";
+        texTri(ctx, p.tex, p.full[0], p.full[1], p.full[2], u0, v0, u1, v0, u1, v1);
+        texTri(ctx, p.tex, p.full[0], p.full[2], p.full[3], u0, v0, u1, v1, u0, v1);
+        if (p.dim) ctx.filter = "none";
+      } else {
+        const col = p.dim ? dimColor(p.color, p.dim) : p.color;
         ctx.beginPath();
         ctx.moveTo(p.s[0][0], p.s[0][1]);
         for (let i = 1; i < p.s.length; i++) ctx.lineTo(p.s[i][0], p.s[i][1]);
         ctx.closePath();
-      };
-      if (p.tex && p.full) {
-        const w = p.tex.width, h = p.tex.height;
-        texTri(ctx, p.tex, p.full[0], p.full[1], p.full[2], 0, 0, w, 0, w, h);
-        texTri(ctx, p.tex, p.full[0], p.full[2], p.full[3], 0, 0, w, h, 0, h);
-      } else {
-        path();
         if (p.alpha !== undefined) ctx.globalAlpha = p.alpha;
-        ctx.fillStyle = p.color;
+        ctx.fillStyle = col;
         ctx.fill();
         if (p.alpha === undefined) {
           // hairline stroke in the fill color papers over sub-pixel seams
-          ctx.strokeStyle = p.color;
+          ctx.strokeStyle = col;
           ctx.lineWidth = 1;
           ctx.stroke();
         } else {
           ctx.globalAlpha = 1;
         }
-      }
-      if (p.dim) {
-        path();
-        ctx.fillStyle = "rgba(6,12,18," + p.dim + ")";
-        ctx.fill();
       }
     }
   };

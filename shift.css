@@ -226,7 +226,97 @@
 .fb-stars { color: #d9a520; }
 .fb-stars i { font-style: normal; opacity: 0.25; }
 
+/* first-shift hint banner, tap to advance */
+.tut {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(480px, 88%);
+  background: rgba(10, 18, 24, 0.88);
+  color: #f4ede3;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  padding: 0.55rem 0.9rem;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  cursor: pointer;
+  z-index: 7;
+}
+
+/* high-level shift tasks */
+.tasks {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 6;
+}
+.tasks-toggle {
+  background: rgba(10, 18, 24, 0.8);
+  color: #f4ede3;
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tasks-list {
+  margin-top: 0.4rem;
+  background: rgba(10, 18, 24, 0.82);
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 0.5rem 0.7rem;
+  min-width: 190px;
+}
+.task {
+  color: #f4ede3;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+.task span { color: #ffd15a; font-size: 0.72rem; }
+.task.done { color: #7fae8a; text-decoration: line-through; opacity: 0.75; }
+
 @media (max-width: 640px) {
   .sheet-inner { padding: 0.7rem 0.8rem; }
-  .pos-chip { font-size: 0.72rem; padding: 0.24rem 0.5rem; }
+}
+
+/* ---- phone layout: the game takes the whole screen ---- */
+@media (max-width: 760px) {
+  body:has(.shift-shell) { overflow: hidden; }
+  .shift-shell .hud,
+  .shift-shell + .back-link,
+  body:has(.shift-shell) .back-link { display: none; }
+  .shift-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    aspect-ratio: auto;
+    border-radius: 0;
+    width: 100dvw;
+    height: 100dvh;
+  }
+  .shift-thought { font-size: 1rem; max-width: 78%; }
+  .tut { font-size: 1rem; top: 52px; }
+  .tasks { top: 10px; left: 10px; }
+  .tasks-toggle { font-size: 0.95rem; padding: 0.45rem 1rem; }
+  .task { font-size: 0.95rem; }
+  .joy { width: 128px; height: 128px; left: 16px; bottom: 16px; }
+  .joy-knob { width: 54px; height: 54px; margin: -27px 0 0 -27px; }
+  .svc-btn { font-size: 0.95rem; padding: 0.5rem 0.9rem; }
+  .sheet-inner { font-size: 1.02rem; }
+  .pos-chip { font-size: 0.9rem; padding: 0.4rem 0.75rem; }
+  .pos-sec-h { font-size: 0.8rem; }
+  .pos-said { font-size: 0.95rem; }
+  .fv-item { font-size: 0.95rem; padding: 0.6rem 0.7rem; }
+  .tv-body { font-size: 1rem; }
+  .board-list { font-size: 1rem; }
+  .ask-opt { font-size: 0.95rem; padding: 0.6rem 1rem; }
+  .shift-stage .control-btn {
+    font-size: 1.1rem;
+    padding: 0.55rem 1.2rem;
+  }
 }
