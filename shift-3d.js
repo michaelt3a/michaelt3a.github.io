@@ -165,7 +165,7 @@
       if (p[1] < minY) minY = p[1];
       if (p[1] > maxY) maxY = p[1];
     }
-    if (maxX < -20 || minX > this.W + 20 || maxY < -20 || minY > this.H + 20) return;
+    if (maxX < -60 || minX > this.W + 60 || maxY < -60 || minY > this.H + 60) return;
     this.prims.push({
       k: "q",
       s: spts,
@@ -201,9 +201,15 @@
   // screen pixels per world meter at that depth.
   Renderer.prototype.billboard = function (x, y, z, draw, bias, dim) {
     const v = this.toView([x, y, z]);
-    if (v[2] <= NEAR) return;
-    const s = this.project(v);
-    this.prims.push({ k: "b", sx: s[0], sy: s[1], scale: this.f / v[2], depth: v[2] + (bias || 0), seq: this.seq++, draw: draw, dim: dim || 0 });
+    // don't hard-cull at the near plane: an item right beside the camera
+    // should slide off the screen edge, not blink out as you turn. The
+    // projection uses the true depth (so it leaves the frame naturally)
+    // while the draw scale is bounded so nothing explodes.
+    if (v[2] <= 0.04) return;
+    const zp = Math.max(v[2], 0.06);
+    const s = [this.W / 2 + (this.f * v[0]) / zp, this.H / 2 - (this.f * v[1]) / zp];
+    if (s[0] < -this.W || s[0] > this.W * 2 || s[1] < -this.H || s[1] > this.H * 2) return;
+    this.prims.push({ k: "b", sx: s[0], sy: s[1], scale: this.f / Math.max(v[2], 0.3), depth: v[2] + (bias || 0), seq: this.seq++, draw: draw, dim: dim || 0 });
   };
 
   // axis-aligned box; emits only the faces the camera can see.
